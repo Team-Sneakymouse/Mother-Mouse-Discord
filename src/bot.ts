@@ -5,7 +5,7 @@ config();
 const client = new Client({
 	intents: [
 		Intents.FLAGS.GUILDS,
-		//Intents.FLAGS.GUILD_MEMBERS,
+		Intents.FLAGS.GUILD_MEMBERS,
 		Intents.FLAGS.GUILD_MESSAGES,
 		Intents.FLAGS.GUILD_MESSAGE_REACTIONS,
 		Intents.FLAGS.GUILD_MESSAGE_TYPING,
@@ -19,6 +19,10 @@ client.once("ready", () => {
 // Simple, canned command responses from Twitch
 import TwitchCommands from "./TwitchCommands";
 TwitchCommands(client);
+
+// Assing default roles to new members
+import NewMemberRoles from "./NewMemberRoles";
+NewMemberRoles(client);
 
 const token = process.env.DISCORD_TOKEN;
 if (!token) throw new Error("No token found!");
