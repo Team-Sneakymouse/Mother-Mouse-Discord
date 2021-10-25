@@ -16,6 +16,10 @@ client.once("ready", () => {
 	console.log("Ready!");
 });
 
+// Simple, canned command responses from Twitch
+import TwitchCommands from "./TwitchCommands";
+TwitchCommands(client);
+
 const token = process.env.DISCORD_TOKEN;
 if (!token) throw new Error("No token found!");
 client.login(token);
