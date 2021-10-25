@@ -13,7 +13,7 @@ const client = new Client({
 });
 
 client.once("ready", () => {
-	console.log("Ready!");
+	console.log("Ready!", client.user?.tag);
 });
 
 // Simple, canned command responses from Twitch
@@ -31,6 +31,9 @@ RawbColor(client);
 // Vibecheck command
 import Vibecheck from "./Vibecheck";
 Vibecheck(client);
+
+import Roll from "./Roll";
+Roll(client);
 
 const token = process.env.DISCORD_TOKEN;
 if (!token) throw new Error("No token found!");

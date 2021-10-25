@@ -1,10 +1,7 @@
 import { REST } from "@discordjs/rest";
 import { Routes } from "discord-api-types/v9";
-import { ApplicationCommand } from "discord.js/typings/index.js";
 import { config } from "dotenv";
 config();
-
-const clientId = "713723936231129089";
 
 enum GuildIds {
 	TEST = "155020885521203200",
@@ -13,17 +10,17 @@ enum GuildIds {
 	SNEAKYRP = "725854554939457657",
 }
 
+import { data as Vibecheck } from "./src/Vibecheck";
+import { data as Roll } from "./src/Roll";
 const commands = {
-	global: [],
+	global: [Vibecheck, Roll],
 	[GuildIds.TEST]: [],
 	[GuildIds.RAWBTV]: [],
 	[GuildIds.TILII]: [],
 	[GuildIds.SNEAKYRP]: [],
 };
 
-import { data as Vibecheck } from "./src/Vibecheck";
-commands["global"].push(Vibecheck);
-
+const clientId = process.env.DISCORD_CLIENTID!;
 const rest = new REST({ version: "9" }).setToken(process.env.DISCORD_TOKEN!);
 
 (async () => {
@@ -32,10 +29,15 @@ const rest = new REST({ version: "9" }).setToken(process.env.DISCORD_TOKEN!);
 
 		for (const [guildId, guildCommands] of Object.entries(commands)) {
 			console.log(`Refreshing application commands for ${guildId}`);
-			if (guildId === "global") {
-				await rest.put(Routes.applicationCommands(clientId), { body: guildCommands });
-			} else {
-				await rest.put(Routes.applicationGuildCommands(clientId, guildId), { body: guildCommands });
+			try {
+				if (guildId === "global") {
+					await rest.put(Routes.applicationCommands(clientId), { body: guildCommands });
+				} else {
+					await rest.put(Routes.applicationGuildCommands(clientId, guildId), { body: guildCommands });
+				}
+			} catch (err) {
+				if ((err as any).code !== 50001) throw err;
+				console.error("Missing permission for " + guildId);
 			}
 		}
 
