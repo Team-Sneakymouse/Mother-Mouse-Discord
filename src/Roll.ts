@@ -14,7 +14,7 @@ export const data = new SlashCommandBuilder()
 		new SlashCommandBooleanOption().setName("private").setDescription("Shows this result only to you").setRequired(false)
 	);
 
-export default function Vibecheck(client: Client) {
+export default function Roll(client: Client) {
 	client.on("interactionCreate", (interaction) => {
 		if (interaction.isCommand() && interaction.commandName === "roll") {
 			const dice = interaction.options.getString("dice") || "";
