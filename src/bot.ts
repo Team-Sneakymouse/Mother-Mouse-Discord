@@ -24,9 +24,13 @@ TwitchCommands(client);
 import NewMemberRoles from "./NewMemberRoles";
 NewMemberRoles(client);
 
-// Swap rawb's role color
+// Swap rawb's role color when he sends messages
 import RawbColor from "./RawbColor";
 RawbColor(client);
+
+// Vibecheck command
+import Vibecheck from "./Vibecheck";
+Vibecheck(client);
 
 const token = process.env.DISCORD_TOKEN;
 if (!token) throw new Error("No token found!");
