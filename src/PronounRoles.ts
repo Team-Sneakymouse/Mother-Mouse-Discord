@@ -8,7 +8,7 @@ export const data = new SlashCommandBuilder()
 	.addSubcommand(
 		new SlashCommandSubcommandBuilder()
 			.setName("add")
-			.setDescription("Assign a role to yourself (If your pronouns/neopronouns are not available, please DM or ping Dani)")
+			.setDescription("Assign a role to yourself (If your (neo)pronouns are not available, please DM or ping DaniDipp)")
 			.addRoleOption(
 				new SlashCommandRoleOption()
 					.setName("role")
