@@ -1,13 +1,4 @@
-import {
-	Client,
-	CommandInteraction,
-	GuildMember,
-	MessageOptions,
-	MessagePayload,
-	Role,
-	SelectMenuInteraction,
-	TextChannel,
-} from "discord.js";
+import { Client, GuildMember, Role } from "discord.js";
 import { SlashCommandBuilder, SlashCommandRoleOption, SlashCommandSubcommandBuilder } from "@discordjs/builders";
 import { Redis } from "ioredis";
 
@@ -18,7 +9,12 @@ export const data = new SlashCommandBuilder()
 		new SlashCommandSubcommandBuilder()
 			.setName("add")
 			.setDescription("Assign a role to yourself (If your pronouns/neopronouns are not available, please DM or ping Dani)")
-			.addRoleOption(new SlashCommandRoleOption().setName("role").setDescription("The role to assign").setRequired(true))
+			.addRoleOption(
+				new SlashCommandRoleOption()
+					.setName("role")
+					.setDescription('The role to assign (type "/" to filter for pronouns)')
+					.setRequired(true)
+			)
 	)
 	.addSubcommand(
 		new SlashCommandSubcommandBuilder()
@@ -84,7 +80,7 @@ export default function PronounRoles(client: Client, redis: Redis) {
 			const roles = member.roles.cache.filter((role) => allRoles.includes(role.id)).map((role) => role.name);
 			if (roles.length === 0) {
 				return interaction.reply({
-					content: "You didn't set up any pronoun roles at the moment",
+					content: "You didn't set up any pronoun roles yet",
 					ephemeral: true,
 				});
 			}
@@ -98,7 +94,7 @@ export default function PronounRoles(client: Client, redis: Redis) {
 	client.on("messageCreate", async (message): Promise<any> => {
 		if (message.author.bot) return;
 		if (!message.guild) return;
-		//if (message.guild.id !== "391355330241757205") return; // Only rawb.tv server
+		if (message.guild.id !== "391355330241757205") return; // Only rawb.tv server
 
 		const params = message.content.split(" ");
 		if (params[0] !== "!pronouns") return;
