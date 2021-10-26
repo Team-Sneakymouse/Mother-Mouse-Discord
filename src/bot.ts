@@ -45,6 +45,7 @@ Roll(client);
 import PalsRoles from "./PalsRoles";
 PalsRoles(client, redis);
 
+// Self-assignable pronoun roles
 import PronounRoles from "./PronounRoles";
 PronounRoles(client, redis);
 
