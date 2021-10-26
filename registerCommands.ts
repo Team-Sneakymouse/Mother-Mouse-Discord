@@ -13,10 +13,11 @@ enum GuildIds {
 import { data as Vibecheck } from "./src/Vibecheck";
 import { data as Roll } from "./src/Roll";
 import { data as PalsRoles } from "./src/PalsRoles";
+import { data as PronounRoles } from "./src/PronounRoles";
 const commands = {
 	global: [Vibecheck, Roll],
-	[GuildIds.TEST]: [PalsRoles],
-	[GuildIds.RAWBTV]: [PalsRoles],
+	[GuildIds.TEST]: [],
+	[GuildIds.RAWBTV]: [PalsRoles, PronounRoles],
 	[GuildIds.TILII]: [],
 	[GuildIds.SNEAKYRP]: [],
 };

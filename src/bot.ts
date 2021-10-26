@@ -21,29 +21,32 @@ client.once("ready", () => {
 	console.log("Ready!", client.user?.tag);
 });
 
-// Simple, canned command responses from Twitch
-import TwitchCommands from "./TwitchCommands";
-TwitchCommands(client);
+// // Simple, canned command responses from Twitch
+// import TwitchCommands from "./TwitchCommands";
+// TwitchCommands(client);
+//
+// // Assing default roles to new members
+// import NewMemberRoles from "./NewMemberRoles";
+// NewMemberRoles(client);
+//
+// // Swap rawb's role color when he sends messages
+// import RawbColor from "./RawbColor";
+// RawbColor(client);
+//
+// // Vibecheck command
+// import Vibecheck from "./Vibecheck";
+// Vibecheck(client);
+//
+// // Rolling dice and evaluating math expressions
+// import Roll from "./Roll";
+// Roll(client);
+//
+// // Self-assignable roles for games
+// import PalsRoles from "./PalsRoles";
+// PalsRoles(client, redis);
 
-// Assing default roles to new members
-import NewMemberRoles from "./NewMemberRoles";
-NewMemberRoles(client);
-
-// Swap rawb's role color when he sends messages
-import RawbColor from "./RawbColor";
-RawbColor(client);
-
-// Vibecheck command
-import Vibecheck from "./Vibecheck";
-Vibecheck(client);
-
-// Rolling dice and evaluating math expressions
-import Roll from "./Roll";
-Roll(client);
-
-// Self-assignable roles for games
-import PalsRoles from "./PalsRoles";
-PalsRoles(client, redis);
+import PronounRoles from "./PronounRoles";
+PronounRoles(client, redis);
 
 const token = process.env.DISCORD_TOKEN;
 if (!token) throw new Error("No token found!");

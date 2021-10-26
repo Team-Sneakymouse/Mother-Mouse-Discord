@@ -1,7 +1,6 @@
 import {
 	Client,
 	CommandInteraction,
-	Emoji,
 	GuildMember,
 	MessageOptions,
 	MessagePayload,
@@ -11,6 +10,7 @@ import {
 } from "discord.js";
 import { SlashCommandBuilder, SlashCommandRoleOption, SlashCommandSubcommandBuilder } from "@discordjs/builders";
 import { Redis } from "ioredis";
+
 export const data = new SlashCommandBuilder()
 	.setName("pals")
 	.setDescription("Manage your game roles")
@@ -18,7 +18,12 @@ export const data = new SlashCommandBuilder()
 		new SlashCommandSubcommandBuilder()
 			.setName("join")
 			.setDescription("Assign a game role to yourself")
-			.addRoleOption(new SlashCommandRoleOption().setName("role").setDescription("The role to assign").setRequired(true))
+			.addRoleOption(
+				new SlashCommandRoleOption()
+					.setName("role")
+					.setDescription("The role to assign (type @pals to filter)")
+					.setRequired(true)
+			)
 	)
 	.addSubcommand(
 		new SlashCommandSubcommandBuilder()
@@ -27,12 +32,6 @@ export const data = new SlashCommandBuilder()
 			.addRoleOption(new SlashCommandRoleOption().setName("role").setDescription("The role to remove").setRequired(true))
 	)
 	.addSubcommand(new SlashCommandSubcommandBuilder().setName("list").setDescription("List all your game roles"));
-
-const CONFIRM_MESSAGE = {
-	prefix: "You are now part of the following groups:\n• ",
-	separator: "\n• ",
-	suffix: "",
-};
 
 export default function PalsRoles(client: Client, redis: Redis) {
 	client.on("interactionCreate", (interaction) => {
