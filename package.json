@@ -5,19 +5,21 @@
 		"dev": "docker run --rm -v \"${PWD}:/app\" -w /app --network db -t node:16-alpine npm run watch",
 		"watch": "concurrently -n TS,JS -c blue,yellow 'npm run watch-ts' 'npm run watch-js'",
 		"watch-ts": "tsc --watch --preserveWatchOutput",
-		"watch-js": "nodemon --watch ./dist --enable-source-maps dist/server.js"
+		"watch-js": "nodemon --watch ./dist --enable-source-maps --delay 2 dist/server.js"
 	},
 	"dependencies": {
 		"axios": "^0.23.0",
 		"discord.js": "^13.2.0",
 		"dotenv": "^10.0.0",
 		"form-data": "^4.0.0",
+		"ioredis": "^4.28.0",
 		"mathjs": "^9.5.1",
 		"mime-types": "^2.1.33"
 	},
 	"devDependencies": {
 		"@discordjs/builders": "^0.7.0",
 		"@discordjs/rest": "^0.1.0-canary.0",
+		"@types/ioredis": "^4.27.8",
 		"@types/mime-types": "^2.1.1",
 		"@types/node": "^16.11.4",
 		"concurrently": "^6.3.0",
