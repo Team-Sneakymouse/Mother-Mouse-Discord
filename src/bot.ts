@@ -49,6 +49,10 @@ PalsRoles(client, redis);
 import PronounRoles from "./PronounRoles";
 PronounRoles(client, redis);
 
+// TILII todo system
+import Todo from "./Todo";
+Todo(client);
+
 const token = process.env.DISCORD_TOKEN;
 if (!token) throw new Error("No token found!");
 client.login(token);

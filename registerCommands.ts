@@ -14,11 +14,12 @@ import { data as Vibecheck } from "./src/Vibecheck";
 import { data as Roll } from "./src/Roll";
 import { data as PalsRoles } from "./src/PalsRoles";
 import { data as PronounRoles } from "./src/PronounRoles";
+import { data as Todo } from "./src/Todo";
 const commands = {
 	global: [Vibecheck, Roll],
 	[GuildIds.TEST]: [],
 	[GuildIds.RAWBTV]: [PalsRoles, PronounRoles],
-	[GuildIds.TILII]: [],
+	[GuildIds.TILII]: [Todo],
 	[GuildIds.SNEAKYRP]: [],
 };
 
