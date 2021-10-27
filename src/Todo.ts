@@ -18,7 +18,7 @@ export default function Roll(client: Client) {
 	client.on("messageCreate", (message) => {
 		if (!message.guild) return;
 		if (message.channelId !== "877383821631320157") return;
-		if (message.author.id !== client.user?.id) return;
+		if (!message.author.bot) return;
 		message.delete();
 	});
 
