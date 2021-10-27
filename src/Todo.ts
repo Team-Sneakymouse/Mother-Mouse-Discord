@@ -25,6 +25,7 @@ export default function Roll(client: Client) {
 	client.on("interactionCreate", (interaction) => {
 		if (interaction.isCommand() && interaction.commandName == "todo") return handleTodoCommand(interaction);
 		if (interaction.isButton() && interaction.customId == "done") return handleDoneButton(interaction);
+		if (interaction.isButton() && interaction.customId == "reopen") return handleReopenButton(interaction);
 	});
 
 	async function handleTodoCommand(interaction: CommandInteraction) {
@@ -84,6 +85,26 @@ export default function Roll(client: Client) {
 			ephemeral: true,
 		});
 	}
+
+	async function handleReopenButton(interaction: ButtonInteraction) {
+		const item = interaction.message.embeds[0].description;
+		if (!item)
+			return interaction.reply({
+				content: "Item not found (embed description)",
+				ephemeral: true,
+			});
+
+		const message = interaction.message as Message;
+		await Promise.all([
+			message.edit(generateTodoMessage(item, interaction.message.embeds[0].author || undefined, false)),
+			message.thread?.setArchived(false),
+		]);
+
+		interaction.reply({
+			content: "Reopened",
+			ephemeral: true,
+		});
+	}
 }
 
 function generateTodoMessage(
@@ -95,14 +116,26 @@ function generateTodoMessage(
 		embeds: [
 			{
 				author: author,
-				description: done ? `~~${item}~~` : item,
+				description: done ? `~~${item}~~` : item.match(/^(?:~~)?(.*?)(?:~~)?$/)?.[1],
 				color: done ? "#202225" : "#A3A0E3",
 				timestamp: new Date(),
 			},
 		],
 		components: [],
 	};
-	if (!done) {
+	if (done) {
+		payload.components!.push({
+			type: "ACTION_ROW",
+			components: [
+				{
+					type: "BUTTON",
+					label: "Reopen",
+					customId: "reopen",
+					style: "DANGER",
+				},
+			],
+		});
+	} else {
 		payload.components!.push({
 			type: "ACTION_ROW",
 			components: [
