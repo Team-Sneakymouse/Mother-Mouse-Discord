@@ -18,7 +18,7 @@ export default function Roll(client: Client) {
 	client.on("messageCreate", (message) => {
 		if (!message.guild) return;
 		if (message.channelId !== "877383821631320157") return;
-		if (message.author.bot) return;
+		if (message.author.bot && !message.system) return;
 		message.delete();
 	});
 
@@ -60,6 +60,8 @@ export default function Roll(client: Client) {
 				ephemeral: true,
 			});
 		}
+
+		message.pin();
 		message.startThread({
 			name: item.length >= 100 ? item.substring(0, 99) + "\u2026" : item,
 			autoArchiveDuration: 1440,
@@ -80,6 +82,7 @@ export default function Roll(client: Client) {
 			message.thread?.setArchived(true),
 		]);
 
+		message.unpin();
 		interaction.reply({
 			content: "Marked as done",
 			ephemeral: true,
@@ -100,6 +103,7 @@ export default function Roll(client: Client) {
 			message.thread?.setArchived(false),
 		]);
 
+		message.pin();
 		interaction.reply({
 			content: "Reopened",
 			ephemeral: true,
