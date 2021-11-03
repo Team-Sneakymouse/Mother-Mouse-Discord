@@ -53,6 +53,10 @@ PronounRoles(client, redis);
 import Todo from "./Todo";
 Todo(client);
 
+// Manage crossing out milestone messages for money stream
+import MoneyMilestone from "./MoneyMilestone";
+MoneyMilestone(client);
+
 const token = process.env.DISCORD_TOKEN;
 if (!token) throw new Error("No token found!");
 client.login(token);

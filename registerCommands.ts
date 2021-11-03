@@ -15,10 +15,11 @@ import { data as Roll } from "./src/Roll";
 import { data as PalsRoles } from "./src/PalsRoles";
 import { data as PronounRoles } from "./src/PronounRoles";
 import { data as Todo } from "./src/Todo";
+import { data as MoneyMilestone } from "./src/MoneyMilestone";
 const commands = {
 	global: [Vibecheck, Roll],
 	[GuildIds.TEST]: [],
-	[GuildIds.RAWBTV]: [PalsRoles, PronounRoles],
+	[GuildIds.RAWBTV]: [PalsRoles, PronounRoles, MoneyMilestone],
 	[GuildIds.TILII]: [Todo],
 	[GuildIds.SNEAKYRP]: [],
 };
