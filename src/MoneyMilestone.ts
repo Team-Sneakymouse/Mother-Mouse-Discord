@@ -8,8 +8,8 @@ export default function MoneyMilestone(client: Client) {
 	client.on("interactionCreate", async (interaction) => {
 		if (interaction.isContextMenu() && interaction.commandName === "Mark as done") {
 			const msg = interaction.options.getMessage("message") as Message;
-			if (!msg.webhookId)
-				interaction.reply({
+			if (msg.webhookId == null)
+				return interaction.reply({
 					content: "Can't mark this message as done",
 					ephemeral: true,
 				});
@@ -19,7 +19,7 @@ export default function MoneyMilestone(client: Client) {
 			await webhook.editMessage(msg.id, {
 				content: `~~${content}~~`,
 			});
-			interaction.reply({
+			return interaction.reply({
 				content: "marked as done!",
 				ephemeral: true,
 			});
