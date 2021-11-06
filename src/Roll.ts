@@ -1,18 +1,20 @@
 import { Client } from "discord.js";
 import { SlashCommandBooleanOption, SlashCommandBuilder, SlashCommandStringOption } from "@discordjs/builders";
 import { evaluate } from "mathjs";
-export const data = new SlashCommandBuilder()
-	.setName("roll")
-	.setDescription("Roll dice to generate random numbers")
-	.addStringOption(
-		new SlashCommandStringOption()
-			.setName("dice")
-			.setDescription("The dice to roll (supports complex notation)")
-			.setRequired(true)
-	)
-	.addBooleanOption(
-		new SlashCommandBooleanOption().setName("private").setDescription("Shows this result only to you").setRequired(false)
-	);
+export const data = [
+	new SlashCommandBuilder()
+		.setName("roll")
+		.setDescription("Roll dice to generate random numbers")
+		.addStringOption(
+			new SlashCommandStringOption()
+				.setName("dice")
+				.setDescription("The dice to roll (supports complex notation)")
+				.setRequired(true)
+		)
+		.addBooleanOption(
+			new SlashCommandBooleanOption().setName("private").setDescription("Shows this result only to you").setRequired(false)
+		),
+];
 
 export default function Roll(client: Client) {
 	client.on("interactionCreate", (interaction) => {

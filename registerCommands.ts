@@ -18,10 +18,10 @@ import { data as Todo } from "./src/Todo";
 import { data as MoneyMilestone } from "./src/MoneyMilestone";
 import { data as Answers } from "./src/Answers";
 const commands = {
-	global: [Vibecheck, Roll, Answers],
+	global: [...Vibecheck, ...Roll, ...Answers],
 	[GuildIds.TEST]: [],
-	[GuildIds.RAWBTV]: [PalsRoles, PronounRoles, MoneyMilestone],
-	[GuildIds.TILII]: [Todo],
+	[GuildIds.RAWBTV]: [...PalsRoles, ...PronounRoles, ...MoneyMilestone],
+	[GuildIds.TILII]: [...Todo],
 	[GuildIds.SNEAKYRP]: [],
 };
 

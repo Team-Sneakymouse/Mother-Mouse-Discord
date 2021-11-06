@@ -3,32 +3,34 @@ import { SlashCommandBuilder, SlashCommandStringOption, SlashCommandSubcommandBu
 import { Redis } from "ioredis";
 import { AllowedMentionsTypes } from "discord.js/node_modules/discord-api-types";
 
-export const data = new SlashCommandBuilder()
-	.setName("card")
-	.setDescription("Submit cards for Sunday Stream")
-	.addSubcommand(
-		new SlashCommandSubcommandBuilder()
-			.setName("submit")
-			.setDescription("Submit a new card")
-			.addStringOption(
-				new SlashCommandStringOption().setName("text").setDescription("The text of the card").setRequired(true)
-			)
-	)
-	.addSubcommand(
-		new SlashCommandSubcommandBuilder()
-			.setName("options")
-			.setDescription("Manage Cards")
-			.addStringOption(
-				new SlashCommandStringOption()
-					.setName("action")
-					.setDescription("Action to perform")
-					.setRequired(true)
-					.addChoice("Generate File", "generate")
-					.addChoice("Clear Responses", "clear")
-					.addChoice("Stop Responses", "stop")
-					.addChoice("Allow Responses", "start")
-			)
-	);
+export const data = [
+	new SlashCommandBuilder()
+		.setName("card")
+		.setDescription("Submit cards for Sunday Stream")
+		.addSubcommand(
+			new SlashCommandSubcommandBuilder()
+				.setName("submit")
+				.setDescription("Submit a new card")
+				.addStringOption(
+					new SlashCommandStringOption().setName("text").setDescription("The text of the card").setRequired(true)
+				)
+		)
+		.addSubcommand(
+			new SlashCommandSubcommandBuilder()
+				.setName("options")
+				.setDescription("Manage Cards")
+				.addStringOption(
+					new SlashCommandStringOption()
+						.setName("action")
+						.setDescription("Action to perform")
+						.setRequired(true)
+						.addChoice("Generate File", "generate")
+						.addChoice("Clear Responses", "clear")
+						.addChoice("Stop Responses", "stop")
+						.addChoice("Allow Responses", "start")
+				)
+		),
+];
 
 const admins = ["90956966947467264", "138345057072840704", "181935746465136641", "140876176833904640", "391399998790696960"];
 

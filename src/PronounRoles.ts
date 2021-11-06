@@ -2,27 +2,31 @@ import { Client, GuildMember, Role } from "discord.js";
 import { SlashCommandBuilder, SlashCommandRoleOption, SlashCommandSubcommandBuilder } from "@discordjs/builders";
 import { Redis } from "ioredis";
 
-export const data = new SlashCommandBuilder()
-	.setName("pronouns")
-	.setDescription("Manage your pronoun roles")
-	.addSubcommand(
-		new SlashCommandSubcommandBuilder()
-			.setName("add")
-			.setDescription("Assign a role to yourself (If your (neo)pronouns are not available, please DM or ping DaniDipp)")
-			.addRoleOption(
-				new SlashCommandRoleOption()
-					.setName("role")
-					.setDescription('The role to assign (type "/" to filter for pronouns)')
-					.setRequired(true)
-			)
-	)
-	.addSubcommand(
-		new SlashCommandSubcommandBuilder()
-			.setName("remove")
-			.setDescription("Remove a pronoun role from yourself")
-			.addRoleOption(new SlashCommandRoleOption().setName("role").setDescription("The role to remove").setRequired(true))
-	)
-	.addSubcommand(new SlashCommandSubcommandBuilder().setName("list").setDescription("List all your pronoun roles"));
+export const data = [
+	new SlashCommandBuilder()
+		.setName("pronouns")
+		.setDescription("Manage your pronoun roles")
+		.addSubcommand(
+			new SlashCommandSubcommandBuilder()
+				.setName("add")
+				.setDescription("Assign a role to yourself (If your (neo)pronouns are not available, please DM or ping DaniDipp)")
+				.addRoleOption(
+					new SlashCommandRoleOption()
+						.setName("role")
+						.setDescription('The role to assign (type "/" to filter for pronouns)')
+						.setRequired(true)
+				)
+		)
+		.addSubcommand(
+			new SlashCommandSubcommandBuilder()
+				.setName("remove")
+				.setDescription("Remove a pronoun role from yourself")
+				.addRoleOption(
+					new SlashCommandRoleOption().setName("role").setDescription("The role to remove").setRequired(true)
+				)
+		)
+		.addSubcommand(new SlashCommandSubcommandBuilder().setName("list").setDescription("List all your pronoun roles")),
+];
 
 export default function PronounRoles(client: Client, redis: Redis) {
 	client.on("interactionCreate", async (interaction) => {

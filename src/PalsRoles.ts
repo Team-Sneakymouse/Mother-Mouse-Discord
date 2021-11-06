@@ -11,7 +11,7 @@ import {
 import { SlashCommandBuilder, SlashCommandRoleOption, SlashCommandSubcommandBuilder } from "@discordjs/builders";
 import { Redis } from "ioredis";
 
-export const data = new SlashCommandBuilder()
+export const data = [new SlashCommandBuilder()
 	.setName("pals")
 	.setDescription("Manage your game roles")
 	.addSubcommand(
@@ -31,7 +31,7 @@ export const data = new SlashCommandBuilder()
 			.setDescription("Remove a game role from yourself")
 			.addRoleOption(new SlashCommandRoleOption().setName("role").setDescription("The role to remove").setRequired(true))
 	)
-	.addSubcommand(new SlashCommandSubcommandBuilder().setName("list").setDescription("List all your game roles"));
+	.addSubcommand(new SlashCommandSubcommandBuilder().setName("list").setDescription("List all your game roles"))];
 
 export default function PalsRoles(client: Client, redis: Redis) {
 	client.on("interactionCreate", (interaction) => {

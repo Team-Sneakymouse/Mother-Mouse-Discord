@@ -9,10 +9,12 @@ import {
 	TextChannel,
 } from "discord.js";
 import { SlashCommandBuilder, SlashCommandStringOption } from "@discordjs/builders";
-export const data = new SlashCommandBuilder()
-	.setName("todo")
-	.setDescription("Add a todo")
-	.addStringOption(new SlashCommandStringOption().setName("item").setDescription("Item to add").setRequired(true));
+export const data = [
+	new SlashCommandBuilder()
+		.setName("todo")
+		.setDescription("Add a todo")
+		.addStringOption(new SlashCommandStringOption().setName("item").setDescription("Item to add").setRequired(true)),
+];
 
 export default function Roll(client: Client) {
 	client.on("messageCreate", (message) => {
