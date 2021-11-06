@@ -1,4 +1,4 @@
-import { Client, Message, MessageSelectMenu } from "discord.js";
+import { Client, Message } from "discord.js";
 import { ContextMenuCommandBuilder } from "@discordjs/builders";
 import { ApplicationCommandType } from "discord-api-types/v9";
 

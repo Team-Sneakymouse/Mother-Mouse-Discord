@@ -23,39 +23,49 @@ client.once("ready", () => {
 
 // Simple, canned command responses from Twitch
 import TwitchCommands from "./TwitchCommands";
-TwitchCommands(client);
 
 // Assing default roles to new members
 import NewMemberRoles from "./NewMemberRoles";
-NewMemberRoles(client);
 
 // Swap rawb's role color when he sends messages
 import RawbColor from "./RawbColor";
-RawbColor(client);
 
 // Vibecheck command
 import Vibecheck from "./Vibecheck";
-Vibecheck(client);
 
 // Rolling dice and evaluating math expressions
 import Roll from "./Roll";
-Roll(client);
 
 // Self-assignable roles for games
 import PalsRoles from "./PalsRoles";
-PalsRoles(client, redis);
 
 // Self-assignable pronoun roles
 import PronounRoles from "./PronounRoles";
-PronounRoles(client, redis);
 
 // TILII todo system
 import Todo from "./Todo";
-Todo(client);
 
 // Manage crossing out milestone messages for money stream
 import MoneyMilestone from "./MoneyMilestone";
-MoneyMilestone(client);
+
+// Manage card answers for sunday green screen stream
+import Answers from "./Answers";
+
+if (process.env.PRODUCTION == "TRUE") {
+	console.log("Registering production plugins");
+	TwitchCommands(client);
+	NewMemberRoles(client);
+	RawbColor(client);
+	Vibecheck(client);
+	Roll(client);
+	PalsRoles(client, redis);
+	PronounRoles(client, redis);
+	Todo(client);
+	MoneyMilestone(client);
+} else {
+	console.log("Registering development plugins");
+	Answers(client, redis);
+}
 
 const token = process.env.DISCORD_TOKEN;
 if (!token) throw new Error("No token found!");
