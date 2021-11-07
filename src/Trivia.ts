@@ -38,6 +38,25 @@ const admins = ["90956966947467264", "138345057072840704", "181935746465136641",
 const channel = "906895382456434698";
 
 export default function Trivia(client: Client, redis: Redis) {
+	client.on("messageCreate", async (message) => {
+		if (message.channel.id !== channel) return;
+		if (message.author.bot || message.author.id == "138345057072840704") return;
+
+		const text = message.content;
+		const user = message.author.username;
+
+		if (text.length > 80) {
+			const reply = await message.reply(`❌ Your answer is too long! (${text.length}/80 characters)`);
+			message.delete();
+			await new Promise((resolve) => setTimeout(resolve, 5000));
+			reply.delete();
+			return;
+		}
+
+		message.delete();
+		redis.hset("trivia:answers", user, text);
+	});
+
 	client.on("interactionCreate", async (interaction) => {
 		if (!interaction.isCommand()) return;
 		if (interaction.commandName !== "trivia") return;
@@ -56,7 +75,7 @@ export default function Trivia(client: Client, redis: Redis) {
 
 			if (text.length > 80) {
 				return interaction.reply({
-					content: `❌ The maximum text length is 80 characters. This answer is ${text.length} characters long.`,
+					content: `❌ Your answer is too long! (${text.length}/80 characters)`,
 					ephemeral: true,
 				});
 			}

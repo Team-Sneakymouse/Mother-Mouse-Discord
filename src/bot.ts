@@ -63,10 +63,9 @@ if (process.env.PRODUCTION == "TRUE") {
 	PronounRoles(client, redis);
 	Todo(client);
 	MoneyMilestone(client);
+	Trivia(client, redis);
 } else {
 	console.log("Registering development plugins");
-
-	Trivia(client, redis);
 }
 
 const token = process.env.DISCORD_TOKEN;
