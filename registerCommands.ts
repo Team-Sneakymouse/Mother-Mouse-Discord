@@ -16,11 +16,11 @@ import { data as PalsRoles } from "./src/PalsRoles";
 import { data as PronounRoles } from "./src/PronounRoles";
 import { data as Todo } from "./src/Todo";
 import { data as MoneyMilestone } from "./src/MoneyMilestone";
-import { data as Answers } from "./src/Answers";
+import { data as Trivia } from "./src/Trivia";
 const commands = {
-	global: [...Vibecheck, ...Roll, ...Answers],
+	global: [...Vibecheck, ...Roll],
 	[GuildIds.TEST]: [],
-	[GuildIds.RAWBTV]: [...PalsRoles, ...PronounRoles, ...MoneyMilestone],
+	[GuildIds.RAWBTV]: [...PalsRoles, ...PronounRoles, ...MoneyMilestone, ...Trivia],
 	[GuildIds.TILII]: [...Todo],
 	[GuildIds.SNEAKYRP]: [],
 };

@@ -48,11 +48,12 @@ import Todo from "./Todo";
 // Manage crossing out milestone messages for money stream
 import MoneyMilestone from "./MoneyMilestone";
 
-// Manage card answers for sunday green screen stream
-import Answers from "./Answers";
+// Manage trivia answers
+import Trivia from "./Trivia";
 
 if (process.env.PRODUCTION == "TRUE") {
 	console.log("Registering production plugins");
+
 	TwitchCommands(client);
 	NewMemberRoles(client);
 	RawbColor(client);
@@ -64,7 +65,8 @@ if (process.env.PRODUCTION == "TRUE") {
 	MoneyMilestone(client);
 } else {
 	console.log("Registering development plugins");
-	Answers(client, redis);
+
+	Trivia(client, redis);
 }
 
 const token = process.env.DISCORD_TOKEN;
