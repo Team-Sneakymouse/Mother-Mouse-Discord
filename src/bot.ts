@@ -30,6 +30,9 @@ import NewMemberRoles from "./NewMemberRoles";
 // Swap rawb's role color when he sends messages
 import RawbColor from "./RawbColor";
 
+// Convert video and sound links to embeds
+import MediaEmbed from "./MediaEmbeds";
+
 // Vibecheck command
 import Vibecheck from "./Vibecheck";
 
@@ -64,6 +67,7 @@ if (process.env.PRODUCTION == "TRUE") {
 	Todo(client);
 	MoneyMilestone(client);
 	Trivia(client, redis);
+	MediaEmbed(client);
 } else {
 	console.log("Registering development plugins");
 }
