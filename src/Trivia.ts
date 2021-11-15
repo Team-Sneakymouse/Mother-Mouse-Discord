@@ -61,7 +61,7 @@ export default function Trivia(client: Client, redis: Redis) {
 
 		const subCommand = interaction.options.getSubcommand();
 		if (subCommand === "answer") {
-			if (!((await redis.get("trivia:running")) === "true")) {
+			if (interaction.channelId !== "906895382456434698" && !((await redis.get("trivia:running")) === "true")) {
 				return interaction.reply({
 					content: "❌ Sorry, but the submission period has ended.",
 					ephemeral: true,
