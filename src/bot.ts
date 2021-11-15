@@ -14,6 +14,7 @@ const client = new Client({
 		Intents.FLAGS.GUILD_MESSAGES,
 		Intents.FLAGS.GUILD_MESSAGE_REACTIONS,
 		Intents.FLAGS.GUILD_MESSAGE_TYPING,
+		Intents.FLAGS.GUILD_VOICE_STATES,
 	],
 });
 
@@ -54,6 +55,9 @@ import MoneyMilestone from "./MoneyMilestone";
 // Manage trivia answers
 import Trivia from "./Trivia";
 
+// Manage permissions for the stage chat channel
+import StageChatChannel from "./StageChatChannel";
+
 if (process.env.PRODUCTION == "TRUE") {
 	console.log("Registering production plugins");
 
@@ -68,6 +72,7 @@ if (process.env.PRODUCTION == "TRUE") {
 	MoneyMilestone(client);
 	Trivia(client, redis);
 	MediaEmbed(client);
+	StageChatChannel(client);
 } else {
 	console.log("Registering development plugins");
 }
