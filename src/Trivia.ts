@@ -26,8 +26,6 @@ export const data = [
 						.setName("action")
 						.setDescription("Action to perform")
 						.setRequired(true)
-						.addChoice("Generate File", "generate")
-						.addChoice("Clear Responses", "clear")
 						.addChoice("Stop Responses", "stop")
 						.addChoice("Allow Responses", "start")
 				)
@@ -103,36 +101,22 @@ export default function Trivia(client: Client, redis: Redis) {
 				});
 
 			const action = interaction.options.getString("action", true);
-			if (action === "generate") {
-				const answers = await redis.hgetall("trivia:answers");
-				const answersString = Object.entries(answers)
-					.map(([user, text]) => `${user} | ${text}`)
-					.join("\n");
-				const answersBuffer = Buffer.from(answersString, "utf8");
-
-				return interaction.reply({
-					content: "Generating file...",
-					files: [new MessageAttachment(answersBuffer, "answers.txt")],
-					ephemeral: true,
-				});
-			}
-			if (action === "clear") {
-				const length = await redis.hlen("trivia:answers");
-				await redis.del("trivia:answers");
-				interaction.reply({
-					content: `✅ Cleared ${length} answers.`,
-					ephemeral: true,
-				});
-			}
 			if (action === "stop") {
-				const redisUpdate = redis.set("trivia:running", "false");
+				const answers = redis.hgetall("trivia:answers");
+				const redisUpdate1 = redis.set("trivia:running", "false");
+				const redisUpdate2 = redis.del("trivia:answers");
 				const triviaChannel = interaction.guild!.channels.cache.get(channel) as TextChannel;
 				const discordUpdate = triviaChannel.permissionOverwrites.create(triviaChannel.guild.roles.everyone, {
 					VIEW_CHANNEL: false,
 				});
-				await Promise.all([redisUpdate, discordUpdate]);
+				await Promise.all([redisUpdate1, redisUpdate2, discordUpdate]);
+				const answersString = Object.entries(await answers)
+					.map(([user, text]) => `${user} | ${text}`)
+					.join("\n");
+				const answersBuffer = Buffer.from(answersString, "utf8");
 				interaction.reply({
-					content: "✅ Stopped accepting responses.",
+					content: "✅ Stopped accepting responses and deleted answers. Here is the generated file:",
+					files: [new MessageAttachment(answersBuffer, "answers.txt")],
 					ephemeral: true,
 				});
 			}
