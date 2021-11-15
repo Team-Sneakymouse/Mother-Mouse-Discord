@@ -111,7 +111,7 @@ export default function Trivia(client: Client, redis: Redis) {
 				});
 				await Promise.all([redisUpdate1, redisUpdate2, discordUpdate]);
 				const answersString = Object.entries(await answers)
-					.map(([user, text]) => `${user.replaceAll("|", "¦")}|${text.replaceAll("|", "¦")}`)
+					.map(([user, text]) => `${user.replaceAll("|", "¦")} | ${text.replaceAll("|", "¦").replaceAll("\n", " ")}`)
 					.join("\n");
 				const answersBuffer = Buffer.from(answersString, "utf8");
 				interaction.reply({
