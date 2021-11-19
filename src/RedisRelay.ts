@@ -5,7 +5,7 @@ export default function RedisRelay(client: Client, redis: Redis) {
 	client.on("messageCreate", async (message) => {
 		if (message.author.bot) return;
 		if (!message.channelId) return;
-		if (message.channelId !== "886843392615677982" && message.channelId !== "167695190591537152") return;
+		if (message.channelId !== "911354514404171787") return;
 		if (!message.content.startsWith("!redis ")) return;
 
 		const [, command, ...args] = message.content.split(" ");
@@ -17,7 +17,7 @@ export default function RedisRelay(client: Client, redis: Redis) {
 				embeds: [
 					{
 						color: 0x00ff00,
-						description: "```json\n" + JSON.stringify(result, null, 2) + "\n```",
+						description: [command, ...args].join(" ") + "```json\n" + JSON.stringify(result, null, 2) + "\n```",
 					},
 				],
 			});
