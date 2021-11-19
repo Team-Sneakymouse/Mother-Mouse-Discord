@@ -61,6 +61,9 @@ import StageChatChannel from "./StageChatChannel";
 // Picture submission for the guess who game
 import GuessWho from "./GuessWho";
 
+// Execute Redis commands
+import RedisRelay from "./RedisRelay";
+
 if (process.env.PRODUCTION == "TRUE") {
 	console.log("Registering production plugins");
 
@@ -77,6 +80,7 @@ if (process.env.PRODUCTION == "TRUE") {
 	MediaEmbed(client);
 	StageChatChannel(client);
 	GuessWho(client, redis);
+	RedisRelay(client, redis);
 } else {
 	console.log("Registering development plugins");
 }
