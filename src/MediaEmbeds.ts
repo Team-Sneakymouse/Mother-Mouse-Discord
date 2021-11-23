@@ -18,15 +18,16 @@ export default function MediaEmbeds(client: Client) {
 			}
 
 			message.channel.sendTyping();
-			const res = await axios({
-				method: "get",
-				url: url.href,
-				responseType: "stream",
-			});
-
-			if (res.status !== 200) return;
 
 			try {
+				const res = await axios({
+					method: "get",
+					url: url.href,
+					responseType: "stream",
+				});
+
+				if (res.status !== 200) return;
+
 				await message.channel.send({
 					content: "\u00A0",
 					files: [new MessageAttachment(res.data as Stream, url.pathname.split("/").pop())],
