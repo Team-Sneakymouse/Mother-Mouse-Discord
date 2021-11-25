@@ -107,7 +107,7 @@ export default function Trivia(client: Client, redis: Redis) {
 				const redisUpdate2 = redis.del("trivia:answers");
 				const triviaChannel = interaction.guild!.channels.cache.get(channel) as TextChannel;
 				const discordUpdate = triviaChannel.permissionOverwrites.create(triviaChannel.guild.roles.everyone, {
-					VIEW_CHANNEL: false,
+					SEND_MESSAGES: false,
 				});
 				await Promise.all([redisUpdate1, redisUpdate2, discordUpdate]);
 				const answersString = Object.entries(await answers)
@@ -125,7 +125,7 @@ export default function Trivia(client: Client, redis: Redis) {
 				const triviaChannel = interaction.guild!.channels.cache.get(channel) as TextChannel;
 				const discordUpdate = triviaChannel.permissionOverwrites.delete(
 					triviaChannel.guild.roles.everyone,
-					"Make channel visible to start gathering responses"
+					"Allow sending of messages to start gathering responses"
 				);
 				await Promise.all([redisUpdate, discordUpdate]);
 				interaction.reply({
