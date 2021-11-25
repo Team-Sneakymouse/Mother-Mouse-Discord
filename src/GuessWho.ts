@@ -39,11 +39,11 @@ export default function GuessWho(client: Client, redis: Redis) {
 		const time = new Date().toISOString().replace("T", " ").split(".")[0] + "-" + String(i);
 		const extension = url.split(".").pop();
 
-		if (!existsSync(`./guesswho`)) {
-			await promises.mkdir(`./guesswho`);
+		if (!existsSync(`./share/guesswho`)) {
+			await promises.mkdir(`./share/guesswho`);
 		}
 
-		const file = createWriteStream(`./guesswho/${time}.${extension}`);
+		const file = createWriteStream(`./share/guesswho/${time}.${extension}`);
 		(res.data as Stream).pipe(file);
 
 		await new Promise((resolve) => {
