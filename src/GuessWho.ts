@@ -36,20 +36,23 @@ export default function GuessWho(client: Client, redis: Redis) {
 			responseType: "stream",
 		});
 
-		const time = new Date().toISOString().replace("T", " ").split(".")[0] + "-" + String(i);
-		const extension = url.split(".").pop();
-
 		if (!existsSync(`./share/guesswho`)) {
 			await promises.mkdir(`./share/guesswho`);
 		}
 
-		const file = createWriteStream(`./share/guesswho/${time}.${extension}`);
+		const time = new Date().toISOString().replace("T", " ").split(".")[0] + "-";
+		const extension = url.split(".").pop();
+		while (existsSync(`./share/guesswho/${time}${String(i)}.${extension}`)) {
+			i++;
+		}
+
+		const file = createWriteStream(`./share/guesswho/${time}${String(i)}.${extension}`);
 		(res.data as Stream).pipe(file);
 
 		await new Promise((resolve) => {
 			file.on("finish", resolve);
 		});
 
-		await redis.hset("guesswho", `${time}.${extension}`, name);
+		await redis.hset("guesswho", `${time}${String(i)}.${extension}`, name);
 	}
 }
