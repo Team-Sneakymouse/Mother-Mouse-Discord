@@ -11,4 +11,8 @@ export default function MediaEmbeds(client: Client, redis: Redis) {
 			typing.channel.send(`TOO SLOW! <:1robMyMan:805582449022337024> `),
 		]);
 	});
+	client.on("messageCreate", async (message) => {
+		if (message.guildId) return;
+		await redis.set(`mm-discord-tooslow:${message.author.id}`, "true", "EX", 900);
+	});
 }
