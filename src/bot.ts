@@ -9,6 +9,8 @@ const redis = new Redis({
 
 const client = new Client({
 	intents: [
+		Intents.FLAGS.DIRECT_MESSAGES,
+		Intents.FLAGS.DIRECT_MESSAGE_TYPING,
 		Intents.FLAGS.GUILDS,
 		Intents.FLAGS.GUILD_MEMBERS,
 		Intents.FLAGS.GUILD_MESSAGES,
@@ -16,6 +18,7 @@ const client = new Client({
 		Intents.FLAGS.GUILD_MESSAGE_TYPING,
 		Intents.FLAGS.GUILD_VOICE_STATES,
 	],
+	partials: ["CHANNEL"],
 });
 
 client.once("ready", () => {
@@ -64,6 +67,9 @@ import GuessWho from "./GuessWho";
 // Execute Redis commands
 import RedisRelay from "./RedisRelay";
 
+// Too Slow meme in DMs
+import TooSlow from "./TooSlow";
+
 if (process.env.PRODUCTION == "TRUE") {
 	console.log("Registering production plugins");
 
@@ -81,6 +87,7 @@ if (process.env.PRODUCTION == "TRUE") {
 	StageChatChannel(client);
 	GuessWho(client, redis);
 	RedisRelay(client, redis);
+	TooSlow(client, redis);
 } else {
 	console.log("Registering development plugins");
 }
