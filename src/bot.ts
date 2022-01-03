@@ -70,6 +70,9 @@ import RedisRelay from "./RedisRelay";
 // Too Slow meme in DMs
 import TooSlow from "./TooSlow";
 
+// Discord stats
+import Stats from "./Stats";
+
 if (process.env.PRODUCTION == "TRUE") {
 	console.log("Registering production plugins");
 
@@ -88,6 +91,7 @@ if (process.env.PRODUCTION == "TRUE") {
 	GuessWho(client, redis);
 	RedisRelay(client, redis);
 	TooSlow(client, redis);
+	Stats(client, redis);
 } else {
 	console.log("Registering development plugins");
 }
