@@ -73,6 +73,9 @@ import TooSlow from "./TooSlow";
 // Discord stats
 import Stats from "./Stats";
 
+// Allow users to pin messages in threads
+import ThreadPins from "./ThreadPins";
+
 if (process.env.PRODUCTION == "TRUE") {
 	console.log("Registering production plugins");
 
@@ -92,6 +95,7 @@ if (process.env.PRODUCTION == "TRUE") {
 	RedisRelay(client, redis);
 	TooSlow(client, redis);
 	Stats(client, redis);
+	ThreadPins(client);
 } else {
 	console.log("Registering development plugins");
 }
