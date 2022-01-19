@@ -53,7 +53,7 @@ import PronounRoles from "./PronounRoles";
 import Todo from "./Todo";
 
 // Manage crossing out milestone messages for money stream
-import MoneyMilestone from "./MoneyMilestone";
+// import MoneyMilestone from "./MoneyMilestone";
 
 // Manage trivia answers
 import Trivia from "./Trivia";
@@ -87,7 +87,7 @@ if (process.env.PRODUCTION == "TRUE") {
 	PalsRoles(client, redis);
 	PronounRoles(client, redis);
 	Todo(client);
-	MoneyMilestone(client);
+	// MoneyMilestone(client);
 	Trivia(client, redis);
 	MediaEmbed(client);
 	StageChatChannel(client);
