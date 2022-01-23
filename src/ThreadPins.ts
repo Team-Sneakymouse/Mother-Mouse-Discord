@@ -5,6 +5,7 @@ export const data = [new ContextMenuCommandBuilder().setType(ApplicationCommandT
 
 const allowedThreads = [
 	"893307440551067648", // Sneakymouse Recipes
+	"928544850691891221", // Wordle Bragging
 ];
 
 export default function ThreadPins(client: Client) {
