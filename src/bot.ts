@@ -76,6 +76,9 @@ import Stats from "./Stats";
 // Allow users to pin messages in threads
 import ThreadPins from "./ThreadPins";
 
+// Meme responsibly easteregg
+import MemeResponsibly from "./MemeResponsibly";
+
 if (process.env.PRODUCTION == "TRUE") {
 	console.log("Registering production plugins");
 
@@ -96,6 +99,7 @@ if (process.env.PRODUCTION == "TRUE") {
 	TooSlow(client, redis);
 	Stats(client, redis);
 	ThreadPins(client);
+	MemeResponsibly(client);
 } else {
 	console.log("Registering development plugins");
 }
