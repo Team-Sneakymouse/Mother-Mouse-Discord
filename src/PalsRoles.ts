@@ -1,6 +1,8 @@
 import {
+	ChatInputCommandInteraction,
 	Client,
 	CommandInteraction,
+	ComponentType,
 	GuildMember,
 	MessageOptions,
 	MessagePayload,
@@ -11,31 +13,35 @@ import {
 import { SlashCommandBuilder, SlashCommandRoleOption, SlashCommandSubcommandBuilder } from "@discordjs/builders";
 import { Redis } from "ioredis";
 
-export const data = [new SlashCommandBuilder()
-	.setName("pals")
-	.setDescription("Manage your game roles")
-	.addSubcommand(
-		new SlashCommandSubcommandBuilder()
-			.setName("join")
-			.setDescription("Assign a game role to yourself")
-			.addRoleOption(
-				new SlashCommandRoleOption()
-					.setName("role")
-					.setDescription("The role to assign (type @pals to filter)")
-					.setRequired(true)
-			)
-	)
-	.addSubcommand(
-		new SlashCommandSubcommandBuilder()
-			.setName("leave")
-			.setDescription("Remove a game role from yourself")
-			.addRoleOption(new SlashCommandRoleOption().setName("role").setDescription("The role to remove").setRequired(true))
-	)
-	.addSubcommand(new SlashCommandSubcommandBuilder().setName("list").setDescription("List all your game roles"))];
+export const data = [
+	new SlashCommandBuilder()
+		.setName("pals")
+		.setDescription("Manage your game roles")
+		.addSubcommand(
+			new SlashCommandSubcommandBuilder()
+				.setName("join")
+				.setDescription("Assign a game role to yourself")
+				.addRoleOption(
+					new SlashCommandRoleOption()
+						.setName("role")
+						.setDescription("The role to assign (type @pals to filter)")
+						.setRequired(true)
+				)
+		)
+		.addSubcommand(
+			new SlashCommandSubcommandBuilder()
+				.setName("leave")
+				.setDescription("Remove a game role from yourself")
+				.addRoleOption(
+					new SlashCommandRoleOption().setName("role").setDescription("The role to remove").setRequired(true)
+				)
+		)
+		.addSubcommand(new SlashCommandSubcommandBuilder().setName("list").setDescription("List all your game roles")),
+];
 
 export default function PalsRoles(client: Client, redis: Redis) {
 	client.on("interactionCreate", (interaction) => {
-		if (interaction.isCommand() && interaction.commandName == "pals") return handlePalsCommand(interaction);
+		if (interaction.isChatInputCommand() && interaction.commandName == "pals") return handlePalsCommand(interaction);
 		if (interaction.isSelectMenu() && interaction.customId == "palsSelect") return handleRolesUpdate(interaction);
 	});
 
@@ -112,7 +118,7 @@ export default function PalsRoles(client: Client, redis: Redis) {
 		}
 	});
 
-	async function handlePalsCommand(interaction: CommandInteraction) {
+	async function handlePalsCommand(interaction: ChatInputCommandInteraction) {
 		const subCommand = interaction.options.getSubcommand();
 		if (subCommand === "join") {
 			const allRoles = await redis.smembers(`DiscordPalsRoles:${interaction.guildId}`);
@@ -184,7 +190,7 @@ export default function PalsRoles(client: Client, redis: Redis) {
 	}
 }
 
-function getPalsMessage(roles: Role[]): MessageOptions | MessagePayload {
+function getPalsMessage(roles: Role[]) {
 	return {
 		content: "\u00A0",
 		embeds: [
@@ -194,15 +200,15 @@ function getPalsMessage(roles: Role[]): MessageOptions | MessagePayload {
 		],
 		components: [
 			{
-				type: "ACTION_ROW",
+				type: ComponentType.ActionRow,
 				components: [
 					{
-						type: "SELECT_MENU",
+						type: ComponentType.SelectMenu,
 						customId: "palsSelect",
 						options: roles.map((role) => ({
 							label: role.name,
 							value: role.id,
-							emoji: role.client.emojis.cache.get(role.id),
+							emoji: undefined, //role.client.emojis.cache.get(role.id)
 						})),
 						maxValues: roles.length,
 						minValues: 0,

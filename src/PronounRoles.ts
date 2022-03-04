@@ -30,7 +30,7 @@ export const data = [
 
 export default function PronounRoles(client: Client, redis: Redis) {
 	client.on("interactionCreate", async (interaction) => {
-		if (!interaction.isCommand()) return;
+		if (!interaction.isChatInputCommand()) return;
 		if (interaction.commandName !== "pronouns") return;
 
 		const subCommand = interaction.options.getSubcommand();

@@ -18,7 +18,7 @@ export const data = [
 
 export default function Roll(client: Client) {
 	client.on("interactionCreate", (interaction) => {
-		if (interaction.isCommand() && interaction.commandName === "roll") {
+		if (interaction.isChatInputCommand() && interaction.commandName === "roll") {
 			const dice = interaction.options.getString("dice") || "";
 			const ephemeral = interaction.options.getBoolean("private") || false;
 

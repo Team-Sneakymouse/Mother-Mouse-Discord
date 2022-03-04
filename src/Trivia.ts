@@ -56,7 +56,7 @@ export default function Trivia(client: Client, redis: Redis) {
 	});
 
 	client.on("interactionCreate", async (interaction) => {
-		if (!interaction.isCommand()) return;
+		if (!interaction.isChatInputCommand()) return;
 		if (interaction.commandName !== "trivia") return;
 
 		const subCommand = interaction.options.getSubcommand();
@@ -107,7 +107,7 @@ export default function Trivia(client: Client, redis: Redis) {
 				const redisUpdate2 = redis.del("trivia:answers");
 				const triviaChannel = interaction.guild!.channels.cache.get(channel) as TextChannel;
 				const discordUpdate = triviaChannel.permissionOverwrites.create(triviaChannel.guild.roles.everyone, {
-					SEND_MESSAGES: false,
+					SendMessages: false,
 				});
 				await Promise.all([redisUpdate1, redisUpdate2, discordUpdate]);
 				const answersString = Object.entries(await answers)

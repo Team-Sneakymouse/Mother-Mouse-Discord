@@ -6,7 +6,7 @@ export const data = [new ContextMenuCommandBuilder().setType(ApplicationCommandT
 
 export default function MoneyMilestone(client: Client) {
 	client.on("interactionCreate", async (interaction) => {
-		if (interaction.isContextMenu() && interaction.commandName === "Mark as done") {
+		if (interaction.isContextMenuCommand() && interaction.commandName === "Mark as done") {
 			const msg = interaction.options.getMessage("message") as Message;
 			if (msg.webhookId == null)
 				return interaction.reply({

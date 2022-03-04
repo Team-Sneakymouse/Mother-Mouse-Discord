@@ -10,8 +10,7 @@ const allowedThreads = [
 
 export default function ThreadPins(client: Client) {
 	client.on("interactionCreate", (interaction) => {
-		if (!interaction.isContextMenu()) return;
-		if (!interaction.isMessageContextMenu()) return;
+		if (!interaction.isMessageContextMenuCommand()) return;
 		if (interaction.commandName !== "Pin Message") return;
 
 		if (!interaction.channel?.isThread())

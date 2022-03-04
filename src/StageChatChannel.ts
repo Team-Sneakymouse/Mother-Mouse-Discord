@@ -21,7 +21,7 @@ export default function StageChatChannel(client: Client) {
 			const chatChannel = client.channels.cache.get(textChannel) as TextChannel;
 			console.log(`${newState.member!.displayName} has joined the stage!`);
 			await chatChannel.permissionOverwrites.create(newState.member!.id, {
-				VIEW_CHANNEL: true,
+				ViewChannel: true,
 			});
 		} else if (channelLeave(oldState.channelId, newState.channelId)) {
 			const chatChannel = client.channels.cache.get(textChannel) as TextChannel;

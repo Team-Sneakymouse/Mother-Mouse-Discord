@@ -2,8 +2,6 @@ import axios from "axios";
 import { Client, MessageAttachment } from "discord.js";
 import { Stream } from "node:stream";
 
-var changeBackTimeout: NodeJS.Timeout;
-
 export default function MediaEmbeds(client: Client) {
 	client.on("messageCreate", async (message) => {
 		if (!message.guild) return;

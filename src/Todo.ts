@@ -1,14 +1,17 @@
 import {
 	ButtonInteraction,
+	ButtonStyle,
+	ChatInputCommandInteraction,
 	Client,
 	CommandInteraction,
+	ComponentType,
 	Message,
-	MessageEmbedAuthor,
 	MessageOptions,
 	MessagePayload,
 	TextChannel,
+	Util,
 } from "discord.js";
-import { SlashCommandBuilder, SlashCommandStringOption } from "@discordjs/builders";
+import { AuthorOptions, SlashCommandBuilder, SlashCommandStringOption } from "@discordjs/builders";
 export const data = [
 	new SlashCommandBuilder()
 		.setName("todo")
@@ -25,12 +28,12 @@ export default function Roll(client: Client) {
 	});
 
 	client.on("interactionCreate", (interaction) => {
-		if (interaction.isCommand() && interaction.commandName == "todo") return handleTodoCommand(interaction);
+		if (interaction.isChatInputCommand() && interaction.commandName == "todo") return handleTodoCommand(interaction);
 		if (interaction.isButton() && interaction.customId == "done") return handleDoneButton(interaction);
 		if (interaction.isButton() && interaction.customId == "reopen") return handleReopenButton(interaction);
 	});
 
-	async function handleTodoCommand(interaction: CommandInteraction) {
+	async function handleTodoCommand(interaction: ChatInputCommandInteraction) {
 		const item = interaction.options.getString("item");
 		if (!item)
 			return interaction.reply({
@@ -113,46 +116,40 @@ export default function Roll(client: Client) {
 	}
 }
 
-function generateTodoMessage(
-	item: string,
-	author: MessageEmbedAuthor | undefined,
-	done = false
-): MessageOptions | MessagePayload {
-	const payload: MessageOptions | MessagePayload = {
+function generateTodoMessage(item: string, author: AuthorOptions | undefined, done = false) {
+	return {
 		embeds: [
 			{
 				author: author,
 				description: done ? `~~${item}~~` : item.match(/^(?:~~)?(.*?)(?:~~)?$/)?.[1],
-				color: done ? "#202225" : "#A3A0E3",
-				timestamp: new Date(),
+				color: Util.resolveColor(done ? "#202225" : "#A3A0E3"),
+				timestamp: new Date().toISOString(),
 			},
 		],
-		components: [],
+		components: [
+			done
+				? {
+						type: ComponentType.ActionRow,
+						components: [
+							{
+								type: ComponentType.Button,
+								label: "Reopen",
+								customId: "reopen",
+								style: ButtonStyle.Danger,
+							},
+						],
+				  }
+				: {
+						type: ComponentType.ActionRow,
+						components: [
+							{
+								type: ComponentType.Button,
+								label: "Done",
+								customId: "done",
+								style: ButtonStyle.Primary,
+							},
+						],
+				  },
+		],
 	};
-	if (done) {
-		payload.components!.push({
-			type: "ACTION_ROW",
-			components: [
-				{
-					type: "BUTTON",
-					label: "Reopen",
-					customId: "reopen",
-					style: "DANGER",
-				},
-			],
-		});
-	} else {
-		payload.components!.push({
-			type: "ACTION_ROW",
-			components: [
-				{
-					type: "BUTTON",
-					label: "Done",
-					customId: "done",
-					style: "PRIMARY",
-				},
-			],
-		});
-	}
-	return payload;
 }

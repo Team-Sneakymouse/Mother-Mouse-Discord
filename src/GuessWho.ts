@@ -1,5 +1,5 @@
 import axios from "axios";
-import { Client, MessageSelectMenu } from "discord.js";
+import { Client } from "discord.js";
 import { createWriteStream, existsSync, promises } from "fs";
 import { Redis } from "ioredis";
 import { Stream } from "stream";
