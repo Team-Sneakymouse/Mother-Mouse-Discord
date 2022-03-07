@@ -24,7 +24,7 @@ const commands = {
 	global: [...Vibecheck, ...Roll],
 	[GuildIds.TEST]: [...Gitlab],
 	[GuildIds.RAWBTV]: [...PalsRoles, ...PronounRoles, ...Trivia, ...ThreadPins],
-	[GuildIds.TILII]: [],
+	[GuildIds.TILII]: [...Gitlab],
 	[GuildIds.SNEAKYRP]: [],
 };
 
