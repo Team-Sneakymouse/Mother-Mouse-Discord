@@ -163,8 +163,8 @@ export default function init(client: Client, redis: Redis, gitlab: InstanceType<
 						: comment.body.match(/\*\*([^\*]+)\*\*/)?.[1] || comment.author.username,
 					avatarURL: comment.body.match(/\[Profile Image\]\(([^?)]+)[^)]*\)/)?.[1] || comment.author.avatar_url,
 					content: (comment.body.split("\n---\n")[1] || comment.body).replaceAll(
-						/!?\[[^\]+]\]\(\/([^\)]+)\)/g,
-						project.web_url + "/$1"
+						/!?\[([^\]]+)\]\(\/([^\)]+)\)/g,
+						`[$1](${project.web_url}/$2)`
 					),
 				});
 			} else {
