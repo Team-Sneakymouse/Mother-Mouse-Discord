@@ -1,8 +1,7 @@
 import { Client, Message } from "discord.js";
 import { ContextMenuCommandBuilder } from "@discordjs/builders";
-import { ApplicationCommandType } from "discord-api-types/v9";
 
-export const data = [new ContextMenuCommandBuilder().setType(ApplicationCommandType.Message).setName("Mark as done")];
+export const data = [new ContextMenuCommandBuilder().setType(3).setName("Mark as done")];
 
 export default function MoneyMilestone(client: Client) {
 	client.on("interactionCreate", async (interaction) => {

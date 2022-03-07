@@ -1,7 +1,8 @@
 import { ContextMenuCommandBuilder } from "@discordjs/builders";
-import { ApplicationCommandType } from "discord-api-types";
-import { Client, Message } from "discord.js";
-export const data = [new ContextMenuCommandBuilder().setType(ApplicationCommandType.Message).setName("Pin Message")];
+import { ApplicationCommandType, Client, Message } from "discord.js";
+
+const type: number = ApplicationCommandType.Message; //wtf
+export const data = [new ContextMenuCommandBuilder().setType(type).setName("Pin Message")];
 
 const allowedThreads = [
 	"893307440551067648", // Sneakymouse Recipes

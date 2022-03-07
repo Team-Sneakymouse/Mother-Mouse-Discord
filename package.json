@@ -2,15 +2,17 @@
 	"scripts": {
 		"start": "node --enable-source-maps dist/bot.js",
 		"build": "tsc",
-		"dev": "docker run --rm -v \"${PWD}:/app\" -w /app --network db -t node:16-alpine npm run watch",
+		"dev": "docker run --rm -v \"${PWD}:/app\" -w /app -p 80:80 --network db -t node:16-alpine npm run watch",
 		"watch": "concurrently -n TS,JS -c blue,yellow 'npm run watch-ts' 'npm run watch-js'",
 		"watch-ts": "tsc --watch --preserveWatchOutput",
 		"watch-js": "nodemon --watch ./dist --enable-source-maps --delay 2 dist/server.js"
 	},
 	"dependencies": {
+		"@gitbeaker/node": "^35.4.0",
 		"axios": "^0.23.0",
-		"discord.js": "^14.0.0-dev.1646395406.6f7a366",
+		"discord.js": "^14.0.0-dev.1646654941.b162f27",
 		"dotenv": "^10.0.0",
+		"express": "^4.17.3",
 		"form-data": "^4.0.0",
 		"ioredis": "^4.28.0",
 		"mathjs": "^9.5.1",
@@ -19,6 +21,7 @@
 	"devDependencies": {
 		"@discordjs/builders": "^0.7.0",
 		"@discordjs/rest": "^0.1.0-canary.0",
+		"@types/express": "^4.17.13",
 		"@types/ioredis": "^4.27.8",
 		"@types/mime-types": "^2.1.1",
 		"@types/node": "^16.11.4",

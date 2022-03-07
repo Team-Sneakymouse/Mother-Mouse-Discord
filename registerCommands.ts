@@ -14,16 +14,17 @@ import { data as Vibecheck } from "./src/Vibecheck";
 import { data as Roll } from "./src/Roll";
 import { data as PalsRoles } from "./src/PalsRoles";
 import { data as PronounRoles } from "./src/PronounRoles";
-import { data as Todo } from "./src/Todo";
+//import { data as Todo } from "./src/Todo";
 //import { data as MoneyMilestone } from "./src/MoneyMilestone";
 import { data as Trivia } from "./src/Trivia";
 import { data as ThreadPins } from "./src/ThreadPins";
+import { data as Gitlab } from "./src/Gitlab";
 
 const commands = {
 	global: [...Vibecheck, ...Roll],
-	[GuildIds.TEST]: [],
+	[GuildIds.TEST]: [...Gitlab],
 	[GuildIds.RAWBTV]: [...PalsRoles, ...PronounRoles, ...Trivia, ...ThreadPins],
-	[GuildIds.TILII]: [...Todo],
+	[GuildIds.TILII]: [],
 	[GuildIds.SNEAKYRP]: [],
 };
 

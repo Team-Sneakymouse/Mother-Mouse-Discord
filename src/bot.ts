@@ -1,7 +1,11 @@
 import { Client, GatewayIntentBits, Partials } from "discord.js";
 import Redis from "ioredis";
+import express from "express";
 import { config } from "dotenv";
 config();
+
+const server = express();
+server.use(express.json());
 
 const redis = new Redis({
 	host: process.env.REDIS_HOST || "redis",
@@ -49,9 +53,6 @@ import PalsRoles from "./PalsRoles";
 // Self-assignable pronoun roles
 import PronounRoles from "./PronounRoles";
 
-// TILII todo system
-import Todo from "./Todo";
-
 // Manage crossing out milestone messages for money stream
 // import MoneyMilestone from "./MoneyMilestone";
 
@@ -79,6 +80,9 @@ import ThreadPins from "./ThreadPins";
 // Meme responsibly easteregg
 import MemeResponsibly from "./MemeResponsibly";
 
+// Gitlab issues integration
+import Gitlab from "./Gitlab";
+
 if (process.env.PRODUCTION == "TRUE") {
 	console.log("Registering production plugins");
 
@@ -89,7 +93,6 @@ if (process.env.PRODUCTION == "TRUE") {
 	Roll(client);
 	PalsRoles(client, redis);
 	PronounRoles(client, redis);
-	Todo(client);
 	// MoneyMilestone(client);
 	Trivia(client, redis);
 	MediaEmbed(client);
@@ -100,9 +103,13 @@ if (process.env.PRODUCTION == "TRUE") {
 	Stats(client, redis);
 	ThreadPins(client);
 	MemeResponsibly(client);
+	Gitlab(client, redis, server);
 } else {
 	console.log("Registering development plugins");
 }
+
+server.get("/", (req, res) => res.send("ok"));
+server.listen(80, () => console.log("Listening on port 80"));
 
 const token = process.env.DISCORD_TOKEN;
 if (!token) throw new Error("No token found!");
