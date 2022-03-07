@@ -158,11 +158,11 @@ export default function init(client: Client, redis: Redis, gitlab: InstanceType<
 			if (!comment.system) {
 				await webhook.send({
 					threadId: thread.id,
-					username: botUser ? comment.body.match(/\*\*([^\*]+)\*\*/)?.[1] : comment.author.username,
-					avatarURL: botUser
-						? comment.body.match(/\[Profile Image\]\(([^?)]+)[^)]*\)/)?.[1]
-						: comment.author.avatar_url,
-					content: (botUser ? comment.body.split("\n---\n")[1] : comment.body).replaceAll(
+					username: !botUser
+						? comment.author.username
+						: comment.body.match(/\*\*([^\*]+)\*\*/)?.[1] || comment.author.username,
+					avatarURL: comment.body.match(/\[Profile Image\]\(([^?)]+)[^)]*\)/)?.[1] || comment.author.avatar_url,
+					content: (comment.body.split("\n---\n")[1] || comment.body).replaceAll(
 						/!?\[[^\]+]\]\(\/([^\)]+)\)/g,
 						project.web_url + "/$1"
 					),
