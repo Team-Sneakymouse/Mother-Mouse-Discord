@@ -1,8 +1,20 @@
-import { ButtonComponentData, ButtonStyle, Client, ComponentType, Embed, Message, TextChannel, Util } from "discord.js";
+import {
+	ButtonComponentData,
+	ButtonStyle,
+	Client,
+	ComponentType,
+	Embed,
+	Message,
+	MessageAttachment,
+	TextChannel,
+	Util,
+} from "discord.js";
 import { Redis } from "ioredis";
 import { Request, Response } from "express";
 import { channelIds, projectIds, Projects, webhooks } from "./utils";
 import { Gitlab } from "@gitbeaker/node";
+import axios from "axios";
+import { Stream } from "node:stream";
 
 export default function init(client: Client, redis: Redis, gitlab: InstanceType<typeof Gitlab>) {
 	return async function (req: Request, res: Response) {
@@ -44,7 +56,10 @@ export default function init(client: Client, redis: Redis, gitlab: InstanceType<
 
 			const created_at = req.body.object_attributes.created_at;
 			const description =
-				req.body.object_attributes.description.split("\n---\n")[1] || req.body.object_attributes.description;
+				(req.body.object_attributes.description.split("\n---\n")[1] || req.body.object_attributes.description).replaceAll(
+					/!?\[([^\]]+)\]\(\/([^\)]+)\)/g,
+					`[$1](${req.body.project.web_url}/$2)`
+				) || "";
 			const id = req.body.object_attributes.id;
 			const iid = req.body.object_attributes.iid;
 			const title = req.body.object_attributes.title;
@@ -82,6 +97,12 @@ export default function init(client: Client, redis: Redis, gitlab: InstanceType<
 					style: state === "opened" ? ButtonStyle.Success : ButtonStyle.Danger,
 				},
 			];
+			const urls = (description as string).match(/https?:\/\/[^\s]+/gi) || [];
+			const streamPromises = urls.map((url) => axios.get(url, { responseType: "stream" }).then((res) => [res.data, url]));
+			const streams = await Promise.all(streamPromises);
+			const attachments = streams.map(
+				([stream, url]) => new MessageAttachment(stream as Stream, (url as string).split("/").pop())
+			);
 
 			if (!issueMessage) {
 				// Post new message
@@ -97,6 +118,7 @@ export default function init(client: Client, redis: Redis, gitlab: InstanceType<
 							components: [...buttons],
 						},
 					],
+					files: attachments,
 				});
 				await redis.set(`mm-discord-gitlab:issue-${id}`, `${project}-${channelId}-${issueMessage.id}`);
 				res.status(200).send();
@@ -112,6 +134,7 @@ export default function init(client: Client, redis: Redis, gitlab: InstanceType<
 							components: [...buttons],
 						},
 					],
+					files: attachments,
 				});
 				res.status(200).send();
 				const thread = issueMessage.thread || (await startThread(issueMessage, title, project_id, iid));
