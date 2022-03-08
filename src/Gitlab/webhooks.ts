@@ -40,19 +40,20 @@ export default function init(client: Client, redis: Redis, gitlab: InstanceType<
 				return res.status(200).send(`Guild not found for project ${req.body.project.id}`);
 			}
 		}
-		const botUser = req.body.user.id === 10763862;
+		const botUser = req.body.object_attributes.author_id === 10763862;
 		const project_id = req.body.project.id;
 
 		if (req.body.event_type === "issue") {
+			let author: any;
+			if (!botUser && req.body.object_attributes.author_id !== req.body.user.id)
+				author = await gitlab.Users.show(req.body.object_attributes.author_id);
 			const authorImage = botUser
 				? req.body.object_attributes.description.match(/\[Profile Image\]\(([^?)]+)[^)]*\)/)?.[1]
-				: req.body.user.avatar_url;
-			const authorName = botUser
-				? req.body.object_attributes.description.match(/\*\*([^\*]+)\*\*/)?.[1]
-				: req.body.user.name;
+				: author.avatar_url;
+			const authorName = botUser ? req.body.object_attributes.description.match(/\*\*([^\*]+)\*\*/)?.[1] : author.name;
 			const authorUrl = botUser
 				? `https://discord.com/users/${authorImage?.match(/avatars\/(\d+)/)?.[1]}`
-				: `https://gitlab.com/${req.body.user.username}`;
+				: `https://gitlab.com/${author.username}`;
 
 			const created_at = req.body.object_attributes.created_at;
 			const description =
