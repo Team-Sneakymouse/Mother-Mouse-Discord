@@ -45,8 +45,7 @@ export default function init(client: Client, redis: Redis, gitlab: InstanceType<
 
 		if (req.body.event_type === "issue") {
 			let author: any;
-			if (!botUser && req.body.object_attributes.author_id !== req.body.user.id)
-				author = await gitlab.Users.show(req.body.object_attributes.author_id);
+			if (!botUser) author = await gitlab.Users.show(req.body.object_attributes.author_id);
 			const authorImage = botUser
 				? req.body.object_attributes.description.match(/\[Profile Image\]\(([^?)]+)[^)]*\)/)?.[1]
 				: author.avatar_url;
