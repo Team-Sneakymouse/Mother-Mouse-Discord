@@ -18,6 +18,7 @@ import { Stream } from "node:stream";
 
 export default function init(client: Client, redis: Redis, gitlab: InstanceType<typeof Gitlab>) {
 	return async function (req: Request, res: Response) {
+		if (req.body.event_type === "note" && !("issue" in req.body)) return res.status(200).send();
 		let issueMessage: Message | undefined = undefined;
 		let project: Projects | undefined = undefined;
 		const id = req.body.event_type === "issue" ? req.body.object_attributes.id : req.body.issue.id;
