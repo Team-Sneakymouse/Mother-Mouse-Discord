@@ -4,6 +4,7 @@ import {
 	Client,
 	ComponentType,
 	Embed,
+	EmbedBuilder,
 	Message,
 	MessageAttachment,
 	TextChannel,
@@ -15,6 +16,7 @@ import { channelIds, projectIds, Projects, webhooks } from "./utils";
 import { Gitlab } from "@gitbeaker/node";
 import axios from "axios";
 import { Stream } from "node:stream";
+import { ThreadAutoArchiveDuration } from "discord.js/node_modules/discord-api-types/v10";
 
 export default function init(client: Client, redis: Redis, gitlab: InstanceType<typeof Gitlab>) {
 	return async function (req: Request, res: Response) {
@@ -68,7 +70,7 @@ export default function init(client: Client, redis: Redis, gitlab: InstanceType<
 			const state = req.body.object_attributes.state as "opened" | "closed";
 			const action = req.body.object_attributes.action as "open" | "close" | "update" | "reopen";
 
-			const embed = new Embed({
+			const embed = new EmbedBuilder({
 				author: {
 					name: authorName,
 					icon_url: authorImage,
@@ -83,7 +85,7 @@ export default function init(client: Client, redis: Redis, gitlab: InstanceType<
 					text: "Issue #" + iid,
 					icon_url: "https://files.sneakyrp.com/gitlab.png",
 				},
-			});
+			}).toJSON();
 			const buttons: ButtonComponentData[] = [
 				{
 					type: ComponentType.Button,
@@ -170,7 +172,7 @@ export default function init(client: Client, redis: Redis, gitlab: InstanceType<
 		title = title.length >= 100 ? title.substring(0, 99) + "\u2026" : title;
 		const thread = await message.startThread({
 			name: title,
-			autoArchiveDuration: "MAX",
+			autoArchiveDuration: ThreadAutoArchiveDuration.OneWeek,
 		});
 		const project = await gitlab.Projects.show(projectId);
 		const comments = await gitlab.IssueNotes.all(projectId, issueId, { sort: "asc" });
@@ -198,7 +200,7 @@ export default function init(client: Client, redis: Redis, gitlab: InstanceType<
 						{
 							author: {
 								name: comment.author.username,
-								iconURL: comment.author.avatar_url,
+								icon_url: comment.author.avatar_url,
 							},
 							description: comment.body,
 						},

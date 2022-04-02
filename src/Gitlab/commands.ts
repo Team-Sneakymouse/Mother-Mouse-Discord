@@ -1,5 +1,5 @@
 import { SlashCommandBuilder, SlashCommandStringOption } from "@discordjs/builders";
-import { ChatInputCommandInteraction, Client, ComponentType, Interaction, Modal, TextInputStyle } from "discord.js";
+import { ChatInputCommandInteraction, Client, ComponentType, Interaction, ModalBuilder, TextInputStyle } from "discord.js";
 import { Gitlab } from "@gitbeaker/node";
 import { createHash } from "crypto";
 import { projectIds, Projects } from "./utils";
@@ -35,9 +35,9 @@ export default function (client: Client, gitlab: InstanceType<typeof Gitlab>) {
 			const id = title ? createHash("sha1").update(title).digest("hex").substring(0, 13) : Date.now().toString();
 
 			return interaction.showModal(
-				new Modal({
+				new ModalBuilder({
 					title: "New Bug/Feature Request",
-					customId: `issue-create_${projectId}_${id}`,
+					custom_id: `issue-create_${projectId}_${id}`,
 					components: [
 						{
 							type: ComponentType.ActionRow,
@@ -46,7 +46,7 @@ export default function (client: Client, gitlab: InstanceType<typeof Gitlab>) {
 									type: ComponentType.TextInput,
 									style: TextInputStyle.Short,
 									label: "Title",
-									customId: "title",
+									custom_id: "title",
 									required: true,
 									value: title || undefined,
 								},
@@ -59,13 +59,13 @@ export default function (client: Client, gitlab: InstanceType<typeof Gitlab>) {
 									type: ComponentType.TextInput,
 									style: TextInputStyle.Paragraph,
 									label: "Description",
-									customId: "description",
+									custom_id: "description",
 									required: false,
 								},
 							],
 						},
 					],
-				})
+				}).toJSON()
 			);
 		},
 	};

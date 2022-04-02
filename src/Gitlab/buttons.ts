@@ -1,5 +1,5 @@
 import { Gitlab } from "@gitbeaker/node";
-import { ButtonInteraction, Client, ComponentType, Interaction, Modal, TextInputStyle } from "discord.js";
+import { ButtonInteraction, Client, ComponentType, Interaction, ModalBuilder, TextInputStyle } from "discord.js";
 import { projectIds, Projects } from "./utils";
 
 export default function (client: Client, gitlab: InstanceType<typeof Gitlab>) {
@@ -16,9 +16,9 @@ export default function (client: Client, gitlab: InstanceType<typeof Gitlab>) {
 				const description = interaction.message.embeds[0].description;
 
 				await interaction.showModal(
-					new Modal({
+					new ModalBuilder({
 						title: "New Bug/Feature Request",
-						customId: `issue-edit_${project_id}-${iid}`,
+						custom_id: `issue-edit_${project_id}-${iid}`,
 						components: [
 							{
 								type: ComponentType.ActionRow,
@@ -27,7 +27,7 @@ export default function (client: Client, gitlab: InstanceType<typeof Gitlab>) {
 										type: ComponentType.TextInput,
 										style: TextInputStyle.Short,
 										label: "Title",
-										customId: "title",
+										custom_id: "title",
 										required: true,
 										value: title || undefined,
 									},
@@ -40,14 +40,14 @@ export default function (client: Client, gitlab: InstanceType<typeof Gitlab>) {
 										type: ComponentType.TextInput,
 										style: TextInputStyle.Paragraph,
 										label: "Description",
-										customId: "description",
+										custom_id: "description",
 										required: false,
 										value: description || undefined,
 									},
 								],
 							},
 						],
-					})
+					}).toJSON()
 				);
 			} else if (action == "open") {
 				const issue = await gitlab.Issues.edit(project_id, parseInt(iid), {
