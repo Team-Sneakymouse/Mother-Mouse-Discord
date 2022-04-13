@@ -39,7 +39,7 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 							.map((m) => m.id)
 							.reduce((a, b) => a + ", " + b, "")}`
 					);
-				if (results.first()?.user.username === discordName) {
+				if (results.first()?.user.username.toLowerCase() === discordName.toLowerCase()) {
 					member = results.first()!;
 				}
 			}
