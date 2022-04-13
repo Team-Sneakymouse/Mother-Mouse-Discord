@@ -28,7 +28,21 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 		let member: GuildMember | undefined;
 		if (discordTagResponse) {
 			const discordTag = discordTagResponse.response as string;
-			member = (await sneakyrpServer.members.search({ query: discordTag, limit: 1 })).first();
+			const discordName = discordTag.replace(/#\d+/, "");
+			const results = await sneakyrpServer.members.search({ query: discordName, limit: 10 });
+			if (results.size === 0) {
+				console.error(`No guild member found for ${discordName}`);
+			} else {
+				if (results.size > 1)
+					console.error(
+						`Multiple guild members found for ${discordName}: ${[...results.values()]
+							.map((m) => m.id)
+							.reduce((a, b) => a + ", " + b, "")}`
+					);
+				if (results.first()?.user.username === discordName) {
+					member = results.first()!;
+				}
+			}
 		} else {
 			console.error("No Discord tag found in application response");
 		}
@@ -37,7 +51,7 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 			title: previousMessageId ? "Updated Application" : "New Application",
 			color: previousMessageId ? Colors.Orange : Colors.Green,
 			author: {
-				name: `${member?.displayName ?? "Unknown"} (${member?.user.tag ?? "Unknown"})`,
+				name: `${member?.displayName ?? "Unknown"} (${discordTagResponse?.response ?? "Unknown"})`,
 				icon_url:
 					member?.user.avatarURL() ?? "https://polybit-apps.s3.amazonaws.com/stdlib/users/discord/profile/image.png",
 			},
