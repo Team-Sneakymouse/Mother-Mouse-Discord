@@ -83,6 +83,9 @@ import MemeResponsibly from "./MemeResponsibly";
 // Gitlab issues integration
 import Gitlab from "./Gitlab";
 
+// SneakyRP new application webhook
+import SneakyrpApplications from "./SneakyrpApplications";
+
 if (process.env.PRODUCTION == "TRUE") {
 	console.log("Registering production plugins");
 
@@ -104,6 +107,7 @@ if (process.env.PRODUCTION == "TRUE") {
 	ThreadPins(client);
 	MemeResponsibly(client);
 	Gitlab(client, redis, server);
+	SneakyrpApplications(client, redis, server);
 } else {
 	console.log("Registering development plugins");
 }
