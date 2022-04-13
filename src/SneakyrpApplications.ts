@@ -1,4 +1,4 @@
-import { Client, Colors, EmbedBuilder, GuildMember, TextChannel } from "discord.js";
+import { Client, Colors, EmbedBuilder, GuildMember, Message, MessageAttachment, TextChannel } from "discord.js";
 import { Redis } from "ioredis";
 import type { Express, Request, Response } from "express";
 
@@ -45,20 +45,35 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 				.filter((r) => r.id !== discordTagResponse?.id)
 				.map((r) => ({
 					name: r.title,
-					value: Array.isArray(r.response) ? "• " + r.response.join("\n • ") : r.response,
+					value: Array.isArray(r.response) ? "• " + r.response.join("\n • ") : r.response || "-",
 				})),
 		}).data;
 
-		const message = await appChannel.send({
-			content: "\u00A0",
-			embeds: [embed],
-			reply: previousMessageId
-				? {
-						messageReference: previousMessageId,
-						failIfNotExists: false,
-				  }
-				: undefined,
-		});
+		let message: Message;
+		try {
+			message = await appChannel.send({
+				content: "\u00A0",
+				embeds: [embed],
+				reply: previousMessageId
+					? {
+							messageReference: previousMessageId,
+							failIfNotExists: false,
+					  }
+					: undefined,
+			});
+		} catch (e) {
+			console.error(e);
+			message = await appChannel.send({
+				content: "Application is too long to send as message",
+				attachments: [new MessageAttachment(Buffer.from(JSON.stringify(embed)), "application.json")],
+				reply: previousMessageId
+					? {
+							messageReference: previousMessageId,
+							failIfNotExists: false,
+					  }
+					: undefined,
+			});
+		}
 		await redis.set(`mm-discord-sneakyrp:application-${id}`, message.id);
 
 		if (previousMessageId) {
