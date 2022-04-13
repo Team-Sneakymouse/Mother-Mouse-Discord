@@ -79,7 +79,7 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 			console.error(e);
 			message = await appChannel.send({
 				content: "Application is too long to send as message",
-				attachments: [new MessageAttachment(Buffer.from(JSON.stringify(embed)), "application.json")],
+				files: [new MessageAttachment(Buffer.from(JSON.stringify(embed)), "application.json")],
 				reply: previousMessageId
 					? {
 							messageReference: previousMessageId,
