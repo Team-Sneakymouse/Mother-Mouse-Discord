@@ -18,6 +18,9 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 		const appChannel = client.channels.cache.get("963808503808557127") as TextChannel;
 
 		const { id, form, responses } = req.body as ApplicationData;
+		console.log(
+			`New SneakyRP application by ${responses.find((r) => r.title.includes("Discord"))?.response} for ${form} (${id})`
+		);
 
 		const previousMessageId = await redis.get(`mm-discord-sneakyrp:application-${id}`);
 
@@ -25,7 +28,7 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 		let member: GuildMember | undefined;
 		if (discordTagResponse) {
 			const discordTag = discordTagResponse.response as string;
-			member = (await sneakyrpServer.members.search({ query: discordTag })).first();
+			member = (await sneakyrpServer.members.search({ query: discordTag, limit: 1 })).first();
 		} else {
 			console.error("No Discord tag found in application response");
 		}
