@@ -1,4 +1,14 @@
-import { Client, Colors, EmbedBuilder, GuildMember, Message, MessageAttachment, TextChannel } from "discord.js";
+import {
+	Client,
+	Colors,
+	EmbedBuilder,
+	GuildMember,
+	Message,
+	MessageAttachment,
+	TextChannel,
+	ComponentType,
+	ButtonStyle,
+} from "discord.js";
 import { Redis } from "ioredis";
 import type { Express, Request, Response } from "express";
 
@@ -13,6 +23,26 @@ type ApplicationData = {
 };
 
 export default function SneakyrpApplications(client: Client, redis: Redis, server: Express) {
+	client.on("interactionCreate", async (interaction) => {
+		if (!interaction.isButton()) return;
+		if (interaction.id !== "sneakyrp-applications:accept") return;
+
+		const sneakyrpServer = client.guilds.cache.get("725854554939457657")!;
+		const userId = interaction.message.embeds[0]?.footer?.text;
+		if (!userId) return interaction.reply(`Could not find user with id ${userId}`);
+		const member = await sneakyrpServer.members.fetch(userId);
+		await member.roles.add("731268929489600634");
+
+		const roleplayChannel = client.channels.cache.get("958760167061717062") as TextChannel;
+		roleplayChannel.send({
+			content: `Welcome, <@${userId}>! <:hi:807808224752304181>\nPlease check the pins in this channel for info on how to get set up on the server.`,
+		});
+
+		await (interaction.message as Message).edit({
+			components: [],
+		});
+	});
+
 	server.post("/sneakyrpapplications", async (req: Request, res: Response) => {
 		const sneakyrpServer = client.guilds.cache.get("725854554939457657")!;
 		const appChannel = client.channels.cache.get("963808503808557127") as TextChannel;
@@ -61,6 +91,9 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 					name: r.title,
 					value: Array.isArray(r.response) ? "• " + r.response.join("\n • ") : r.response || "-",
 				})),
+			footer: {
+				text: member?.id ?? "Unknown",
+			},
 		}).data;
 
 		let message: Message;
@@ -68,6 +101,20 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 			message = await appChannel.send({
 				content: "\u00A0",
 				embeds: [embed],
+				components: [
+					{
+						type: ComponentType.ActionRow,
+						components: [
+							{
+								type: ComponentType.Button,
+								label: "Accept",
+								customId: "sneakyrp-applications:accept",
+								style: ButtonStyle.Success,
+								disabled: member ? false : true,
+							},
+						],
+					},
+				],
 				reply: previousMessageId
 					? {
 							messageReference: previousMessageId,
@@ -79,6 +126,7 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 			console.error(e);
 			message = await appChannel.send({
 				content: "Application is too long to send as message",
+				embeds: [{ footer: { text: member?.id ?? "Unknown" } }],
 				files: [
 					new MessageAttachment(
 						Buffer.from(JSON.stringify(embed, null, 4)),
