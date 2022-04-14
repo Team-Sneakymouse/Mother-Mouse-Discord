@@ -28,7 +28,7 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 		if (interaction.customId !== "sneakyrp-applications:accept") return;
 
 		const sneakyrpServer = client.guilds.cache.get("725854554939457657")!;
-		const userId = interaction.message.embeds[0]?.footer?.text;
+		const userId = interaction.message.embeds[0]?.footer?.text.split(" | ")[0];
 		if (!userId) return interaction.reply(`Could not find user with id ${userId}`);
 		const member = await sneakyrpServer.members.fetch(userId);
 
@@ -91,7 +91,7 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 					value: Array.isArray(r.response) ? "• " + r.response.join("\n • ") : r.response || "-",
 				})),
 			footer: {
-				text: member?.id ?? "Unknown",
+				text: (member?.id ?? "Unknown") + " | " + id,
 			},
 		}).data;
 
@@ -127,7 +127,7 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 			console.error(e);
 			message = await appChannel.send({
 				content: "Application is too long to send as message",
-				embeds: [{ footer: { text: member?.id ?? "Unknown" } }],
+				embeds: [{ footer: { text: (member?.id ?? "Unknown") + " | " + id } }],
 				files: [
 					new MessageAttachment(
 						Buffer.from(JSON.stringify(embed, null, 4)),
