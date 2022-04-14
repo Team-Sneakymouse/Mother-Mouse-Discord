@@ -32,8 +32,6 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 		if (!userId) return interaction.reply(`Could not find user with id ${userId}`);
 		const member = await sneakyrpServer.members.fetch(userId);
 
-		if (member.roles.cache.has("731268929489600634"))
-			return interaction.reply(`${member.displayName} is already a roleplayer`);
 		await member.roles.add("731268929489600634");
 
 		const roleplayChannel = client.channels.cache.get("958760167061717062") as TextChannel;
