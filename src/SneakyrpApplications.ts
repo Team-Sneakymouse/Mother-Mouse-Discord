@@ -36,13 +36,15 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 
 		const roleplayChannel = client.channels.cache.get("958760167061717062") as TextChannel;
 		roleplayChannel.send({
-			content: `Welcome, <@${userId}>! <:hi:807808224752304181>\nPlease check the pins in this channel for info on how to get set up on the server.`,
+			content: `Welcome, <@${userId}>! <:storytime:733433864227258368>\nPlease check the pins in this channel for info on how to get set up on the server.`,
 		});
 
 		await (interaction.message as Message).edit({
 			components: [],
 		});
-		interaction.reply(`${member.displayName} has been accepted`);
+		interaction.reply(
+			`${(interaction.member as GuildMember).displayName} accepted the application of **${member.displayName}**`
+		);
 	});
 
 	server.post("/sneakyrpapplications", async (req: Request, res: Response) => {
