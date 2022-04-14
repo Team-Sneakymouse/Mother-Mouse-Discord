@@ -60,20 +60,17 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 		let member: GuildMember | undefined;
 		if (discordTagResponse) {
 			const discordTag = discordTagResponse.response as string;
-			const discordName = discordTag.replace(/#\d+/, "");
+			const [discordName, discordDiscriminator] = discordTag.split("#");
+
 			const results = await sneakyrpServer.members.search({ query: discordName, limit: 10 });
 			if (results.size === 0) {
 				console.error(`No guild member found for ${discordName}`);
 			} else {
-				if (results.size > 1)
-					console.error(
-						`Multiple guild members found for ${discordName}: ${[...results.values()]
-							.map((m) => m.id)
-							.reduce((a, b) => a + ", " + b, "")}`
-					);
-				if (results.first()?.user.username.toLowerCase() === discordName.toLowerCase()) {
-					member = results.first()!;
-				}
+				member = results.find(
+					(m) =>
+						m.user.username.toLowerCase() === discordName.toLowerCase() &&
+						m.user.discriminator === discordDiscriminator
+				);
 			}
 		} else {
 			console.error("No Discord tag found in application response");
