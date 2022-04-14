@@ -125,13 +125,16 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 			});
 		} catch (e) {
 			console.error(e);
+			const newEmbed = { ...embed, fields: undefined };
+			const markdown = embed.fields!.map((f) => `**${f.name}**:\n ${f.value}`).join("\n\n");
+
 			message = await appChannel.send({
 				content: "Application is too long to send as message",
-				embeds: [{ footer: { text: (member?.id ?? "Unknown") + " | " + id } }],
+				embeds: [newEmbed],
 				files: [
 					new MessageAttachment(
-						Buffer.from(JSON.stringify(embed, null, 4)),
-						`${discordTagResponse?.response}_${new Date().toISOString()}.json`
+						Buffer.from(markdown),
+						`${discordTagResponse?.response}_${new Date().toISOString()}.md`
 					),
 				],
 				components: member?.roles.cache.has("731268929489600634")
