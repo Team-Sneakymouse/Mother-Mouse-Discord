@@ -31,6 +31,9 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 		const userId = interaction.message.embeds[0]?.footer?.text;
 		if (!userId) return interaction.reply(`Could not find user with id ${userId}`);
 		const member = await sneakyrpServer.members.fetch(userId);
+
+		if (member.roles.cache.has("731268929489600634"))
+			return interaction.reply(`${member.displayName} is already a roleplayer`);
 		await member.roles.add("731268929489600634");
 
 		const roleplayChannel = client.channels.cache.get("958760167061717062") as TextChannel;
@@ -41,6 +44,7 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 		await (interaction.message as Message).edit({
 			components: [],
 		});
+		interaction.reply(`${member.displayName} has been accepted`);
 	});
 
 	server.post("/sneakyrpapplications", async (req: Request, res: Response) => {
@@ -101,20 +105,22 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 			message = await appChannel.send({
 				content: "\u00A0",
 				embeds: [embed],
-				components: [
-					{
-						type: ComponentType.ActionRow,
-						components: [
+				components: member?.roles.cache.has("731268929489600634")
+					? undefined
+					: [
 							{
-								type: ComponentType.Button,
-								label: "Accept",
-								customId: "sneakyrp-applications:accept",
-								style: ButtonStyle.Success,
-								disabled: member ? false : true,
+								type: ComponentType.ActionRow,
+								components: [
+									{
+										type: ComponentType.Button,
+										label: "Accept",
+										customId: "sneakyrp-applications:accept",
+										style: ButtonStyle.Success,
+										disabled: member ? false : true,
+									},
+								],
 							},
-						],
-					},
-				],
+					  ],
 				reply: previousMessageId
 					? {
 							messageReference: previousMessageId,
