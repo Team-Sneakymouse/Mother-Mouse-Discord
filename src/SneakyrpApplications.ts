@@ -25,7 +25,7 @@ type ApplicationData = {
 export default function SneakyrpApplications(client: Client, redis: Redis, server: Express) {
 	client.on("interactionCreate", async (interaction) => {
 		if (!interaction.isButton()) return;
-		if (interaction.id !== "sneakyrp-applications:accept") return;
+		if (interaction.customId !== "sneakyrp-applications:accept") return;
 
 		const sneakyrpServer = client.guilds.cache.get("725854554939457657")!;
 		const userId = interaction.message.embeds[0]?.footer?.text;
