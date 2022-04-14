@@ -137,6 +137,22 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 						`${discordTagResponse?.response}_${new Date().toISOString()}.json`
 					),
 				],
+				components: member?.roles.cache.has("731268929489600634")
+					? undefined
+					: [
+							{
+								type: ComponentType.ActionRow,
+								components: [
+									{
+										type: ComponentType.Button,
+										label: "Accept",
+										customId: "sneakyrp-applications:accept",
+										style: ButtonStyle.Success,
+										disabled: member ? false : true,
+									},
+								],
+							},
+					  ],
 				reply: previousMessageId
 					? {
 							messageReference: previousMessageId,
@@ -158,6 +174,7 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 				}).data;
 				await previousMessage.edit({
 					embeds: [previousEmbed],
+					components: [],
 				});
 			}
 		}
