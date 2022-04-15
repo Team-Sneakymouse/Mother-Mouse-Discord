@@ -237,5 +237,7 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 		}
 
 		if (accepted) await thread.setArchived(true);
+
+		res.status(200).end();
 	});
 }
