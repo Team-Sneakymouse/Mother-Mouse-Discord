@@ -122,6 +122,7 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 			},
 			title: `${accepted ? "Closed" : "Open"} ${form[0].toUpperCase() + form.substring(1)} Application`,
 			description: "`" + id + "`",
+			timestamp: timestamp,
 			footer: {
 				text: `${member?.displayName ?? "Unknown"} (${member?.id ?? "Unknown"})`,
 			},
@@ -172,16 +173,14 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 		}
 
 		// Create content embed with form responses
+		const markdown = responses
+			.filter((r) => r.id !== discordTagResponse?.id)
+			.map((r) => `**${r.title}**:\n${Array.isArray(r.response) ? "• " + r.response.join("\n • ") : r.response || "-"}`)
+			.join("\n\n");
 		const contentEmbed = EmbedBuilder.from({
 			title: rootMessage.embeds[0].url ? "Updated Application" : "New Application",
 			color: rootMessage.embeds[0].url ? Colors.Orange : Colors.Green,
-			fields: responses
-				.filter((r) => ![discordTagResponse?.id, nameResponse?.id, pronounsResponse?.id].includes(r.id))
-				.map((r) => ({
-					name: r.title,
-					value: Array.isArray(r.response) ? "• " + r.response.join("\n • ") : r.response || "-",
-				})),
-			timestamp: timestamp,
+			description: markdown,
 		}).data;
 
 		let contentMessage: Message | undefined;
@@ -192,16 +191,14 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 					embeds: [contentEmbed],
 				});
 			} catch (e) {
+				const newEmbed: typeof contentEmbed = { ...contentEmbed, description: undefined };
 				console.error(e);
-				const newEmbed = { ...contentEmbed, fields: undefined };
-				const markdown =
-					contentEmbed.fields?.map((f) => `**${f.name}**:\n ${f.value}`).join("\n\n") ?? "Error: No Embed Fields!";
-				contentMessage = await thread.send({
+				contentMessage = await contentMessage.edit({
 					content: "Application is too long to send as message",
 					embeds: [newEmbed],
 					files: [
 						new MessageAttachment(
-							Buffer.from(markdown, "utf8"),
+							Buffer.from(contentEmbed.description ?? "Error: Can't find embed description", "utf8"),
 							`${discordTagResponse?.response}_${new Date().toISOString()}.md`
 						),
 					],
@@ -215,15 +212,13 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 				});
 			} catch (e) {
 				console.error(e);
-				const newEmbed = { ...contentEmbed, fields: undefined };
-				const markdown =
-					contentEmbed.fields?.map((f) => `**${f.name}**:\n ${f.value}`).join("\n\n") ?? "Error: No Embed Fields!";
+				const newEmbed: typeof contentEmbed = { ...contentEmbed, description: undefined };
 				contentMessage = await thread.send({
 					content: "Application is too long to send as message",
 					embeds: [newEmbed],
 					files: [
 						new MessageAttachment(
-							Buffer.from(markdown, "utf8"),
+							Buffer.from(contentEmbed.description ?? "Error: Can't find embed description", "utf8"),
 							`${discordTagResponse?.response}_${new Date().toISOString()}.md`
 						),
 					],
