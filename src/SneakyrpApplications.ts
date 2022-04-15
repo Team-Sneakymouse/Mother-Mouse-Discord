@@ -169,7 +169,6 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 			});
 		} else {
 			if (threadName && threadName !== thread.name) await thread.setName(threadName);
-			if (accepted) await thread.setArchived(true);
 		}
 
 		// Create content embed with form responses
@@ -236,5 +235,7 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 				embeds: [{ ...previewEmbed, url: contentMessage.url }],
 			});
 		}
+
+		if (accepted) await thread.setArchived(true);
 	});
 }
