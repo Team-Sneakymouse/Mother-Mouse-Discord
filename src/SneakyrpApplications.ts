@@ -124,7 +124,7 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 			description: "`" + id + "`",
 			timestamp: timestamp,
 			footer: {
-				text: `${member?.displayName ?? "Unknown"} (${member?.id ?? "Unknown"})`,
+				text: `${member?.displayName ?? "Unknown"} (${discordTagResponse?.response} - ${member?.id ?? "Unknown"})`,
 			},
 		}).data;
 
