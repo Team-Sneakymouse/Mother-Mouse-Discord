@@ -141,6 +141,7 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 			});
 			await redis.set(`mm-discord-sneakyrp:application-${id}`, rootMessage.id);
 		} else {
+			if (rootMessage.embeds[0].url) previewEmbed.url = rootMessage.embeds[0].url;
 			await rootMessage.edit({
 				embeds: [previewEmbed],
 			});
