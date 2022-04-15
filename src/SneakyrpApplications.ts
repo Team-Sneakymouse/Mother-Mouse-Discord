@@ -54,12 +54,22 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 		});
 
 		await (interaction.message as Message).edit({
+			embeds: [
+				{
+					...interaction.message.embeds[0],
+					title: interaction.message.embeds[0].title?.replace("Open", "Accepted"),
+					color: Colors.Grey,
+				},
+			],
 			components: [],
 		});
 		await interaction.reply({
-			content: `${(interaction.member as GuildMember).displayName} accepted the application of **${member.displayName}**`,
-			threadId: interaction.message.thread?.id,
+			content: "Success",
+			ephemeral: true,
 		});
+		await (interaction.message.thread as ThreadChannel).send(
+			`${(interaction.member as GuildMember).displayName} accepted the application of **${member.displayName}**`
+		);
 		await (interaction.message.thread as ThreadChannel).setArchived(true);
 	});
 
