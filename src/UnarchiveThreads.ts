@@ -8,12 +8,29 @@ export default function UnarchiveThreads(client: Client, gitlab: InstanceType<ty
 		if (thread.ownerId !== client.user?.id) return;
 		if (thread.archived === false) return;
 
-		// Gitlab
 		const starterMessage = await thread.fetchStarterMessage();
+
+		// Gitlab
 		const projectId = projectIds[thread.guildId as Projects];
 		const issueId = parseInt(starterMessage.embeds[0].footer?.text.match(/\d+/)?.[0] as string);
-		if (!projectId || !issueId) return;
-		const issue = await gitlab.Issues.show(projectId, issueId);
-		if (issue.state !== "closed") await thread.setArchived(false);
+		if (!projectId || !issueId) {
+			try {
+				const issue = await gitlab.Issues.show(projectId, issueId);
+				if (issue) {
+					if (issue.state !== "closed") await thread.setArchived(false);
+					return;
+				}
+			} catch (e) {
+				console.error(`Error in fetching gitlab issue ${projectId}, ${issueId}. Is it just missing?`, e);
+			}
+		}
+
+		// SneakyRP Applications
+		if (starterMessage.channelId === "963808503808557127") {
+			if (starterMessage.components !== undefined && starterMessage.components.length > 0) {
+				await thread.setArchived(false);
+				return;
+			}
+		}
 	});
 }
