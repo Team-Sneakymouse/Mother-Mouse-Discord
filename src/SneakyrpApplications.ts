@@ -167,8 +167,9 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 				autoArchiveDuration: 10080,
 				reason: "New Application",
 			});
-		} else if (threadName && threadName !== thread.name) {
-			await thread.setName(threadName);
+		} else {
+			if (threadName && threadName !== thread.name) await thread.setName(threadName);
+			if (accepted) await thread.setArchived(true);
 		}
 
 		// Create content embed with form responses
