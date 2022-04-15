@@ -188,7 +188,9 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 			contentMessage = await thread.messages.fetch(rootMessage.embeds[0].url.split("/").pop()!);
 			try {
 				await contentMessage.edit({
+					content: "\u00A0",
 					embeds: [contentEmbed],
+					files: [],
 				});
 			} catch (e) {
 				const newEmbed: typeof contentEmbed = { ...contentEmbed, description: undefined };
