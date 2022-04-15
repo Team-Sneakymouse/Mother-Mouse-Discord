@@ -134,20 +134,22 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 			rootMessage = await appChannel.send({
 				content: "\u00A0",
 				embeds: [previewEmbed],
-				components: [
-					{
-						type: ComponentType.ActionRow,
-						components: [
+				components: accepted
+					? undefined
+					: [
 							{
-								type: ComponentType.Button,
-								label: "Accept",
-								customId: "sneakyrp-applications:accept",
-								style: ButtonStyle.Success,
-								disabled: !member ? true : false,
+								type: ComponentType.ActionRow,
+								components: [
+									{
+										type: ComponentType.Button,
+										label: "Accept",
+										customId: "sneakyrp-applications:accept",
+										style: ButtonStyle.Success,
+										disabled: !member ? true : false,
+									},
+								],
 							},
-						],
-					},
-				],
+					  ],
 			});
 			await redis.set(`mm-discord-sneakyrp:application-${id}`, rootMessage.id);
 		} else {
