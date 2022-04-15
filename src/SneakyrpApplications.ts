@@ -111,7 +111,7 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 					member?.user.avatarURL() ?? "https://polybit-apps.s3.amazonaws.com/stdlib/users/discord/profile/image.png",
 			},
 			title: `${accepted ? "Closed" : "Open"} ${form[0].toUpperCase() + form.substring(1)} Application`,
-			description: id,
+			description: "`" + id + "`",
 			footer: {
 				text: `${member?.displayName ?? "Unknown"} (${member?.id ?? "Unknown"})`,
 			},
@@ -147,12 +147,15 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 		}
 
 		let thread = rootMessage.thread;
+		const threadName = (discordTagResponse?.response as string | undefined)?.split("#")[0];
 		if (!thread) {
 			thread = await rootMessage.startThread({
-				name: (discordTagResponse?.response as string) ?? "Invalid field 'Discord'",
+				name: threadName ?? "Invalid field 'Discord'",
 				autoArchiveDuration: 10080,
 				reason: "New Application",
 			});
+		} else if (threadName && threadName !== thread.name) {
+			await thread.setName(threadName);
 		}
 
 		// Create content embed with form responses
