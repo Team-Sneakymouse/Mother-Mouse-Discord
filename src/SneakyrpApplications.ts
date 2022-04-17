@@ -9,6 +9,9 @@ import {
 	ComponentType,
 	ButtonStyle,
 	ThreadChannel,
+	ButtonInteraction,
+	ModalSubmitInteraction,
+	ModalBuilder,
 } from "discord.js";
 import { Redis } from "ioredis";
 import type { Express, Request, Response } from "express";
@@ -26,9 +29,17 @@ type ApplicationData = {
 
 export default function SneakyrpApplications(client: Client, redis: Redis, server: Express) {
 	client.on("interactionCreate", async (interaction) => {
-		if (!interaction.isButton()) return;
-		if (interaction.customId !== "sneakyrp-applications:accept") return;
+		if (interaction.isButton() && interaction.customId == "sneakyrp-applications:accept")
+			return applicationAcceptHandler(interaction);
+		if (interaction.isButton() && interaction.customId == "sneakyrp-applications:reject")
+			return applicationRejectHandler(interaction);
+		if (interaction.isModalSubmit() && interaction.customId.startsWith("sneakyrp-applications:rejectconfirm"))
+			return applicationRejectConfirmHandler(interaction);
+	});
 
+	server.post("/sneakyrpapplications", applicationWebhookHandler);
+
+	async function applicationAcceptHandler(interaction: ButtonInteraction) {
 		const sneakyrpServer = client.guilds.cache.get("725854554939457657")!;
 		const userId = interaction.message.embeds[0]?.footer?.text.match(/\d{15,}/)?.[0];
 		if (!userId)
@@ -71,9 +82,32 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 			`${(interaction.member as GuildMember).displayName} accepted the application of **${member.displayName}**`
 		);
 		await (interaction.message.thread as ThreadChannel).setArchived(true);
-	});
+	}
 
-	server.post("/sneakyrpapplications", async (req: Request, res: Response) => {
+	async function applicationRejectHandler(interaction: ButtonInteraction) {
+		interaction.showModal(
+			new ModalBuilder({
+				custom_id: "sneakyrp-applications:rejectconfirm-" + interaction.message.id,
+				title: "Are you sure?",
+			})
+		);
+	}
+
+	async function applicationRejectConfirmHandler(interaction: ModalSubmitInteraction) {
+		const msgId = interaction.customId.split("-").pop()!;
+		const msg = await interaction.channel?.messages.fetch(msgId);
+		if (!msg) return interaction.reply({ content: "Could not find message. Tell Dani pls!", ephemeral: true });
+
+		const newEmbed = EmbedBuilder.from(msg.embeds[0])
+			.setTitle(msg.embeds[0].title?.replace("Open", "Rejected") ?? "Rejected Application")
+			.setColor(Colors.DarkRed);
+		await msg.edit({
+			embeds: [newEmbed.data],
+			components: [],
+		});
+	}
+
+	async function applicationWebhookHandler(req: Request, res: Response) {
 		const sneakyrpServer = client.guilds.cache.get("725854554939457657")!;
 		const appChannel = client.channels.cache.get("963808503808557127") as TextChannel;
 
@@ -146,6 +180,13 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 										label: "Accept",
 										customId: "sneakyrp-applications:accept",
 										style: ButtonStyle.Success,
+										disabled: !member ? true : false,
+									},
+									{
+										type: ComponentType.Button,
+										label: "Reject",
+										customId: "sneakyrp-applications:reject",
+										style: ButtonStyle.Danger,
 										disabled: !member ? true : false,
 									},
 								],
@@ -236,5 +277,5 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 		if (accepted) await thread.setArchived(true);
 
 		res.status(200).end();
-	});
+	}
 }
