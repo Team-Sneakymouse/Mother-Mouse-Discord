@@ -46,7 +46,10 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 			});
 		}
 
-		await member.roles.add("964215265367851048"); // New Roleplayer
+		await Promise.all([
+			member.roles.add("964215265367851048"), // New Roleplayer
+			member.roles.add("731268929489600634"), // Roleplayer
+		]);
 
 		const roleplayChannel = client.channels.cache.get("958760167061717062") as TextChannel;
 		roleplayChannel.send({
