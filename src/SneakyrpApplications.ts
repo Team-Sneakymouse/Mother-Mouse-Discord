@@ -56,14 +56,11 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 			content: `Welcome, <@${userId}>! <:storytime:733433864227258368>\nPlease check the pins in this channel for info on how to get set up on the server.`,
 		});
 
+		const newEmbed = EmbedBuilder.from(interaction.message.embeds[0])
+			.setTitle(interaction.message.embeds[0].title?.replace("Open", "Accepted") ?? "Accepted Application")
+			.setColor(Colors.Grey);
 		await (interaction.message as Message).edit({
-			embeds: [
-				{
-					...interaction.message.embeds[0],
-					title: interaction.message.embeds[0].title?.replace("Open", "Accepted"),
-					color: Colors.Grey,
-				},
-			],
+			embeds: [newEmbed.data],
 			components: [],
 		});
 		await interaction.reply({
