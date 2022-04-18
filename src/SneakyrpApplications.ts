@@ -86,18 +86,19 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 	}
 
 	async function applicationRejectHandler(interaction: ButtonInteraction) {
+		const userId = interaction.message.embeds[0]?.footer?.text.match(/\d{15,}/)?.[0];
 		interaction.showModal(
 			new ModalBuilder({
 				customId: "sneakyrp-applications:rejectconfirm-" + interaction.message.id,
-				title: "Are you sure?",
+				title: `Please provide a reason for rejecting <@${userId}>'s application.`,
 				components: [
 					{
 						type: ComponentType.ActionRow,
 						components: [
 							{
 								type: ComponentType.TextInput,
-								customId: "sneakyrp-applications:rejectconfirm-yes",
-								label: "This box is here because of API limitations",
+								customId: "sneakyrp-applications:rejectconfirm-reason",
+								label: "They will NOT be automatically notified of this rejection.",
 								style: TextInputStyle.Short,
 							},
 						],
@@ -125,8 +126,11 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 			content: "Success",
 			ephemeral: true,
 		});
+		const reason = interaction.fields.getTextInputValue("sneakyrp-applications:rejectconfirm-reason");
 		await (msg.thread as ThreadChannel).send(
-			`${(interaction.member as GuildMember).displayName} rejected the application of <@${userId}>`
+			`${
+				(interaction.member as GuildMember).displayName
+			} rejected the application of <@${userId}> with reason:\n > ${reason}`
 		);
 		await (msg.thread as ThreadChannel).setArchived(true);
 	}
