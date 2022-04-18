@@ -12,6 +12,7 @@ import {
 	ButtonInteraction,
 	ModalSubmitInteraction,
 	ModalBuilder,
+	TextInputStyle,
 } from "discord.js";
 import { Redis } from "ioredis";
 import type { Express, Request, Response } from "express";
@@ -79,7 +80,7 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 			ephemeral: true,
 		});
 		await (interaction.message.thread as ThreadChannel).send(
-			`${(interaction.member as GuildMember).displayName} accepted the application of **${member.displayName}**`
+			`${(interaction.member as GuildMember).displayName} accepted the application of <@${userId}>`
 		);
 		await (interaction.message.thread as ThreadChannel).setArchived(true);
 	}
@@ -89,6 +90,19 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 			new ModalBuilder({
 				custom_id: "sneakyrp-applications:rejectconfirm-" + interaction.message.id,
 				title: "Are you sure?",
+				components: [
+					{
+						type: ComponentType.ActionRow,
+						components: [
+							{
+								type: ComponentType.TextInput,
+								custom_id: "sneakyrp-applications:rejectconfirm-yes",
+								label: "This box is here because of API limitations",
+								style: TextInputStyle.Short,
+							},
+						],
+					},
+				],
 			})
 		);
 	}
@@ -98,6 +112,8 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 		const msg = await interaction.channel?.messages.fetch(msgId);
 		if (!msg) return interaction.reply({ content: "Could not find message. Tell Dani pls!", ephemeral: true });
 
+		const userId = msg.embeds[0]?.footer?.text.match(/\d{15,}/)?.[0];
+
 		const newEmbed = EmbedBuilder.from(msg.embeds[0])
 			.setTitle(msg.embeds[0].title?.replace("Open", "Rejected") ?? "Rejected Application")
 			.setColor(Colors.DarkRed);
@@ -105,6 +121,14 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 			embeds: [newEmbed.data],
 			components: [],
 		});
+		await interaction.reply({
+			content: "Success",
+			ephemeral: true,
+		});
+		await (msg.thread as ThreadChannel).send(
+			`${(interaction.member as GuildMember).displayName} accepted the application of <@${userId}>`
+		);
+		await (msg.thread as ThreadChannel).setArchived(true);
 	}
 
 	async function applicationWebhookHandler(req: Request, res: Response) {
@@ -198,6 +222,29 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 			if (rootMessage.embeds[0].url) previewEmbed.url = rootMessage.embeds[0].url;
 			await rootMessage.edit({
 				embeds: [previewEmbed],
+				components: accepted
+					? undefined
+					: [
+							{
+								type: ComponentType.ActionRow,
+								components: [
+									{
+										type: ComponentType.Button,
+										label: "Accept",
+										customId: "sneakyrp-applications:accept",
+										style: ButtonStyle.Success,
+										disabled: !member ? true : false,
+									},
+									{
+										type: ComponentType.Button,
+										label: "Reject",
+										customId: "sneakyrp-applications:reject",
+										style: ButtonStyle.Danger,
+										disabled: !member ? true : false,
+									},
+								],
+							},
+					  ],
 			});
 		}
 
