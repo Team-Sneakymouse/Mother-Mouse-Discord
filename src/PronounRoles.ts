@@ -38,60 +38,68 @@ export default function PronounRoles(client: Client, redis: Redis) {
 			const allRoles = await redis.smembers(`DiscordPronounRoles:${interaction.guildId}`);
 			const role = interaction.options.getRole("role") as Role;
 			if (!allRoles.includes(role.id)) {
-				return interaction.reply({
+				interaction.reply({
 					content: `${role.name} is not a pronoun role`,
 					ephemeral: true,
 				});
+				return;
 			}
 			const member = interaction.member as GuildMember;
 			if (member.roles.cache.has(role.id)) {
-				return await interaction.reply({
+				await interaction.reply({
 					content: `${role.name} is already one of your pronouns`,
 					ephemeral: true,
 				});
+				return;
 			}
 			await member.roles.add(role);
-			return interaction.reply({
+			interaction.reply({
 				content: `Added ${role.name} to your pronouns`,
 				ephemeral: true,
 			});
+			return;
 		}
 		if (subCommand === "remove") {
 			const allRoles = await redis.smembers(`DiscordPronounRoles:${interaction.guildId}`);
 			const role = interaction.options.getRole("role") as Role;
 			if (!allRoles.includes(role.id)) {
-				return interaction.reply({
+				interaction.reply({
 					content: `${role.name} is not a pronoun role`,
 					ephemeral: true,
 				});
+				return;
 			}
 			const member = interaction.member as GuildMember;
 			if (!member.roles.cache.has(role.id)) {
-				return await interaction.reply({
+				await interaction.reply({
 					content: `${role.name} is not one of your pronouns`,
 					ephemeral: true,
 				});
+				return;
 			}
 			await member.roles.remove(role);
-			return interaction.reply({
+			interaction.reply({
 				content: `Removed ${role.name} from your pronouns`,
 				ephemeral: true,
 			});
+			return;
 		}
 		if (subCommand === "list") {
 			const allRoles = await redis.smembers(`DiscordPronounRoles:${interaction.guildId}`);
 			const member = interaction.member as GuildMember;
 			const roles = member.roles.cache.filter((role) => allRoles.includes(role.id)).map((role) => role.name);
 			if (roles.length === 0) {
-				return interaction.reply({
+				interaction.reply({
 					content: "You didn't set up any pronoun roles yet",
 					ephemeral: true,
 				});
+				return;
 			}
-			return interaction.reply({
+			interaction.reply({
 				content: `Your current pronouns are:\n• ${roles.join("\n• ")}`,
 				ephemeral: true,
 			});
+			return;
 		}
 	});
 

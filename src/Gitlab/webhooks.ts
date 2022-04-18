@@ -6,7 +6,7 @@ import {
 	Embed,
 	EmbedBuilder,
 	Message,
-	MessageAttachment,
+	Attachment,
 	TextChannel,
 	Util,
 } from "discord.js";
@@ -104,7 +104,7 @@ export default function init(client: Client, redis: Redis, gitlab: InstanceType<
 			const streamPromises = urls.map((url) => axios.get(url, { responseType: "stream" }).then((res) => [res.data, url]));
 			const streams = await Promise.all(streamPromises);
 			const attachments = streams.map(
-				([stream, url]) => new MessageAttachment(stream as Stream, (url as string).split("/").pop())
+				([stream, url]) => new Attachment(stream as Stream, (url as string).split("/").pop())
 			);
 
 			if (!issueMessage) {

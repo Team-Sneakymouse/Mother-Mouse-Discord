@@ -41,11 +41,13 @@ export default function Roll(client: Client) {
 				let result = evaluate(rolled);
 				if (result == 20) result = "<:d20:413105959121190942>";
 				else if (result == 1) result = "<:d1:413105959049887745>";
-				return interaction.reply({ content: "`" + dice + "`: " + result, ephemeral });
+				interaction.reply({ content: "`" + dice + "`: " + result, ephemeral });
+				return;
 			} catch (e) {
 				const message: string =
 					typeof e == "string" ? e : (e as any).message ? (e as any).message : (e as any).toString();
-				return interaction.reply({ content: message, ephemeral });
+				interaction.reply({ content: message, ephemeral });
+				return;
 			}
 		}
 	});

@@ -1,4 +1,4 @@
-import { Client, MessageAttachment, TextChannel } from "discord.js";
+import { Client, Attachment, TextChannel } from "discord.js";
 import { SlashCommandBuilder, SlashCommandStringOption, SlashCommandSubcommandBuilder } from "@discordjs/builders";
 import { Redis } from "ioredis";
 
@@ -62,43 +62,49 @@ export default function Trivia(client: Client, redis: Redis) {
 		const subCommand = interaction.options.getSubcommand();
 		if (subCommand === "answer") {
 			if (interaction.channelId !== "906895382456434698" && !((await redis.get("trivia:running")) === "true")) {
-				return interaction.reply({
+				interaction.reply({
 					content: "❌ Sorry, but the submission period has ended.",
 					ephemeral: true,
 				});
+				return;
 			}
 
 			const text = interaction.options.getString("text", true);
 			const user = interaction.user.username;
 
 			if (text.length > 80) {
-				return interaction.reply({
+				interaction.reply({
 					content: `❌ Your answer is too long! (${text.length}/80 characters)`,
 					ephemeral: true,
 				});
+				return;
 			}
 
 			const replaced = !!(await redis.hget("trivia:answers", user));
 			await redis.hset("trivia:answers", user, text);
 
 			if (replaced) {
-				return interaction.reply({
+				interaction.reply({
 					content: `✅ Answer replaced.`,
 					ephemeral: true,
 				});
+				return;
 			} else {
-				return interaction.reply({
+				interaction.reply({
 					content: `✅ Answer registered.`,
 					ephemeral: true,
 				});
+				return;
 			}
 		}
 		if (subCommand === "options") {
-			if (!admins.includes(interaction.user.id))
-				return interaction.reply({
+			if (!admins.includes(interaction.user.id)) {
+				interaction.reply({
 					content: "❌ You don't have permission to perform this command.",
 					ephemeral: true,
 				});
+				return;
+			}
 
 			const action = interaction.options.getString("action", true);
 			if (action === "stop") {
@@ -116,7 +122,7 @@ export default function Trivia(client: Client, redis: Redis) {
 				const answersBuffer = Buffer.from(answersString, "utf8");
 				interaction.reply({
 					content: "✅ Stopped accepting responses and deleted answers. Here is the generated file:",
-					files: [new MessageAttachment(answersBuffer, "answers.txt")],
+					files: [new Attachment(answersBuffer, "answers.txt")],
 					ephemeral: true,
 				});
 			}

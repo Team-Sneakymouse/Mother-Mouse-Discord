@@ -41,8 +41,8 @@ export const data = [
 
 export default function PalsRoles(client: Client, redis: Redis) {
 	client.on("interactionCreate", (interaction) => {
-		if (interaction.isChatInputCommand() && interaction.commandName == "pals") return handlePalsCommand(interaction);
-		if (interaction.isSelectMenu() && interaction.customId == "palsSelect") return handleRolesUpdate(interaction);
+		if (interaction.isChatInputCommand() && interaction.commandName == "pals") handlePalsCommand(interaction);
+		else if (interaction.isSelectMenu() && interaction.customId == "palsSelect") handleRolesUpdate(interaction);
 	});
 
 	client.on("messageCreate", async (message): Promise<any> => {

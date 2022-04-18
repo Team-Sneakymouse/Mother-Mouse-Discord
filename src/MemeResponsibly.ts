@@ -1,4 +1,4 @@
-import { Client, MessageAttachment } from "discord.js";
+import { Client, Attachment } from "discord.js";
 import axios from "axios";
 import { Stream } from "node:stream";
 
@@ -19,7 +19,7 @@ export default async function MemeResponsibly(client: Client) {
 
 			await message.channel.send({
 				content: "\u00A0",
-				files: [new MessageAttachment(res.data as Stream, "meme-responsibly.mp3")],
+				files: [new Attachment(res.data as Stream, "meme-responsibly.mp3")],
 			});
 		} catch (e) {
 			console.error(e);

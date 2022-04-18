@@ -4,7 +4,6 @@ import {
 	EmbedBuilder,
 	GuildMember,
 	Message,
-	MessageAttachment,
 	TextChannel,
 	ComponentType,
 	ButtonStyle,
@@ -13,6 +12,7 @@ import {
 	ModalSubmitInteraction,
 	ModalBuilder,
 	TextInputStyle,
+	Attachment,
 } from "discord.js";
 import { Redis } from "ioredis";
 import type { Express, Request, Response } from "express";
@@ -31,11 +31,11 @@ type ApplicationData = {
 export default function SneakyrpApplications(client: Client, redis: Redis, server: Express) {
 	client.on("interactionCreate", async (interaction) => {
 		if (interaction.isButton() && interaction.customId == "sneakyrp-applications:accept")
-			return applicationAcceptHandler(interaction);
-		if (interaction.isButton() && interaction.customId == "sneakyrp-applications:reject")
-			return applicationRejectHandler(interaction);
-		if (interaction.isModalSubmit() && interaction.customId.startsWith("sneakyrp-applications:rejectconfirm"))
-			return applicationRejectConfirmHandler(interaction);
+			applicationAcceptHandler(interaction);
+		else if (interaction.isButton() && interaction.customId == "sneakyrp-applications:reject")
+			applicationRejectHandler(interaction);
+		else if (interaction.isModalSubmit() && interaction.customId.startsWith("sneakyrp-applications:rejectconfirm"))
+			applicationRejectConfirmHandler(interaction);
 	});
 
 	server.post("/sneakyrpapplications", applicationWebhookHandler);
@@ -88,7 +88,7 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 	async function applicationRejectHandler(interaction: ButtonInteraction) {
 		interaction.showModal(
 			new ModalBuilder({
-				custom_id: "sneakyrp-applications:rejectconfirm-" + interaction.message.id,
+				customId: "sneakyrp-applications:rejectconfirm-" + interaction.message.id,
 				title: "Are you sure?",
 				components: [
 					{
@@ -96,7 +96,7 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 						components: [
 							{
 								type: ComponentType.TextInput,
-								custom_id: "sneakyrp-applications:rejectconfirm-yes",
+								customId: "sneakyrp-applications:rejectconfirm-yes",
 								label: "This box is here because of API limitations",
 								style: TextInputStyle.Short,
 							},
@@ -126,7 +126,7 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 			ephemeral: true,
 		});
 		await (msg.thread as ThreadChannel).send(
-			`${(interaction.member as GuildMember).displayName} accepted the application of <@${userId}>`
+			`${(interaction.member as GuildMember).displayName} rejected the application of <@${userId}>`
 		);
 		await (msg.thread as ThreadChannel).setArchived(true);
 	}
@@ -287,7 +287,7 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 					content: "Application is too long to send as message",
 					embeds: [newEmbed],
 					files: [
-						new MessageAttachment(
+						new Attachment(
 							Buffer.from(contentEmbed.description ?? "Error: Can't find embed description", "utf8"),
 							`${discordTagResponse?.response}_${new Date().toISOString()}.md`
 						),
@@ -307,7 +307,7 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 					content: "Application is too long to send as message",
 					embeds: [newEmbed],
 					files: [
-						new MessageAttachment(
+						new Attachment(
 							Buffer.from(contentEmbed.description ?? "Error: Can't find embed description", "utf8"),
 							`${discordTagResponse?.response}_${new Date().toISOString()}.md`
 						),

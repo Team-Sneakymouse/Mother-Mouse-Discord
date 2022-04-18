@@ -20,12 +20,12 @@ export default function Gitlab(client: Client, redis: Redis, server: Express) {
 	const messages = initMessages(client, gitlab);
 
 	client.on("interactionCreate", (interaction) => {
-		if (commands.matcher(interaction)) return commands.handler(interaction);
-		if (modals.matcher(interaction)) return modals.handler(interaction);
-		if (buttons.matcher(interaction)) return buttons.handler(interaction);
+		if (commands.matcher(interaction)) commands.handler(interaction);
+		else if (modals.matcher(interaction)) modals.handler(interaction);
+		else if (buttons.matcher(interaction)) buttons.handler(interaction);
 	});
 	client.on("messageCreate", (m) => {
-		if (messages.matcher(m)) return messages.handler(m);
+		if (messages.matcher(m)) messages.handler(m);
 	});
 
 	const webhookHandler = initWebhook(client, redis, gitlab);

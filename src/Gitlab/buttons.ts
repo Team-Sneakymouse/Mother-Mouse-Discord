@@ -18,7 +18,7 @@ export default function (client: Client, gitlab: InstanceType<typeof Gitlab>) {
 				await interaction.showModal(
 					new ModalBuilder({
 						title: "New Bug/Feature Request",
-						custom_id: `issue-edit_${project_id}-${iid}`,
+						customId: `issue-edit_${project_id}-${iid}`,
 						components: [
 							{
 								type: ComponentType.ActionRow,
@@ -27,7 +27,7 @@ export default function (client: Client, gitlab: InstanceType<typeof Gitlab>) {
 										type: ComponentType.TextInput,
 										style: TextInputStyle.Short,
 										label: "Title",
-										custom_id: "title",
+										customId: "title",
 										required: true,
 										value: title || undefined,
 									},
@@ -40,7 +40,7 @@ export default function (client: Client, gitlab: InstanceType<typeof Gitlab>) {
 										type: ComponentType.TextInput,
 										style: TextInputStyle.Paragraph,
 										label: "Description",
-										custom_id: "description",
+										customId: "description",
 										required: false,
 										value: description || undefined,
 									},
