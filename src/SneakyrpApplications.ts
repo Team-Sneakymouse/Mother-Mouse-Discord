@@ -183,7 +183,9 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 					member?.user.avatarURL() ?? "https://polybit-apps.s3.amazonaws.com/stdlib/users/discord/profile/image.png",
 			},
 			title: `${accepted ? "Closed" : "Open"} ${form[0].toUpperCase() + form.substring(1)} Application`,
-			description: "`" + id + "`",
+			description: `\`${id}\`\n\n${
+				member ? `<discord://-/users/${member.id}>` : `User ${discordTagResponse?.response} found in the server!`
+			}`,
 			timestamp: timestamp,
 			footer: {
 				text: `${member?.displayName ?? "Unknown"} (${discordTagResponse?.response} - ${member?.id ?? "Unknown"})`,
