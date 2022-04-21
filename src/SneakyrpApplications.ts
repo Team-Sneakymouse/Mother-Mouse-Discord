@@ -65,7 +65,7 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 
 		const roleplayChannel = client.channels.cache.get("958760167061717062") as TextChannel;
 		roleplayChannel.send({
-			content: `Welcome, <@${userId}>! <:storytime:733433864227258368>\nPlease check the pins in this channel for info on how to get set up on the server.`,
+			content: `Welcome, <@${userId}>! <:storytime:733433864227258368>\nPlease check the pins in **this channel** for info on how to get set up on the server and <#964216562611519568> to get set up with a tour.`,
 		});
 
 		const newEmbed = EmbedBuilder.from(interaction.message.embeds[0])
