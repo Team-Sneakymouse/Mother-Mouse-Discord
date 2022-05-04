@@ -8,6 +8,7 @@ enum GuildIds {
 	RAWBTV = "391355330241757205",
 	TILII = "768372809616850964",
 	SNEAKYRP = "725854554939457657",
+	OOC = "971479608664924202",
 }
 
 import { data as Vibecheck } from "./src/Vibecheck";
@@ -19,6 +20,7 @@ import { data as PronounRoles } from "./src/PronounRoles";
 import { data as Trivia } from "./src/Trivia";
 import { data as ThreadPins } from "./src/ThreadPins";
 import { data as Gitlab } from "./src/Gitlab";
+import { data as OocPower } from "./src/OocPower";
 
 const commands = {
 	global: [...Vibecheck, ...Roll],
@@ -26,6 +28,7 @@ const commands = {
 	[GuildIds.RAWBTV]: [...PalsRoles, ...PronounRoles, ...Trivia, ...ThreadPins],
 	[GuildIds.TILII]: [...Gitlab],
 	[GuildIds.SNEAKYRP]: [],
+	[GuildIds.OOC]: [...OocPower],
 };
 
 const clientId = process.env.DISCORD_CLIENTID!;
