@@ -89,6 +89,9 @@ import UnarchiveThreads from "./UnarchiveThreads";
 // SneakyRP new application webhook
 import SneakyrpApplications from "./SneakyrpApplications";
 
+// OOC Discord Dani Power Up
+import OocPower from "./OocPower";
+
 if (process.env.PRODUCTION == "TRUE") {
 	console.log("Registering production plugins");
 
@@ -112,6 +115,7 @@ if (process.env.PRODUCTION == "TRUE") {
 	const gitlab = Gitlab(client, redis, server);
 	UnarchiveThreads(client, gitlab);
 	SneakyrpApplications(client, redis, server);
+	OocPower(client);
 } else {
 	console.log("Registering development plugins");
 }
