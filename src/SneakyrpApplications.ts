@@ -184,7 +184,9 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 			},
 			title: `${accepted ? "Closed" : "Open"} ${form[0].toUpperCase() + form.substring(1)} Application`,
 			description: `\`${id}\`\n\n${
-				member ? `<discord://-/users/${member.id}>` : `User ${discordTagResponse?.response} found in the server!`
+				member
+					? `<@${member.id}> (<discord://-/users/${member.id}>)`
+					: `User ${discordTagResponse?.response} not found in the server!`
 			}`,
 			timestamp: timestamp,
 			footer: {
