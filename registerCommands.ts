@@ -20,7 +20,7 @@ import { data as PronounRoles } from "./src/PronounRoles";
 import { data as Trivia } from "./src/Trivia";
 import { data as ThreadPins } from "./src/ThreadPins";
 import { data as Gitlab } from "./src/Gitlab";
-import { data as OocPower } from "./src/OocPower";
+import { data as OocTools } from "./src/OocTools";
 
 const commands = {
 	global: [...Vibecheck, ...Roll],
@@ -28,7 +28,7 @@ const commands = {
 	[GuildIds.RAWBTV]: [...PalsRoles, ...PronounRoles, ...Trivia, ...ThreadPins],
 	[GuildIds.TILII]: [...Gitlab],
 	[GuildIds.SNEAKYRP]: [],
-	[GuildIds.OOC]: [...OocPower],
+	[GuildIds.OOC]: [...OocTools],
 };
 
 const clientId = process.env.DISCORD_CLIENTID!;
