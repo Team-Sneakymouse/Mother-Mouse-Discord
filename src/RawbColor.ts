@@ -11,9 +11,9 @@ export default function RawbColor(client: Client) {
 		const digitalBardRole = message.guild.roles.resolve("413105777885052969");
 		if (!digitalBardRole) return console.log("Digital Bard role is missing!");
 
-		await digitalBardRole.setColor(digitalBardRole.color == 16721572 ? "#0FB5E5" : "#FF26A4");
+		await digitalBardRole.setColor(digitalBardRole.color == 1029605 ? "#FF26A4" : "#0FB5E5");
 
 		if (changeBackTimeout) clearTimeout(changeBackTimeout);
-		changeBackTimeout = setTimeout(() => digitalBardRole.setColor("#FF26A4"), 5000);
+		changeBackTimeout = setTimeout(() => digitalBardRole.setColor("#0FB5E5"), 5000);
 	});
 }
