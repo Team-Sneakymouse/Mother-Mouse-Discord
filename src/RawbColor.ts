@@ -32,7 +32,7 @@ export default function RawbColor(client: Client) {
 			const digitalBardRole = message.guild.roles.resolve("413105777885052969");
 			if (!digitalBardRole) return console.log("Digital Bard role is missing!");
 
-			await digitalBardRole.setColor(digitalBardRole.hexColor == "#0FB5E5" ? "#FF26A4" : "#0FB5E5");
+			await digitalBardRole.setColor(digitalBardRole.hexColor.toUpperCase() == "#0FB5E5" ? "#FF26A4" : "#0FB5E5");
 
 			if (changeBackTimeout) clearTimeout(changeBackTimeout);
 			changeBackTimeout = setTimeout(() => digitalBardRole.setColor("#0FB5E5"), 5000);
@@ -42,7 +42,7 @@ export default function RawbColor(client: Client) {
 			const color = colors[message.author.id as keyof typeof colors];
 
 			const role = message.guild.roles.cache.find((r) => r.id === color.role) as Role;
-			await role.setColor(role.hexColor == color.primary ? color.secondary : color.primary);
+			await role.setColor(role.hexColor.toUpperCase() == color.primary ? color.secondary : color.primary);
 
 			if (color.timeout) clearTimeout(color.timeout);
 			color.timeout = setTimeout(() => role.setColor(color.primary), 5000);
