@@ -5,7 +5,7 @@ var changeBackTimeout: NodeJS.Timeout;
 const colors: {
 	[key: string]: { role: Snowflake; primary: ColorResolvable; secondary: ColorResolvable; timeout?: NodeJS.Timeout };
 } = {
-	"968649137635614793": { role: "971480462897848330", primary: "#FF26A4", secondary: "#0FB5E5" }, // rawb
+	"968649137635614793": { role: "971480462897848330", primary: "#FF26A4", secondary: "#FF0000" }, // rawb
 	"140876176833904640": { role: "971532452436799579", primary: "#C439FF", secondary: "#23BEB2" }, // megan
 	"684022579450740789": { role: "971532491821314149", primary: "#F8B0F6", secondary: "#FF7D40" }, // msdvil
 	"486400092035743744": { role: "971532674520985670", primary: "#FAE21C", secondary: "#EB4343" }, // nora
@@ -20,6 +20,7 @@ const colors: {
 	"108296164599734272": { role: "974790357369880586", primary: "#73C977", secondary: "#2A8947" }, // momo
 	"829761750643376138": { role: "974791308797444166", primary: "#96FBF6", secondary: "#F7AAFF" }, // hype
 	"251454850309554186": { role: "971532733836824628", primary: "#B3E98C", secondary: "#C093DF" }, // bear
+	"375836440027987968": { role: "974867809932824656", primary: "#FFD59E", secondary: "#604E98" }, //lady
 };
 
 export default function RawbColor(client: Client) {
