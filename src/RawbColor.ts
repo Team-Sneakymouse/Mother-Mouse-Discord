@@ -5,7 +5,7 @@ var changeBackTimeout: NodeJS.Timeout;
 const colors: {
 	[key: string]: { role: Snowflake; primary: ColorResolvable; secondary: ColorResolvable; timeout?: NodeJS.Timeout };
 } = {
-	"90956966947467264": { role: "971480462897848330", primary: "#FF26A4", secondary: "#0FB5E5" }, // rawb
+	"968649137635614793": { role: "971480462897848330", primary: "#FF26A4", secondary: "#0FB5E5" }, // rawb
 	"140876176833904640": { role: "971532452436799579", primary: "#C439FF", secondary: "#23BEB2" }, // megan
 	"684022579450740789": { role: "971532491821314149", primary: "#F8B0F6", secondary: "#FF7D40" }, // msdvil
 	"486400092035743744": { role: "971532674520985670", primary: "#FAE21C", secondary: "#EB4343" }, // nora
