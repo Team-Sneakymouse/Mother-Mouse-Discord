@@ -9,6 +9,7 @@ enum GuildIds {
 	TILII = "768372809616850964",
 	SNEAKYRP = "725854554939457657",
 	OOC = "971479608664924202",
+	TURTLES = "898925497508048896",
 }
 
 import { data as Vibecheck } from "./src/Vibecheck";
@@ -29,6 +30,7 @@ const commands = {
 	[GuildIds.TILII]: [...Gitlab],
 	[GuildIds.SNEAKYRP]: [],
 	[GuildIds.OOC]: [...OocTools],
+	[GuildIds.TURTLES]: [...PalsRoles],
 };
 
 const clientId = process.env.DISCORD_CLIENTID!;
