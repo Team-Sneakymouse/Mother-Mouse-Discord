@@ -1,6 +1,6 @@
+import type { Gitlab } from "@gitbeaker/node";
 import { SlashCommandBuilder, SlashCommandStringOption } from "@discordjs/builders";
 import { ChatInputCommandInteraction, Client, ComponentType, Interaction, ModalBuilder, TextInputStyle } from "discord.js";
-import { Gitlab } from "@gitbeaker/node";
 import { createHash } from "crypto";
 import { projectIds, Projects } from "./utils";
 

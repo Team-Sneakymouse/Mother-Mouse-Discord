@@ -1,6 +1,6 @@
 import { ChannelType, Client } from "discord.js";
 import { Gitlab } from "@gitbeaker/node";
-import { channelIds, projectIds, Projects } from "./Gitlab/utils";
+import { channelIds, projectIds, Projects } from "./GitlabIssues/utils";
 
 export default function UnarchiveThreads(client: Client, gitlab: InstanceType<typeof Gitlab>) {
 	client.on("threadUpdate", async (_, thread) => {

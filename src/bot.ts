@@ -1,8 +1,13 @@
 import { Client, GatewayIntentBits, Partials } from "discord.js";
 import Redis from "ioredis";
 import express from "express";
+import { Gitlab } from "@gitbeaker/node";
 import { config } from "dotenv";
 config();
+
+const gitlab = new Gitlab({
+	token: process.env["GITLAB_TOKEN"],
+});
 
 const server = express();
 server.use(express.json());
@@ -81,7 +86,7 @@ import ThreadPins from "./ThreadPins";
 import MemeResponsibly from "./MemeResponsibly";
 
 // Gitlab issues integration
-import Gitlab from "./Gitlab";
+import GitlabIssues from "./GitlabIssues";
 
 // Unarchive threads
 import UnarchiveThreads from "./UnarchiveThreads";
@@ -112,7 +117,7 @@ if (process.env.PRODUCTION == "TRUE") {
 	Stats(client, redis);
 	ThreadPins(client);
 	MemeResponsibly(client);
-	const gitlab = Gitlab(client, redis, server);
+	GitlabIssues(client, redis, server, gitlab);
 	UnarchiveThreads(client, gitlab);
 	SneakyrpApplications(client, redis, server);
 	OocTools(client);

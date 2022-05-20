@@ -20,14 +20,14 @@ import { data as PronounRoles } from "./src/PronounRoles";
 //import { data as MoneyMilestone } from "./src/MoneyMilestone";
 import { data as Trivia } from "./src/Trivia";
 import { data as ThreadPins } from "./src/ThreadPins";
-import { data as Gitlab } from "./src/Gitlab";
+import { data as GitlabIssues } from "./src/GitlabIssues";
 import { data as OocTools } from "./src/OocTools";
 
 const commands = {
 	global: [...Vibecheck, ...Roll],
-	[GuildIds.TEST]: [...Gitlab],
+	[GuildIds.TEST]: [...GitlabIssues],
 	[GuildIds.RAWBTV]: [...PalsRoles, ...PronounRoles, ...Trivia, ...ThreadPins],
-	[GuildIds.TILII]: [...Gitlab],
+	[GuildIds.TILII]: [...GitlabIssues],
 	[GuildIds.SNEAKYRP]: [],
 	[GuildIds.OOC]: [...OocTools],
 	[GuildIds.TURTLES]: [...PalsRoles],
