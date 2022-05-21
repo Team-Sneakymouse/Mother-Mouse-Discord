@@ -26,12 +26,12 @@ import { data as SneakyrpPlayerlist } from "./src/SneakyrpPlayerlist";
 
 const commands = {
 	global: [...Vibecheck, ...Roll],
-	[GuildIds.TEST]: [...SneakyrpPlayerlist],
+	[GuildIds.TEST]: [],
 	[GuildIds.RAWBTV]: [...PalsRoles, ...PronounRoles, ...Trivia, ...ThreadPins],
 	[GuildIds.TILII]: [...GitlabIssues],
 	[GuildIds.SNEAKYRP]: [...SneakyrpPlayerlist],
 	[GuildIds.OOC]: [...OocTools],
-	[GuildIds.TURTLES]: [...PalsRoles],
+	[GuildIds.TURTLES]: [...PalsRoles, ...PronounRoles],
 };
 
 const clientId = process.env.DISCORD_CLIENTID!;
