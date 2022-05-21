@@ -97,6 +97,9 @@ import SneakyrpApplications from "./SneakyrpApplications";
 // OOC Discord Dani Power Up
 import OocTools from "./OocTools";
 
+// SneakyRP playerlist
+import SneakyrpPlayerlist from "./SneakyrpPlayerlist";
+
 if (process.env.PRODUCTION == "TRUE") {
 	console.log("Registering production plugins");
 
@@ -121,6 +124,7 @@ if (process.env.PRODUCTION == "TRUE") {
 	UnarchiveThreads(client, gitlab);
 	SneakyrpApplications(client, redis, server);
 	OocTools(client);
+	SneakyrpPlayerlist(client);
 } else {
 	console.log("Registering development plugins");
 }

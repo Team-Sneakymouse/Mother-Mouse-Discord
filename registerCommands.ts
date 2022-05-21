@@ -22,10 +22,11 @@ import { data as Trivia } from "./src/Trivia";
 import { data as ThreadPins } from "./src/ThreadPins";
 import { data as GitlabIssues } from "./src/GitlabIssues";
 import { data as OocTools } from "./src/OocTools";
+import { data as SneakyrpPlayerlist } from "./src/SneakyrpPlayerlist";
 
 const commands = {
 	global: [...Vibecheck, ...Roll],
-	[GuildIds.TEST]: [...GitlabIssues],
+	[GuildIds.TEST]: [...SneakyrpPlayerlist],
 	[GuildIds.RAWBTV]: [...PalsRoles, ...PronounRoles, ...Trivia, ...ThreadPins],
 	[GuildIds.TILII]: [...GitlabIssues],
 	[GuildIds.SNEAKYRP]: [],
