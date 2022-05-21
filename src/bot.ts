@@ -109,6 +109,9 @@ import OocTools from "./OocTools";
 // SneakyRP playerlist
 import SneakyrpPlayerlist from "./SneakyrpPlayerlist";
 
+// SneakyRP playercount
+import SneakyrpPlayercount from "./SneakyrpPlayercount";
+
 if (process.env.PRODUCTION == "TRUE") {
 	console.log("Registering production plugins");
 
@@ -134,6 +137,7 @@ if (process.env.PRODUCTION == "TRUE") {
 	SneakyrpApplications(client, redis, server);
 	OocTools(client);
 	SneakyrpPlayerlist(client, multicraft);
+	SneakyrpPlayercount(client, multicraft);
 } else {
 	console.log("Registering development plugins");
 }
