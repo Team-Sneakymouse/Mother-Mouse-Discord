@@ -1,9 +1,18 @@
-import { Client, GatewayIntentBits, Partials } from "discord.js";
 import Redis from "ioredis";
 import express from "express";
+import { Client, GatewayIntentBits, Partials } from "discord.js";
 import { Gitlab } from "@gitbeaker/node";
 import { config } from "dotenv";
 config();
+import MulticraftAPI from "./utils/multicraft";
+
+if (!process.env["MULTICRAFT_HOST"] || !process.env["MULTICRAFT_USER"] || !process.env["MULTICRAFT_KEY"])
+	throw new Error("Missing Multicraft credentials");
+const multicraft = new MulticraftAPI(
+	process.env["MULTICRAFT_HOST"],
+	process.env["MULTICRAFT_USER"],
+	process.env["MULTICRAFT_KEY"]
+);
 
 const gitlab = new Gitlab({
 	token: process.env["GITLAB_TOKEN"],
@@ -124,7 +133,7 @@ if (process.env.PRODUCTION == "TRUE") {
 	UnarchiveThreads(client, gitlab);
 	SneakyrpApplications(client, redis, server);
 	OocTools(client);
-	SneakyrpPlayerlist(client);
+	SneakyrpPlayerlist(client, multicraft);
 } else {
 	console.log("Registering development plugins");
 }

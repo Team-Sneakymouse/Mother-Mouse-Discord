@@ -1,11 +1,9 @@
-import MulticraftAPI from "./utils/multicraft";
+import type MulticraftAPI from "./utils/multicraft";
 import { Client } from "discord.js";
 import { SlashCommandBuilder } from "@discordjs/builders";
 export const data = [new SlashCommandBuilder().setName("playerlist").setDescription("Displays a list of players on SneakyRP")];
 
-export default function SneakyrpPlayerlist(client: Client) {
-	const multicraft = new MulticraftAPI("https://admin.sneakyrp.com/api.php", "admin", "sDPm*XzermUKqf");
-
+export default function SneakyrpPlayerlist(client: Client, multicraft: MulticraftAPI) {
 	client.on("interactionCreate", async (interaction) => {
 		if (interaction.isChatInputCommand() && interaction.commandName === "playerlist") {
 			const [lobbyResult, liveResult] = (
