@@ -29,7 +29,7 @@ const commands = {
 	[GuildIds.TEST]: [...SneakyrpPlayerlist],
 	[GuildIds.RAWBTV]: [...PalsRoles, ...PronounRoles, ...Trivia, ...ThreadPins],
 	[GuildIds.TILII]: [...GitlabIssues],
-	[GuildIds.SNEAKYRP]: [],
+	[GuildIds.SNEAKYRP]: [...SneakyrpPlayerlist],
 	[GuildIds.OOC]: [...OocTools],
 	[GuildIds.TURTLES]: [...PalsRoles],
 };
