@@ -31,7 +31,7 @@ const commands = {
 	[GuildIds.TILII]: [...GitlabIssues],
 	[GuildIds.SNEAKYRP]: [...SneakyrpPlayerlist],
 	[GuildIds.OOC]: [...OocTools],
-	[GuildIds.TURTLES]: [...PalsRoles, ...PronounRoles],
+	[GuildIds.TURTLES]: [...PalsRoles, ...PronounRoles, ...SneakyrpPlayerlist],
 };
 
 const clientId = process.env.DISCORD_CLIENTID!;

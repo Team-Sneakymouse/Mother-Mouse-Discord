@@ -1,11 +1,22 @@
 import type MulticraftAPI from "./utils/multicraft";
 import { Client } from "discord.js";
 import { SlashCommandBuilder } from "@discordjs/builders";
+import axios from "axios";
 export const data = [new SlashCommandBuilder().setName("playerlist").setDescription("Displays a list of players on SneakyRP")];
 
 export default function SneakyrpPlayerlist(client: Client, multicraft: MulticraftAPI) {
 	client.on("interactionCreate", async (interaction) => {
 		if (interaction.isChatInputCommand() && interaction.commandName === "playerlist") {
+			if (interaction.guildId === "898925497508048896") {
+				const res = await axios("https://mcapi.us/server/status?ip=public.sneakyrp.com&port=25560");
+				if (!res.data) {
+					interaction.reply("Couldn't get playerlist");
+					return;
+				}
+				interaction.reply(`There are currently ${(res.data as any).players.now} players online.`);
+				return;
+			}
+
 			const [lobbyResult, liveResult] = (
 				await Promise.all([
 					multicraft.call("getServerStatus", { id: 3, player_list: 1 }),
