@@ -116,17 +116,13 @@ export default function PronounRoles(client: Client, redis: Redis) {
 				});
 				return;
 			}
-			if (optionValue === "create_role") {
-				interaction.showModal(createPronounModal);
-				return;
-			}
 
 			const role = interaction.guild.roles.cache.get(optionValue);
+			if (optionValue === "create_role") {
+			}
+
 			if (!role) {
-				interaction.reply({
-					content: `Couldn't find a pronoun role with the id \`${optionValue}\`. Please tell Dani.`,
-					ephemeral: true,
-				});
+				interaction.showModal(createPronounModal(optionValue.replace("create_role", "")));
 				return;
 			}
 			await interaction.member.roles.add(role);
@@ -211,45 +207,51 @@ export default function PronounRoles(client: Client, redis: Redis) {
 	}
 }
 
-const createPronounModal = new ModalBuilder({
-	title: "Create Pronoun Role",
-	customId: "pronoun_role_create",
-	components: [
-		{
-			type: ComponentType.ActionRow,
-			components: [
-				{
-					type: ComponentType.TextInput,
-					style: TextInputStyle.Short,
-					label: "Subject Pronoun (e.g. he, she, they)",
-					customId: "pronoun_role_create_subject",
-					required: true,
-				},
-			],
-		},
-		{
-			type: ComponentType.ActionRow,
-			components: [
-				{
-					type: ComponentType.TextInput,
-					style: TextInputStyle.Short,
-					label: "Object Pronoun (e.g. him, her, them)",
-					customId: "pronoun_role_create_object",
-					required: true,
-				},
-			],
-		},
-		{
-			type: ComponentType.ActionRow,
-			components: [
-				{
-					type: ComponentType.TextInput,
-					style: TextInputStyle.Short,
-					label: "Possessive Pronoun (e.g. his, hers, theirs)",
-					customId: "pronoun_role_create_possessive",
-					required: true,
-				},
-			],
-		},
-	],
-});
+const createPronounModal = (prompt: string) => {
+	const pronouns = prompt.trim().split("/");
+	return new ModalBuilder({
+		title: "Create Pronoun Role",
+		customId: "pronoun_role_create",
+		components: [
+			{
+				type: ComponentType.ActionRow,
+				components: [
+					{
+						type: ComponentType.TextInput,
+						style: TextInputStyle.Short,
+						label: "Subject Pronoun (e.g. he, she, they)",
+						customId: "pronoun_role_create_subject",
+						required: true,
+						value: pronouns[0] || "",
+					},
+				],
+			},
+			{
+				type: ComponentType.ActionRow,
+				components: [
+					{
+						type: ComponentType.TextInput,
+						style: TextInputStyle.Short,
+						label: "Object Pronoun (e.g. him, her, them)",
+						customId: "pronoun_role_create_object",
+						required: true,
+						value: pronouns[1] || "",
+					},
+				],
+			},
+			{
+				type: ComponentType.ActionRow,
+				components: [
+					{
+						type: ComponentType.TextInput,
+						style: TextInputStyle.Short,
+						label: "Possessive Pronoun (e.g. his, hers, theirs)",
+						customId: "pronoun_role_create_possessive",
+						required: true,
+						value: pronouns[2] || "",
+					},
+				],
+			},
+		],
+	});
+};
