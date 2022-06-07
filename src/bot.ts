@@ -58,6 +58,10 @@ import MediaEmbed from "./MediaEmbeds";
 // Vibecheck command
 import Vibecheck from "./Vibecheck";
 
+
+// RoleIconRandomization command
+import RoleIconRandomization from "./RoleIconRandomization";
+
 // Rolling dice and evaluating math expressions
 import Roll from "./Roll";
 
@@ -138,12 +142,14 @@ if (process.env.PRODUCTION == "TRUE") {
 	OocTools(client);
 	SneakyrpPlayerlist(client, multicraft);
 	SneakyrpPlayercount(client, multicraft);
+
+	RoleIconRandomization(client);
 } else {
 	console.log("Registering development plugins");
 }
 
 server.get("/", (req, res) => res.send("ok"));
-server.listen(80, () => console.log("Listening on port 80"));
+server.listen(process.env.HTTP_PORT || 80, () => console.log("Listening on port " + process.env.HTTP_PORT));
 
 const token = process.env.DISCORD_TOKEN;
 if (!token) throw new Error("No token found!");
