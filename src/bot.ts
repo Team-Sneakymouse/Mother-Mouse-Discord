@@ -58,7 +58,6 @@ import MediaEmbed from "./MediaEmbeds";
 // Vibecheck command
 import Vibecheck from "./Vibecheck";
 
-
 // RoleIconRandomization command
 import RoleIconRandomization from "./RoleIconRandomization";
 
@@ -115,6 +114,7 @@ import SneakyrpPlayerlist from "./SneakyrpPlayerlist";
 
 // SneakyRP playercount
 import SneakyrpPlayercount from "./SneakyrpPlayercount";
+import RaidProtection from "./RaidProtection";
 
 if (process.env.PRODUCTION == "TRUE") {
 	console.log("Registering production plugins");
@@ -142,8 +142,8 @@ if (process.env.PRODUCTION == "TRUE") {
 	OocTools(client);
 	SneakyrpPlayerlist(client, multicraft);
 	SneakyrpPlayercount(client, multicraft);
-
 	RoleIconRandomization(client);
+	RaidProtection(client, redis);
 } else {
 	console.log("Registering development plugins");
 }
