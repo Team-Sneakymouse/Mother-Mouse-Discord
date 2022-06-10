@@ -19,17 +19,20 @@ const icons = [
 	"968371521645060116",//blushhide
 	"978428620806717540",//turtle hugs
 	"983583133679099927",//knuck
-	"983588095997931570",//judaism
 	"976687555850432563",//giant rat
 	"943214495457771581",//sad party
 	"burrito",
 	"transgender_flag",
 	"pirate_flag",
 	"982861452949995580",//trans kobold
-	"fire",//trans kobold
+	"fire",
 	"978006052454957117",//bin
 	"white_flower",
 	"fish_cake",
+	"pleading_face",
+	"983815416415649932",//maris arm
+	"978230173851873290",//turtle bonk
+	"yarn",
 ];
 
 
@@ -37,7 +40,6 @@ const turtleFriendsId = "898925497508048896";// turtle friends discord id
 const mamisId = "314963721795534848";// turtle friends discord id
 const mamisRoleId = "976218563922759690";
 const timeout_ms = 1000*60*60*4;
-
 
 
 export default function RoleIconRandomization(client: Client) {
@@ -51,13 +53,20 @@ export default function RoleIconRandomization(client: Client) {
 				const mamisRole = message.guild.roles.resolve(mamisRoleId);
 				if (!mamisRole) return console.log("Mami's role is missing!");
 
-				let index = Math.floor(Math.random()*icons.length);
-				let chosenIcon = icons[index];
-				let icon = message.guild.emojis.resolve(chosenIcon);
-				if (icon) {
-					await mamisRole.setIcon(icon);
+				if (Math.random() < .5) {
+					let icon = message.guild.emojis.cache.random();
+					if (icon) {
+						await mamisRole.setIcon(icon);
+					}
 				} else {
-					console.log("RoleIconRandomization whitelist has broken emoji: " + chosenIcon);
+					let index = Math.floor(Math.random()*icons.length);
+					let chosenIcon = icons[index];
+					let icon = message.guild.emojis.resolve(chosenIcon);
+					if (icon) {
+						await mamisRole.setIcon(icon);
+					} else {
+						console.log("RoleIconRandomization whitelist has broken emoji: " + chosenIcon);
+					}
 				}
 			}
 		}
