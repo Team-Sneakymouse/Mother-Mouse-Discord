@@ -34,7 +34,7 @@ const icons = [
 
 
 const turtleFriendsId = "898925497508048896";// turtle friends discord id
-const mamisId = "314963721795534848";// turtle friends discord id
+const mamisId = "314963721795534848";
 const mamisRoleId = "976218563922759690";
 const timeout_ms = 1000*60*60*4;
 

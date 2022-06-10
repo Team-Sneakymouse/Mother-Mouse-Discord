@@ -58,8 +58,11 @@ import MediaEmbed from "./MediaEmbeds";
 // Vibecheck command
 import Vibecheck from "./Vibecheck";
 
-// RoleIconRandomization command
+// Role Icon Randomization for mami's role
 import RoleIconRandomization from "./RoleIconRandomization";
+
+// Reply kobold to maris
+import MarisKobold from "./MarisKobold";
 
 // Rolling dice and evaluating math expressions
 import Roll from "./Roll";
@@ -142,8 +145,9 @@ if (process.env.PRODUCTION == "TRUE") {
 	OocTools(client);
 	SneakyrpPlayerlist(client, multicraft);
 	SneakyrpPlayercount(client, multicraft);
-	RoleIconRandomization(client);
 	RaidProtection(client, redis);
+	RoleIconRandomization(client);
+	MarisKobold(client);
 } else {
 	console.log("Registering development plugins");
 }
