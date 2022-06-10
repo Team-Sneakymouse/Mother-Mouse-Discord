@@ -8,7 +8,6 @@ const icons = [
 	"DANGER",
 	"983584227058651146",//homophobia
 	"potato",
-	"976280379113742357",//turtle
 	"983587660926963712",//trans bee
 	"983583064137539634",//pograt
 	"983583925282672670",//jeb
@@ -17,7 +16,6 @@ const icons = [
 	"983587651795951646",//kobox
 	"976684279981551656",//axolotl bucket
 	"968371521645060116",//blushhide
-	"978428620806717540",//turtle hugs
 	"983583133679099927",//knuck
 	"976687555850432563",//giant rat
 	"943214495457771581",//sad party
@@ -30,7 +28,6 @@ const icons = [
 	"white_flower",
 	"fish_cake",
 	"pleading_face",
-	"983815416415649932",//maris arm
 	"978230173851873290",//turtle bonk
 	"yarn",
 ];
