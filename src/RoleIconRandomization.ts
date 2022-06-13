@@ -4,9 +4,7 @@ import { ScheduleRepeating } from "./utils/unixtime";
 
 
 const icons = [
-	"DANGER",
 	"983584227058651146",//homophobia
-	"potato",
 	"983587660926963712",//trans bee
 	"983583925282672670",//jeb
 	"983583216592093214",//the wall
@@ -15,20 +13,26 @@ const icons = [
 	"976684279981551656",//axolotl bucket
 	"968371521645060116",//blushhide
 	"976687555850432563",//giant rat
+	"978006052454957117",//bin
+	"982861452949995580",//trans kobold
+	"potato",
 	"burrito",
 	"transgender_flag",
 	"pirate_flag",
-	"982861452949995580",//trans kobold
-	"fire",
-	"978006052454957117",//bin
 	"white_flower",
 	"fish_cake",
-	"pleading_face",
 	"yarn",
 	"clown",
+	"birthday",
+	"heart",
+	"pleading_face",
 	"peach",
 	"eggplant",
-	"birthday",
+	"melon",
+	"pleading_face",
+	"peach",
+	"eggplant",
+	"melon",
 ];
 
 
