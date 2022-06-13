@@ -151,7 +151,7 @@ if (process.env.PRODUCTION == "TRUE") {
 	SneakyrpPlayercount(client, multicraft);
 	RaidProtection(client, redis);
 	//Mami's scripts
-	RoleIconRandomization(client);
+	RoleIconRandomization(client, redis);
 	MarisKobold(client);
 	ClearSupportChannel(client, redis);
 } else {
