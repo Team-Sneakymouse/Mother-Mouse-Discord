@@ -4,6 +4,7 @@ import { Client, GatewayIntentBits, Partials } from "discord.js";
 import { Gitlab } from "@gitbeaker/node";
 import { config } from "dotenv";
 config();
+import { Tick } from "./utils/unixtime";
 import MulticraftAPI from "./utils/multicraft";
 
 if (!process.env["MULTICRAFT_HOST"] || !process.env["MULTICRAFT_USER"] || !process.env["MULTICRAFT_KEY"])
@@ -57,12 +58,6 @@ import MediaEmbed from "./MediaEmbeds";
 
 // Vibecheck command
 import Vibecheck from "./Vibecheck";
-
-// Role Icon Randomization for mami's role
-import RoleIconRandomization from "./RoleIconRandomization";
-
-// Reply kobold to maris
-import MarisKobold from "./MarisKobold";
 
 // Rolling dice and evaluating math expressions
 import Roll from "./Roll";
@@ -119,6 +114,15 @@ import SneakyrpPlayerlist from "./SneakyrpPlayerlist";
 import SneakyrpPlayercount from "./SneakyrpPlayercount";
 import RaidProtection from "./RaidProtection";
 
+// start of mami's script imports
+// Role Icon Randomization for mami's role
+import RoleIconRandomization from "./RoleIconRandomization";
+
+// Reply kobold to maris
+import MarisKobold from "./MarisKobold";
+
+import ClearSupportChannel from "./ClearSupportChannel";
+
 if (process.env.PRODUCTION == "TRUE") {
 	console.log("Registering production plugins");
 
@@ -146,8 +150,10 @@ if (process.env.PRODUCTION == "TRUE") {
 	SneakyrpPlayerlist(client, multicraft);
 	SneakyrpPlayercount(client, multicraft);
 	RaidProtection(client, redis);
+	//Mami's scripts
 	RoleIconRandomization(client);
 	MarisKobold(client);
+	ClearSupportChannel(client, redis);
 } else {
 	console.log("Registering development plugins");
 }
@@ -158,3 +164,11 @@ server.listen(process.env.HTTP_PORT || 80, () => console.log("Listening on port 
 const token = process.env.DISCORD_TOKEN;
 if (!token) throw new Error("No token found!");
 client.login(token);
+
+
+(async () => {//manage events queued off of unix time
+	while(true) {
+		let t = Tick(redis);
+		await new Promise((resolve) => setTimeout(resolve, t*1000))
+	}
+})();

@@ -1,4 +1,7 @@
+import { Console } from "console";
 import { Client, Message, Snowflake, TextChannel, ComponentType, ButtonStyle, Collection, Interaction } from "discord.js";
+import { Redis } from "ioredis";
+import { ScheduleRepeating, SECS_IN_WEEK } from "./utils/unixtime";
 
 var changeTimeout: NodeJS.Timeout;
 var isTimedOut = false;
@@ -9,7 +12,11 @@ var clearMessage: Message;
 
 const turtleFriendsId = "898925497508048896";// turtle friends discord id
 const textChannelsToClear = [
-	"975496209882050640",
+	{
+		channelId: "975496209882050640",
+		frequency: SECS_IN_WEEK,
+		clearEpoch: 0,
+	},
 ];
 const percentageOfNoVotesNeededToNotClear = .75;//make sure all text matches this
 const buttonIdYes = "ClearSupportChannel-yes-";
@@ -80,8 +87,7 @@ async function ExecuteVote(channelId: string, channel: TextChannel) {
 	}
 };
 
-export default function ClearSupportChannel(client: Client) {
-
+export default function ClearSupportChannel(client: Client, redis: Redis) {
 	client.on("interactionCreate", async (interaction: Interaction) => {//Monitor Voting
 		if (interaction.isButton()) {
 			let votes = undefined;
@@ -120,11 +126,15 @@ export default function ClearSupportChannel(client: Client) {
 		}
 	});
 
+	for (let { channelId, frequency, clearEpoch } of textChannelsToClear) {
+		const channel = client.channels.cache.get(channelId) as TextChannel;
+		if (channel) {
+			ScheduleRepeating(redis, "ClearSupportChannel-" + channelId, clearEpoch, frequency, () => {
+				ExecuteVote(channelId, channel);
+			});
+		} else {
+			console.log("ClearSupportChannel: could not find channel " + channelId);
+		}
+	}
 
-	const channel = client.channels.cache.get(channelId) as TextChannel;
-	if (!channel) throw new Error("Channel not found");
-
-	ScheduleRepeating(redis, RedisUnixId, clearEpoch, SECS_IN_WEEK, () => {
-		ExecuteVote(channelId, channel);
-	});
 }
