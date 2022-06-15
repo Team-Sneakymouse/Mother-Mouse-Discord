@@ -77,10 +77,12 @@ async function ExecuteVote(redis: Redis, channelId: string, channel: TextChannel
 
 
 		var isBulkFailed = false;
-		do {//delete all channels
+		while (true) {//delete all channels
 			messages = (await channel.messages.fetch({ limit: 100, before: deleteMessage.id })).filter(
 				(m) => !m.pinned && !m.system && !m.hasThread
 			);
+			if(messages.size <= 0) break;
+
 			console.log(`ClearSupportChannel: Deleting ${messages.size} messages`);
 
 			if (!isBulkFailed) {
@@ -100,7 +102,7 @@ async function ExecuteVote(redis: Redis, channelId: string, channel: TextChannel
 					await new Promise((resolve) => setTimeout(resolve, 200));
 				}
 			}
-		} while (messages.size > 0);
+		}
 		await deleteMessage.edit("The channel has been cleared. Stay safe! <:bless:975520085919809587>");
 	} else {
 		channel.send("The channel has been spared. Stay safe! <:bless:975520085919809587>");
