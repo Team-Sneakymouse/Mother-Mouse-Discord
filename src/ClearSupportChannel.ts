@@ -1,6 +1,5 @@
-import { Console } from "console";
-import { Client, Message, Snowflake, TextChannel, ComponentType, ButtonStyle, Collection, Interaction } from "discord.js";
 import { Redis } from "ioredis";
+import { Client, Message, Snowflake, TextChannel, ComponentType, ButtonStyle, Collection, Interaction } from "discord.js";
 import { ScheduleRepeating, RegisterOneTimeEvent, ScheduleOnce, SECS_IN_DAY, SECS_IN_WEEK } from "./utils/unixtime";
 
 // const turtleFriendsId = "898925497508048896";// turtle friends discord id
@@ -74,8 +73,6 @@ async function ExecuteVote(redis: Redis, channelId: string, channel: TextChannel
 		);
 		channel.sendTyping();
 		var messages: Collection<string, Message>;
-
-
 		var isBulkFailed = false;
 		while (true) {//delete all channels
 			messages = (await channel.messages.fetch({ limit: 100, before: deleteMessage.id })).filter(
@@ -87,10 +84,7 @@ async function ExecuteVote(redis: Redis, channelId: string, channel: TextChannel
 
 			if (!isBulkFailed) {
 				try {
-					await channel.bulkDelete(
-						messages,
-						true
-					);
+					await channel.bulkDelete(messages, true);
 					await new Promise((resolve) => setTimeout(resolve, 2000));
 				} catch {
 					isBulkFailed = true;
@@ -114,15 +108,15 @@ async function ExecuteVote(redis: Redis, channelId: string, channel: TextChannel
 export default function ClearSupportChannel(client: Client, redis: Redis) {
 	client.on("interactionCreate", async (interaction: Interaction) => {//Monitor Voting
 		if (interaction.isButton()) {
-			let votes = undefined;
+			let votes: Map<string, boolean> | null = null;
 			let isYes = false;
 			if (interaction.customId.startsWith(buttonIdYes)) {
 				let channelId = interaction.customId.substring(buttonIdYes.length);
-				votes = voteData.get(channelId);
+				votes = voteData.get(channelId) ?? null;
 				isYes = true;
 			} else if (interaction.customId.startsWith(buttonIdNo)) {
 				let channelId = interaction.customId.substring(buttonIdNo.length);
-				votes = voteData.get(channelId);
+				votes = voteData.get(channelId) ?? null;
 				isYes = false;
 			}
 
@@ -157,7 +151,12 @@ export default function ClearSupportChannel(client: Client, redis: Redis) {
 				ExecuteVote(redis, channelId, channel, scheduledTime);
 			};
 
-			ScheduleRepeating(redis, "ClearSupportChannel-" + channelId, clearEpoch, frequency, exec);
+			ScheduleRepeating(redis, {
+				eventId: "ClearSupportChannel-" + channelId,
+				eventEpoch: clearEpoch,
+				secsBetweenEvents: frequency,
+				executor: exec
+			});
 			RegisterOneTimeEvent(redis, "ClearSupportChannel-" + channelId, exec)
 		} else {
 			console.log("ClearSupportChannel: could not find channel " + channelId);

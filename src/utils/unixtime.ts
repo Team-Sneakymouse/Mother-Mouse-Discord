@@ -4,8 +4,14 @@ export const SECS_IN_HOUR = 60 * 60;
 export const SECS_IN_DAY = SECS_IN_HOUR * 24;
 export const SECS_IN_WEEK = SECS_IN_DAY * 7;
 
-
-var repeatingSchedule: { eventId: string, eventEpoch: number, secsBetweenEvents: number, executor: (scheduledTime: number) => void, lastEventUnix: number }[] = [];
+type RepeatingEvent = {
+	eventId: string;
+	eventEpoch: number;
+	secsBetweenEvents: number;
+	executor: (scheduledTime: number) => void;
+	lastEventUnix: number;
+};
+var repeatingSchedule: RepeatingEvent[] = [];
 
 var oneTimeScheduleExecutor: Map<string, (scheduledTime: number) => void> = new Map();
 var oneTimeScheduleNextUnix: Map<string, number> = new Map();
@@ -38,7 +44,7 @@ export function Tick(redis: Redis) {//ought to be called after all events are sc
 		let c = Math.floor((lastEventUnix - eventEpoch) / secsBetweenEvents) + 1;
 		let nextEventUnix = eventEpoch + c * secsBetweenEvents;
 
-		let eventSleepTime;
+		let eventSleepTime: number;
 		if (nextEventUnix <= now_unix) {
 			//time going backwards as it does in unix time (leap seconds) will not affect this code since it always takes the first greater and setting that to the last reset time
 			event.lastEventUnix = now_unix;
@@ -70,8 +76,7 @@ export function Tick(redis: Redis) {//ought to be called after all events are sc
 	return sleepTime;
 }
 
-
-export async function ScheduleRepeating(redis: Redis, eventId: string, eventEpoch: number, secsBetweenEvents: number, executor: (scheduledTime: number) => void) {
+export async function ScheduleRepeating(redis: Redis, {eventId, eventEpoch, secsBetweenEvents, executor}: Omit<RepeatingEvent, "lastEventUnix">) {
 	let ret = await redis.hget("repeating-events-last-unix", eventId);
 	let lastEventUnix = ret ? parseInt(ret) : eventEpoch;//is parseInt good? if it fails events will be unscheduled or too frequently scheduled
 	repeatingSchedule.push({

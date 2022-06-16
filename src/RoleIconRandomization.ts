@@ -43,24 +43,29 @@ const timeout_unix = 60*60*6;
 
 
 export default function RoleIconRandomization(client: Client, redis: Redis) {
-	ScheduleRepeating(redis, "RoleIconRandomization-mami", 0, timeout_unix, async (time) => {
-		let guild = await client.guilds.fetch(turtleFriendsId);
-		const mamisRole = guild.roles.resolve(mamisRoleId);
-		if (!mamisRole) return console.log("Mami's role is missing!");
+	ScheduleRepeating(redis, {
+		eventId: "RoleIconRandomization-mami",
+		eventEpoch: 0,
+		secsBetweenEvents: timeout_unix,
+		executor: async(time) => {
+			let guild = await client.guilds.fetch(turtleFriendsId);
+			const mamisRole = guild.roles.resolve(mamisRoleId);
+			if (!mamisRole) return console.log("Mami's role is missing!");
 
-		if (Math.random() < .5) {
-			let icon = guild.emojis.cache.random();
-			if (icon) {
-				mamisRole.setIcon(icon);
-			}
-		} else {
-			let index = Math.floor(Math.random() * icons.length);
-			let chosenIcon = icons[index];
-			let icon = guild.emojis.resolve(chosenIcon);
-			if (icon) {
-				mamisRole.setIcon(icon);
+			if (Math.random() < .5) {
+				let icon = guild.emojis.cache.random();
+				if (icon) {
+					mamisRole.setIcon(icon);
+				}
 			} else {
-				console.log("RoleIconRandomization whitelist has a broken emoji: " + chosenIcon);
+				let index = Math.floor(Math.random() * icons.length);
+				let chosenIcon = icons[index];
+				let icon = guild.emojis.resolve(chosenIcon);
+				if (icon) {
+					mamisRole.setIcon(icon);
+				} else {
+					console.log("RoleIconRandomization whitelist has a broken emoji: " + chosenIcon);
+				}
 			}
 		}
 	});
