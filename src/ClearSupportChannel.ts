@@ -20,15 +20,14 @@ const textChannelsToClear = [
 		clearEpoch: 1655395200,
 	},
 ];
-const percentageOfNoVotesNeededToNotClear = .75;//make sure all text matches this
+const percentageOfNoVotesNeededToNotClear = 0.75; //make sure all text matches this
 const buttonIdYes = "ClearSupportChannel-yes-";
 const buttonIdNo = "ClearSupportChannel-no-";
-
 
 var voteData: Map<string, Map<Snowflake, boolean>> = new Map();
 
 async function ExecuteVote(redis: Redis, channelId: string, channel: TextChannel, scheduledTime: number) {
-	if (!channel.lastMessageId) return;//if channel is empty skip
+	if (!channel.lastMessageId) return; //if channel is empty skip
 
 	await channel.send({
 		content:
@@ -56,7 +55,7 @@ async function ExecuteVote(redis: Redis, channelId: string, channel: TextChannel
 	let votes: Map<Snowflake, boolean> = new Map();
 	voteData.set(channelId, votes);
 
-	await new Promise((resolve) => setTimeout(resolve, 1000 * 60 * 30));//TODO(mami): make this failsafe if mother mouse goes down in this time
+	await new Promise((resolve) => setTimeout(resolve, 1000 * 60 * 30)); //TODO(mami): make this failsafe if mother mouse goes down in this time
 
 	//Voting is Closed
 
@@ -74,11 +73,12 @@ async function ExecuteVote(redis: Redis, channelId: string, channel: TextChannel
 		channel.sendTyping();
 		var messages: Collection<string, Message>;
 		var isBulkFailed = false;
-		while (true) {//delete all channels
+		while (true) {
+			//delete all channels
 			messages = (await channel.messages.fetch({ limit: 100, before: deleteMessage.id })).filter(
 				(m) => !m.pinned && !m.system && !m.hasThread
 			);
-			if(messages.size <= 0) break;
+			if (messages.size <= 0) break;
 
 			console.log(`ClearSupportChannel: Deleting ${messages.size} messages`);
 
@@ -91,7 +91,7 @@ async function ExecuteVote(redis: Redis, channelId: string, channel: TextChannel
 				}
 			}
 			if (isBulkFailed) {
-				for(let [s, m] of messages) {
+				for (let [s, m] of messages) {
 					await m.delete();
 					await new Promise((resolve) => setTimeout(resolve, 200));
 				}
@@ -103,10 +103,11 @@ async function ExecuteVote(redis: Redis, channelId: string, channel: TextChannel
 
 		ScheduleOnce(redis, "ClearSupportChannel-" + channelId, scheduledTime + SECS_IN_DAY);
 	}
-};
+}
 
 export default function ClearSupportChannel(client: Client, redis: Redis) {
-	client.on("interactionCreate", async (interaction: Interaction) => {//Monitor Voting
+	client.on("interactionCreate", async (interaction: Interaction) => {
+		//Monitor Voting
 		if (interaction.isButton()) {
 			let votes: Map<string, boolean> | null = null;
 			let isYes = false;
@@ -144,23 +145,24 @@ export default function ClearSupportChannel(client: Client, redis: Redis) {
 		}
 	});
 
-	for (let { channelId, frequency, clearEpoch } of textChannelsToClear) {
-		const channel = client.channels.cache.get(channelId) as TextChannel;
-		if (channel) {
-			let exec = (scheduledTime: number) => {
-				ExecuteVote(redis, channelId, channel, scheduledTime);
-			};
+	client.once("ready", () => {
+		for (let { channelId, frequency, clearEpoch } of textChannelsToClear) {
+			const channel = client.channels.cache.get(channelId) as TextChannel;
+			if (channel) {
+				let exec = (scheduledTime: number) => {
+					ExecuteVote(redis, channelId, channel, scheduledTime);
+				};
 
-			ScheduleRepeating(redis, {
-				eventId: "ClearSupportChannel-" + channelId,
-				eventEpoch: clearEpoch,
-				secsBetweenEvents: frequency,
-				executor: exec
-			});
-			RegisterOneTimeEvent(redis, "ClearSupportChannel-" + channelId, exec)
-		} else {
-			console.log("ClearSupportChannel: could not find channel " + channelId);
+				ScheduleRepeating(redis, {
+					eventId: "ClearSupportChannel-" + channelId,
+					eventEpoch: clearEpoch,
+					secsBetweenEvents: frequency,
+					executor: exec,
+				});
+				RegisterOneTimeEvent(redis, "ClearSupportChannel-" + channelId, exec);
+			} else {
+				console.log("ClearSupportChannel: could not find channel " + channelId);
+			}
 		}
-	}
-
+	});
 }
