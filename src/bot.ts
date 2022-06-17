@@ -123,6 +123,8 @@ import MarisKobold from "./MarisKobold";
 
 import ClearSupportChannel from "./ClearSupportChannel";
 
+import NicknameRandomization from "./NicknameRandomization";
+
 if (process.env.PRODUCTION == "TRUE") {
 	console.log("Registering production plugins");
 
@@ -152,6 +154,7 @@ if (process.env.PRODUCTION == "TRUE") {
 	RaidProtection(client, redis);
 	//Mami's scripts
 	RoleIconRandomization(client, redis);
+	NicknameRandomization(client, redis);
 	MarisKobold(client);
 	ClearSupportChannel(client, redis);
 } else {
@@ -165,10 +168,9 @@ const token = process.env.DISCORD_TOKEN;
 if (!token) throw new Error("No token found!");
 client.login(token);
 
-
-(async () => {//manage events queued off of unix time
+client.once("ready", async () => {//manage events queued off of unix time
 	while(true) {
 		let t = Tick(redis);
 		await new Promise((resolve) => setTimeout(resolve, t*1000))
 	}
-})();
+});
