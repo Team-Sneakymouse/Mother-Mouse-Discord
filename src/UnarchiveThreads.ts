@@ -2,11 +2,20 @@ import { ChannelType, Client } from "discord.js";
 import { Gitlab } from "@gitbeaker/node";
 import { channelIds, projectIds, Projects } from "./GitlabIssues/utils";
 
+const hardCodedThreads = [
+	"987002461422227556", // TTT ADHD
+];
+
 export default function UnarchiveThreads(client: Client, gitlab: InstanceType<typeof Gitlab>) {
 	client.on("threadUpdate", async (_, thread) => {
 		if (thread.type !== ChannelType.GuildPublicThread) return;
 		if (thread.ownerId !== client.user?.id) return;
 		if (thread.archived === false) return;
+
+		if (hardCodedThreads.includes(thread.id)) {
+			await thread.setArchived(false);
+			return;
+		}
 
 		const starterMessage = await thread.fetchStarterMessage();
 
