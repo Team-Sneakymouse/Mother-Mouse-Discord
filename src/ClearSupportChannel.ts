@@ -149,7 +149,7 @@ export default function ClearSupportChannel(client: Client, redis: Redis) {
 
 			if (key) {
 				let curIsYes = await redis.hget(key, interaction.user.id);
-				if (curIsYes == undefined) {
+				if (curIsYes == null) {
 					redis.hset(key, interaction.user.id, isYes);
 					interaction.reply({
 						content: "Your vote has been counted",
@@ -163,7 +163,7 @@ export default function ClearSupportChannel(client: Client, redis: Redis) {
 				} else {
 					redis.hset(key, interaction.user.id, isYes);
 					interaction.reply({
-						content: `Your vote has been changed to ${isYes == "1" ? '"Clear"' : '"Postpone"'}`,
+						content: `Your vote has been changed to ${isYes === "1" ? '"Clear"' : '"Postpone"'}`,
 						ephemeral: true,
 					});
 				}
