@@ -68,7 +68,7 @@ export function Tick(redis: Redis) {//ought to be called after all events are sc
 
 			//NOTE: executing these instead of spawning them could cause recursion issues
 			let exec = oneTimeScheduleExecutor.get(eventId);
-		
+
 			console.log("unixtime: executing onetime, ", eventId);
 			if (exec) exec(nextEventUnix);//should never fail
 		} else {
@@ -94,21 +94,21 @@ export async function ScheduleRepeating(redis: Redis, {eventId, eventEpoch, secs
 }
 
 export async function RegisterOneTimeEvent(redis: Redis, eventId: string, executor: (scheduledTime: number) => void) {
-	let ret = await redis.hget("onetime-events-next-unix", eventId);
+	console.log("unixtime: registering onetime, ", eventId);
+	oneTimeScheduleExecutor.set(eventId, executor);
 
+	let ret = await redis.hget("onetime-events-next-unix", eventId);
 	if (ret) {
 		oneTimeScheduleNextUnix.set(eventId, parseInt(ret));
 	}
-	oneTimeScheduleExecutor.set(eventId, executor);
 }
 
 export function ScheduleOnce(redis: Redis, eventId: string, whenUnix: number) {
-	console.log("unixtime: registering onetime, ", eventId);
 
 	if (oneTimeScheduleExecutor.has(eventId)) {
 		oneTimeScheduleNextUnix.set(eventId, whenUnix);
 		redis.hset("one-time-events-next-unix", eventId, whenUnix);
 	} else {
-		throw new Error("unixtime: attempt to schedule unregistered event, please make sure the event is registered at process creation");//This is a developer's error, if ts was a smarter language it would even be possible to catch it statically.
+		throw new Error("unixtime: attempt to schedule unregistered event, " + eventId + ", please make sure the event is registered at process creation");//This is a developer's error, if ts was a smarter language it would even be possible to catch it statically.
 	}
 }

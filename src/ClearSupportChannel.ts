@@ -156,14 +156,15 @@ export default function ClearSupportChannel(client: Client, redis: Redis) {
 				let exec = (scheduledTime: number) => {
 					ExecuteVote(redis, channelId, channel, scheduledTime);
 				};
+				let eventId = "ClearSupportChannel-" + channelId;
 
 				ScheduleRepeating(redis, {
-					eventId: "ClearSupportChannel-" + channelId,
+					eventId,
 					eventEpoch: clearEpoch,
 					secsBetweenEvents: frequency,
 					executor: exec,
 				});
-				RegisterOneTimeEvent(redis, "ClearSupportChannel-" + channelId, exec);
+				RegisterOneTimeEvent(redis, eventId, exec);
 			} else {
 				console.log("ClearSupportChannel: could not find channel " + channelId);
 			}
