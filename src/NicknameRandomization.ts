@@ -13,7 +13,7 @@ const names = [
 	"Jeb Bush",
 	"Doug Walker",
 	"Doug Bowser",
-	"Changing my nickname makes me sad",
+	"Changing my nickname makes me sad :(",
 	"It's ok to leave me in a hot car",
 	"Burrito",
 	"All my apes gone",
@@ -22,6 +22,12 @@ const names = [
 	"Mommy Mouse",
 	"Lonely Mouse",
 	"Crungus",
+	"Daddy Mouse",
+	"Stuart Little",
+	"Remmi Rattitoui",
+	"Federal Agent",
+	"The Lightbringer",
+	"A dead rat in a trenchcoat",
 ];
 
 
