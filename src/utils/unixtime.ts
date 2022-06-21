@@ -53,7 +53,7 @@ export function Tick(redis: Redis) {//ought to be called after all events are sc
 			eventSleepTime = nextEventUnix - now_unix + secsBetweenEvents;
 
 			//TODO: spawn these instead of executing them
-			console.log("unixtime: executing repeating, ", eventId);
+			console.log("unixtime: executing repeating event, " + eventId);
 			executor(nextEventUnix);
 		} else {
 			eventSleepTime = nextEventUnix - now_unix;
@@ -69,7 +69,7 @@ export function Tick(redis: Redis) {//ought to be called after all events are sc
 			//NOTE: executing these instead of spawning them could cause recursion issues
 			let exec = oneTimeScheduleExecutor.get(eventId);
 
-			console.log("unixtime: executing onetime, ", eventId);
+			console.log("unixtime: executing onetime event, " + eventId);
 			if (exec) exec(nextEventUnix);//should never fail
 		} else {
 			sleepTime = Math.min(sleepTime, nextEventUnix - now_unix);
@@ -80,7 +80,6 @@ export function Tick(redis: Redis) {//ought to be called after all events are sc
 }
 
 export async function ScheduleRepeating(redis: Redis, {eventId, eventEpoch, secsBetweenEvents, executor}: Omit<RepeatingEvent, "lastEventUnix">) {
-	console.log("unixtime: registering repeating, ", eventId);
 
 	let ret = await redis.hget("repeating-events-last-unix", eventId);
 	let lastEventUnix = ret ? parseInt(ret) : eventEpoch;//is parseInt good? if it fails events will be unscheduled or too frequently scheduled
@@ -94,7 +93,6 @@ export async function ScheduleRepeating(redis: Redis, {eventId, eventEpoch, secs
 }
 
 export async function RegisterOneTimeEvent(redis: Redis, eventId: string, executor: (scheduledTime: number) => void) {
-	console.log("unixtime: registering onetime, ", eventId);
 	oneTimeScheduleExecutor.set(eventId, executor);
 
 	let ret = await redis.hget("onetime-events-next-unix", eventId);
@@ -104,10 +102,7 @@ export async function RegisterOneTimeEvent(redis: Redis, eventId: string, execut
 }
 
 export function ScheduleOnce(redis: Redis, eventId: string, whenUnix: number) {
-	// if (oneTimeScheduleExecutor.has(eventId)) {
+	console.log("unixtime: scheduling onetime event, " + eventId + " at " + whenUnix);
 	oneTimeScheduleNextUnix.set(eventId, whenUnix);
 	redis.hset("one-time-events-next-unix", eventId, whenUnix);
-	// } else {
-		// throw new Error("unixtime: attempt to schedule unregistered event, " + eventId + ", please make sure the event is registered at process creation");//This is a developer's error, if ts was a smarter language it would even be possible to catch it statically.
-	// }
 }
