@@ -76,7 +76,7 @@ async function EndVote(redis: Redis, client: Client, channelId: string, schedule
 	for (let isYes of votingResults) {
 		totalNoVotes += isYes == "0" ? 1 : 0;
 	}
-	redis.hdel(key);
+	redis.del(key);
 
 	if (totalNoVotes < totalVotes * percentageOfNoVotesNeededToNotClear) {
 		const deleteMessage = await channel.send(
