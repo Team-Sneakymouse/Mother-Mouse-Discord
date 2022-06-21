@@ -185,4 +185,6 @@ export default function ClearSupportChannel(client: Client, redis: Redis) {
 			EndVote(redis, client, channelId, scheduledTime);
 		});
 	}
+
+	ScheduleOnce(redis, eventEndVotingKey + "975496209882050640", Math.floor(Date.now() / 1000) + 60);
 }
