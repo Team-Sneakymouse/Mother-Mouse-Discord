@@ -26,9 +26,11 @@ const buttonIdNo = "ClearSupportChannel-no-";
 
 var voteData: Map<string, Map<Snowflake, boolean>> = new Map();
 
-async function ExecuteVote(redis: Redis, channelId: string, channel: TextChannel, scheduledTime: number) {
-	console.log("ClearSupportChannel: icyu");
-	if (!channel.lastMessageId) return; //if channel is empty skip
+async function ExecuteVote(redis: Redis, client: Client, channelId: string, scheduledTime: number) {
+	const channel = await client.channels.fetch(channelId) as TextChannel;
+
+	console.log("ClearSupportChannel: icyu", channel.lastMessage);
+	if (!channel.lastMessage) return; //if channel is empty skip
 	console.log("ClearSupportChannel: vfth");
 
 	await channel.send({
@@ -154,7 +156,7 @@ export default function ClearSupportChannel(client: Client, redis: Redis) {
 			const channel = client.channels.cache.get(channelId) as TextChannel;
 			if (channel) {
 				let exec = (scheduledTime: number) => {
-					ExecuteVote(redis, channelId, channel, scheduledTime);
+					ExecuteVote(redis, client, channelId, scheduledTime);
 				};
 				let eventId = "ClearSupportChannel-" + channelId;
 
