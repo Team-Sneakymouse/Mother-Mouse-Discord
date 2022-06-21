@@ -29,8 +29,12 @@ var voteData: Map<string, Map<Snowflake, boolean>> = new Map();
 async function ExecuteVote(redis: Redis, client: Client, channelId: string, scheduledTime: number) {
 	const channel = await client.channels.fetch(channelId) as TextChannel;
 
-	console.log("ClearSupportChannel: icyu", channel.lastMessage);
-	if (!channel.lastMessage) return; //if channel is empty skip
+	//if channel is empty skip deletion
+	messages = (await channel.messages.fetch({ limit: 16 })).filter(
+		(m) => !m.pinned && !m.system && !m.hasThread
+	);
+	if (messages.size <= 0) return;
+
 	console.log("ClearSupportChannel: vfth");
 
 	await channel.send({
