@@ -96,11 +96,11 @@ async function EndVote(redis: Redis, client: Client, channelId: string, schedule
 			console.log(`ClearSupportChannel: Deleting ${messages.size} messages`);
 
 			if (!isBulkFailed) {
-				await modernChannel.bulkDelete(messages, true)
+				let deleted = await modernChannel.bulkDelete(messages, true)
 				.catch((reason) => {
 					console.log(`ClearSupportChannel: Failed to bulkDelete ${messages.size} messages, switching to individual deletion, ` + reason);
-					isBulkFailed = true;
 				});
+				isBulkFailed = deleted ? deleted.size > 0 : false;
 				await new Promise((resolve) => setTimeout(resolve, 2000));
 			}
 			if (isBulkFailed) {
