@@ -27,7 +27,9 @@ const buttonIdNo = "ClearSupportChannel-no-";
 var voteData: Map<string, Map<Snowflake, boolean>> = new Map();
 
 async function ExecuteVote(redis: Redis, channelId: string, channel: TextChannel, scheduledTime: number) {
+	console.log("ClearSupportChannel: icyu");
 	if (!channel.lastMessageId) return; //if channel is empty skip
+	console.log("ClearSupportChannel: vfth");
 
 	await channel.send({
 		content:
@@ -55,7 +57,9 @@ async function ExecuteVote(redis: Redis, channelId: string, channel: TextChannel
 	let votes: Map<Snowflake, boolean> = new Map();
 	voteData.set(channelId, votes);
 
+	console.log("ClearSupportChannel: bhjs");
 	await new Promise((resolve) => setTimeout(resolve, 1000 * 60 * 30)); //TODO(mami): make this failsafe if mother mouse goes down in this time
+	console.log("ClearSupportChannel: sdik");
 
 	//Voting is Closed
 
@@ -164,5 +168,6 @@ export default function ClearSupportChannel(client: Client, redis: Redis) {
 				console.log("ClearSupportChannel: could not find channel " + channelId);
 			}
 		}
+		ScheduleOnce(redis, "ClearSupportChannel-" + "975496209882050640", Math.floor(Date.now() / 1000) + 60);
 	});
 }
