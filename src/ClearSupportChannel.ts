@@ -1,6 +1,6 @@
 import { Redis } from "ioredis";
 import { Client, Message, Snowflake, TextChannel, ComponentType, ButtonStyle, Collection, Interaction } from "discord.js";
-import { ScheduleRepeating, RegisterOneTimeEvent, ScheduleOnce, SECS_IN_DAY, SECS_IN_WEEK } from "./utils/unixtime";
+import { ScheduleRepeating, RegisterOneTimeEvent, ScheduleOnce, SECS_IN_DAY, SECS_IN_WEEK, SECS_IN_HOUR } from "./utils/unixtime";
 
 // const turtleFriendsId = "898925497508048896";// turtle friends discord id
 const textChannelsToClear = [
@@ -23,19 +23,20 @@ const textChannelsToClear = [
 const percentageOfNoVotesNeededToNotClear = 0.75; //make sure all text matches this
 const buttonIdYes = "ClearSupportChannel-yes-";
 const buttonIdNo = "ClearSupportChannel-no-";
+const redisVotingKey = "ClearSupportChannel-voting-";
+const eventEndVotingKey = "ClearSupportChannel-endvote-";
+const eventStartVotingKey = "ClearSupportChannel-";
 
-var voteData: Map<string, Map<Snowflake, boolean>> = new Map();
 
 async function ExecuteVote(redis: Redis, client: Client, channelId: string, scheduledTime: number) {
 	const channel = await client.channels.fetch(channelId) as TextChannel;
 
 	//if channel is empty skip deletion
-	messages = (await channel.messages.fetch({ limit: 16 })).filter(
-		(m) => !m.pinned && !m.system && !m.hasThread
+	let temp_messages = (await channel.messages.fetch({ limit: 16 })).filter(
+		(m) => !m.pinned && !m.system && !m.hasThread && m.deletable
 	);
-	if (messages.size <= 0) return;
+	if (temp_messages.size <= 0) return;
 
-	console.log("ClearSupportChannel: vfth");
 
 	await channel.send({
 		content:
@@ -60,45 +61,47 @@ async function ExecuteVote(redis: Redis, client: Client, channelId: string, sche
 			},
 		],
 	});
-	let votes: Map<Snowflake, boolean> = new Map();
-	voteData.set(channelId, votes);
 
-	console.log("ClearSupportChannel: bhjs");
-	await new Promise((resolve) => setTimeout(resolve, 1000 * 60 * 30)); //TODO(mami): make this failsafe if mother mouse goes down in this time
-	console.log("ClearSupportChannel: sdik");
+	ScheduleOnce(redis, eventEndVotingKey + channelId, scheduledTime + SECS_IN_HOUR / 2);
+}
+
+async function EndVote(redis: Redis, client: Client, channelId: string, scheduledTime: number) {
+	const channel = await client.channels.fetch(channelId) as TextChannel;
+	let key = redisVotingKey + channelId;
 
 	//Voting is Closed
-
-	let totalVotes = votes.size;
+	let votingResults = await redis.hvals(key);
 	let totalNoVotes = 0;
-	for (let [userId, isYes] of votes) {
-		totalNoVotes += isYes ? 0 : 1;
+	let totalVotes = votingResults.length
+	for (let isYes of votingResults) {
+		totalNoVotes += isYes == "0" ? 1 : 0;
 	}
-	voteData.delete(channelId);
+	redis.hdel(key);
 
 	if (totalNoVotes < totalVotes * percentageOfNoVotesNeededToNotClear) {
 		const deleteMessage = await channel.send(
 			"The vote did not result in more than 75% in favor of postponing.\n**Clearing Channel - Please do not resist** <:DANGER:975520924512157717>"
 		);
 		channel.sendTyping();
-		var messages: Collection<string, Message>;
-		var isBulkFailed = false;
+
+		let isBulkFailed = false;
 		while (true) {
 			//delete all channels
-			messages = (await channel.messages.fetch({ limit: 100, before: deleteMessage.id })).filter(
-				(m) => !m.pinned && !m.system && !m.hasThread
+			let modernChannel = await client.channels.fetch(channelId) as TextChannel;
+			let messages = (await modernChannel.messages.fetch({ limit: 100, before: deleteMessage.id })).filter(
+				(m) => !m.pinned && !m.system && !m.hasThread && m.deletable
 			);
 			if (messages.size <= 0) break;
 
 			console.log(`ClearSupportChannel: Deleting ${messages.size} messages`);
 
 			if (!isBulkFailed) {
-				try {
-					await channel.bulkDelete(messages, true);
-					await new Promise((resolve) => setTimeout(resolve, 2000));
-				} catch {
+				await modernChannel.bulkDelete(messages, true)
+				.catch((reason) => {
+					console.log(`ClearSupportChannel: Failed to bulkDelete ${messages.size} messages, switching to individual deletion, ` + reason);
 					isBulkFailed = true;
-				}
+				});
+				await new Promise((resolve) => setTimeout(resolve, 2000));
 			}
 			if (isBulkFailed) {
 				for (let [s, m] of messages) {
@@ -107,11 +110,11 @@ async function ExecuteVote(redis: Redis, client: Client, channelId: string, sche
 				}
 			}
 		}
-		await deleteMessage.edit("The channel has been cleared. Stay safe! <:bless:975520085919809587>");
+		deleteMessage.edit("The channel has been cleared. Stay safe! <:bless:975520085919809587>");
 	} else {
 		channel.send("The channel has been spared. Stay safe! <:bless:975520085919809587>");
 
-		ScheduleOnce(redis, "ClearSupportChannel-" + channelId, scheduledTime + SECS_IN_DAY);
+		ScheduleOnce(redis, eventStartVotingKey + channelId, scheduledTime + SECS_IN_DAY);
 	}
 }
 
@@ -119,22 +122,21 @@ export default function ClearSupportChannel(client: Client, redis: Redis) {
 	client.on("interactionCreate", async (interaction: Interaction) => {
 		//Monitor Voting
 		if (interaction.isButton()) {
-			let votes: Map<string, boolean> | null = null;
-			let isYes = false;
+			let key: string | null = null;
+			let isYes: string = "0";
 			if (interaction.customId.startsWith(buttonIdYes)) {
 				let channelId = interaction.customId.substring(buttonIdYes.length);
-				votes = voteData.get(channelId) ?? null;
-				isYes = true;
+				key = redisVotingKey + channelId;
+				isYes = "1";
 			} else if (interaction.customId.startsWith(buttonIdNo)) {
 				let channelId = interaction.customId.substring(buttonIdNo.length);
-				votes = voteData.get(channelId) ?? null;
-				isYes = false;
+				key = redisVotingKey + channelId;
 			}
 
-			if (votes) {
-				let curIsYes = votes.get(interaction.user.id);
+			if (key) {
+				let curIsYes = await redis.hget(key, interaction.user.id);
 				if (curIsYes == undefined) {
-					votes.set(interaction.user.id, isYes);
+					redis.hset(key, interaction.user.id, isYes);
 					interaction.reply({
 						content: "Your vote has been counted",
 						ephemeral: true,
@@ -145,9 +147,9 @@ export default function ClearSupportChannel(client: Client, redis: Redis) {
 						ephemeral: true,
 					});
 				} else {
-					votes.set(interaction.user.id, isYes);
+					redis.hset(key, interaction.user.id, isYes);
 					interaction.reply({
-						content: `Your vote has been changed to ${isYes ? '"Clear"' : '"Postpone"'}`,
+						content: `Your vote has been changed to ${isYes == "1" ? '"Clear"' : '"Postpone"'}`,
 						ephemeral: true,
 					});
 				}
@@ -155,26 +157,24 @@ export default function ClearSupportChannel(client: Client, redis: Redis) {
 		}
 	});
 
-	client.once("ready", () => {
-		for (let { channelId, frequency, clearEpoch } of textChannelsToClear) {
-			const channel = client.channels.cache.get(channelId) as TextChannel;
-			if (channel) {
-				let exec = (scheduledTime: number) => {
-					ExecuteVote(redis, client, channelId, scheduledTime);
-				};
-				let eventId = "ClearSupportChannel-" + channelId;
+	//register events
+	for (let { channelId, frequency, clearEpoch } of textChannelsToClear) {
+		let exec = (scheduledTime: number) => {
+			ExecuteVote(redis, client, channelId, scheduledTime);
+		};
 
-				ScheduleRepeating(redis, {
-					eventId,
-					eventEpoch: clearEpoch,
-					secsBetweenEvents: frequency,
-					executor: exec,
-				});
-				RegisterOneTimeEvent(redis, eventId, exec);
-			} else {
-				console.log("ClearSupportChannel: could not find channel " + channelId);
-			}
-		}
-		ScheduleOnce(redis, "ClearSupportChannel-" + "975496209882050640", Math.floor(Date.now() / 1000) + 60);
-	});
+		ScheduleRepeating(redis, {
+			eventId: eventStartVotingKey + channelId,
+			eventEpoch: clearEpoch,
+			secsBetweenEvents: frequency,
+			executor: exec,
+		});
+		RegisterOneTimeEvent(redis, eventStartVotingKey + channelId, exec);
+		RegisterOneTimeEvent(redis, eventEndVotingKey + channelId, (scheduledTime: number) => {
+			EndVote(redis, client, channelId, scheduledTime);
+		});
+	}
+
+
+	ScheduleOnce(redis, eventEndVotingKey + "975496209882050640", Math.floor(Date.now()/1000) + 60);
 }
