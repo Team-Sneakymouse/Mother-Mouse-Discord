@@ -85,6 +85,7 @@ async function EndVote(redis: Redis, client: Client, channelId: string, schedule
 		channel.sendTyping();
 
 		let isBulkFailed = false;
+		let hasFailed = false;
 		while (true) {
 			//delete all channels
 			let modernChannel = await client.channels.fetch(channelId) as TextChannel;
@@ -98,19 +99,27 @@ async function EndVote(redis: Redis, client: Client, channelId: string, schedule
 			if (!isBulkFailed) {
 				let deleted = await modernChannel.bulkDelete(messages, true)
 				.catch((reason) => {
-					console.log(`ClearSupportChannel: Failed to bulkDelete ${messages.size} messages, switching to individual deletion, ` + reason);
+					console.log(`ClearSupportChannel: Failed to bulkDelete ${messages.size} messages, ` + reason);
 				});
 				isBulkFailed = deleted ? deleted.size > 0 : false;
 				await new Promise((resolve) => setTimeout(resolve, 2000));
 			}
 			if (isBulkFailed) {
 				for (let [s, m] of messages) {
-					await m.delete();
+					await m.delete().catch((reason) => {
+						console.log(`ClearSupportChannel: Failed to delete ${messages.size} messages, ` + reason);
+						hasFailed = true;
+					});
+					if(hasFailed) break;
 					await new Promise((resolve) => setTimeout(resolve, 200));
 				}
 			}
 		}
-		deleteMessage.edit("The channel has been cleared. Stay safe! <:bless:975520085919809587>");
+		if (hasFailed) {
+			deleteMessage.edit("I cannot delete the last few messages in this channel. Discord makes me sad :(. <:bless:975520085919809587>");
+		} else {
+			deleteMessage.edit("The channel has been cleared. Stay safe! <:bless:975520085919809587>");
+		}
 	} else {
 		channel.send("The channel has been spared. Stay safe! <:bless:975520085919809587>");
 
