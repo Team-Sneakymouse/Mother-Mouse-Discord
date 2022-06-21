@@ -125,6 +125,8 @@ import ClearSupportChannel from "./ClearSupportChannel";
 
 import NicknameRandomization from "./NicknameRandomization";
 
+import HotlinePosting from "./HotlinePosting";
+
 if (process.env.PRODUCTION == "TRUE") {
 	client.setMaxListeners(31)
 	console.log("Registering production plugins");
@@ -158,6 +160,7 @@ if (process.env.PRODUCTION == "TRUE") {
 	NicknameRandomization(client, redis);
 	MarisKobold(client);
 	ClearSupportChannel(client, redis);
+	HotlinePosting(client);
 } else {
 	console.log("Registering development plugins");
 }
