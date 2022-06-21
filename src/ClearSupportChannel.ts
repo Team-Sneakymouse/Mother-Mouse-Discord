@@ -85,8 +85,10 @@ async function EndVote(redis: Redis, client: Client, channelId: string, schedule
 		channel.sendTyping();
 
 		let isBulkFailed = false;
-		let hasFailed = false;
-		while (true) {
+		let failures = 0;
+		let attempts = 0;
+		while (attempts < 1000 && failures < 8) {
+			attempts += 1;
 			//delete all channels
 			let modernChannel = await client.channels.fetch(channelId) as TextChannel;
 			let messages = (await modernChannel.messages.fetch({ limit: 100, before: deleteMessage.id })).filter(
@@ -100,6 +102,7 @@ async function EndVote(redis: Redis, client: Client, channelId: string, schedule
 				let deleted = await modernChannel.bulkDelete(messages, true)
 				.catch((reason) => {
 					console.log(`ClearSupportChannel: Failed to bulkDelete ${messages.size} messages, ` + reason);
+					failures += 1;
 				});
 				isBulkFailed = deleted ? deleted.size > 0 : false;
 				await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -108,17 +111,16 @@ async function EndVote(redis: Redis, client: Client, channelId: string, schedule
 				for (let [s, m] of messages) {
 					await m.delete().catch((reason) => {
 						console.log(`ClearSupportChannel: Failed to delete ${messages.size} messages, ` + reason);
-						hasFailed = true;
+						failures += 1;
 					});
-					if(hasFailed) break;
-					await new Promise((resolve) => setTimeout(resolve, 200));
+					await new Promise((resolve) => setTimeout(resolve, 2000));
 				}
 			}
 		}
-		if (hasFailed) {
-			deleteMessage.edit("I cannot delete the last few messages in this channel. Discord makes me sad :(. <:bless:975520085919809587>");
-		} else {
+		if (attempts < 1000 && failures < 8) {
 			deleteMessage.edit("The channel has been cleared. Stay safe! <:bless:975520085919809587>");
+		} else {
+			deleteMessage.edit("I cannot delete the last few messages in this channel. Discord makes me sad :(. <:bless:975520085919809587>");
 		}
 	} else {
 		channel.send("The channel has been spared. Stay safe! <:bless:975520085919809587>");
@@ -183,7 +185,4 @@ export default function ClearSupportChannel(client: Client, redis: Redis) {
 			EndVote(redis, client, channelId, scheduledTime);
 		});
 	}
-
-
-	ScheduleOnce(redis, eventEndVotingKey + "975496209882050640", Math.floor(Date.now()/1000) + 60);
 }
