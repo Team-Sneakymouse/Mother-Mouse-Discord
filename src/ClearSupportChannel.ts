@@ -109,10 +109,13 @@ async function EndVote(redis: Redis, client: Client, channelId: string, schedule
 			}
 			if (isBulkFailed) {
 				for (let [s, m] of messages) {
+					let hasFailed = false;
 					await m.delete().catch((reason) => {
 						console.log(`ClearSupportChannel: Failed to delete ${messages.size} messages, ` + reason);
 						failures += 1;
+						hasFailed = true;
 					});
+					if (hasFailed) break;
 					await new Promise((resolve) => setTimeout(resolve, 2000));
 				}
 			}
