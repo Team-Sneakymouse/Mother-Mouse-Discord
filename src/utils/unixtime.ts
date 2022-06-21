@@ -53,6 +53,7 @@ export function Tick(redis: Redis) {//ought to be called after all events are sc
 			eventSleepTime = nextEventUnix - now_unix + secsBetweenEvents;
 
 			//TODO: spawn these instead of executing them
+			console.log("unixtime: executing repeating, ", eventId);
 			executor(nextEventUnix);
 		} else {
 			eventSleepTime = nextEventUnix - now_unix;
@@ -67,6 +68,8 @@ export function Tick(redis: Redis) {//ought to be called after all events are sc
 
 			//NOTE: executing these instead of spawning them could cause recursion issues
 			let exec = oneTimeScheduleExecutor.get(eventId);
+		
+			console.log("unixtime: executing onetime, ", eventId);
 			if (exec) exec(nextEventUnix);//should never fail
 		} else {
 			sleepTime = Math.min(sleepTime, nextEventUnix - now_unix);
@@ -77,6 +80,8 @@ export function Tick(redis: Redis) {//ought to be called after all events are sc
 }
 
 export async function ScheduleRepeating(redis: Redis, {eventId, eventEpoch, secsBetweenEvents, executor}: Omit<RepeatingEvent, "lastEventUnix">) {
+	console.log("unixtime: registering repeating, ", eventId);
+
 	let ret = await redis.hget("repeating-events-last-unix", eventId);
 	let lastEventUnix = ret ? parseInt(ret) : eventEpoch;//is parseInt good? if it fails events will be unscheduled or too frequently scheduled
 	repeatingSchedule.push({
@@ -98,6 +103,8 @@ export async function RegisterOneTimeEvent(redis: Redis, eventId: string, execut
 }
 
 export function ScheduleOnce(redis: Redis, eventId: string, whenUnix: number) {
+	console.log("unixtime: registering onetime, ", eventId);
+
 	if (oneTimeScheduleExecutor.has(eventId)) {
 		oneTimeScheduleNextUnix.set(eventId, whenUnix);
 		redis.hset("one-time-events-next-unix", eventId, whenUnix);

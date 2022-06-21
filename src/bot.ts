@@ -124,8 +124,10 @@ import MarisKobold from "./MarisKobold";
 import ClearSupportChannel from "./ClearSupportChannel";
 
 import NicknameRandomization from "./NicknameRandomization";
+import { EventEmitter } from "node:stream";
 
 if (process.env.PRODUCTION == "TRUE") {
+	client.setMaxListeners(31);
 	console.log("Registering production plugins");
 
 	TwitchCommands(client);
