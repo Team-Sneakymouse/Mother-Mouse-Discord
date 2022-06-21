@@ -104,11 +104,10 @@ export async function RegisterOneTimeEvent(redis: Redis, eventId: string, execut
 }
 
 export function ScheduleOnce(redis: Redis, eventId: string, whenUnix: number) {
-
-	if (oneTimeScheduleExecutor.has(eventId)) {
-		oneTimeScheduleNextUnix.set(eventId, whenUnix);
-		redis.hset("one-time-events-next-unix", eventId, whenUnix);
-	} else {
-		throw new Error("unixtime: attempt to schedule unregistered event, " + eventId + ", please make sure the event is registered at process creation");//This is a developer's error, if ts was a smarter language it would even be possible to catch it statically.
-	}
+	// if (oneTimeScheduleExecutor.has(eventId)) {
+	oneTimeScheduleNextUnix.set(eventId, whenUnix);
+	redis.hset("one-time-events-next-unix", eventId, whenUnix);
+	// } else {
+		// throw new Error("unixtime: attempt to schedule unregistered event, " + eventId + ", please make sure the event is registered at process creation");//This is a developer's error, if ts was a smarter language it would even be possible to catch it statically.
+	// }
 }
