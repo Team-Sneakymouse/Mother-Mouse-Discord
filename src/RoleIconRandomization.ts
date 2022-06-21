@@ -15,24 +15,19 @@ const icons = [
 	"976687555850432563",//giant rat
 	"978006052454957117",//bin
 	"982861452949995580",//trans kobold
-	"potato",
-	"burrito",
-	"transgender_flag",
-	"pirate_flag",
-	"white_flower",
-	"fish_cake",
-	"yarn",
-	"clown",
-	"birthday",
-	"heart",
-	"pleading_face",
-	"peach",
-	"eggplant",
-	"melon",
-	"pleading_face",
-	"peach",
-	"eggplant",
-	"melon",
+	"988890878640795679",//potato
+	"988890921162641509",//burrito
+	"988891226990342205",//trans flag
+	"988891270808223765",//pirate flag
+	"988891319034323004",//white flower
+	"988891359345795092",//fish cake
+	"988890666786488350", //yarn
+	"988891396574416966",//clown
+	"988891431420702780",//birthday
+	"988891462815076482",//heart
+	"988891158606409738",//pleading
+	"988891013626077235",//peach
+	"988891089920458833",//melon
 ];
 
 

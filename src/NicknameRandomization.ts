@@ -7,11 +7,12 @@ var isTimedOut = false;
 
 
 const names = [
+	"Mother Mouse",
 	"DANGER",
 	"Mother Kobold",
 	"Morbin Mouse",
 	"Jeb Bush",
-	"Doug Walker",
+	"Doug Walker", 
 	"Doug Bowser",
 	"Changing my nickname makes me sad :(",
 	"It's ok to leave me in a hot car",
