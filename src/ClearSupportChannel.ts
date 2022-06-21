@@ -78,7 +78,7 @@ async function EndVote(redis: Redis, client: Client, channelId: string, schedule
 	}
 	redis.del(key);
 
-	if (totalNoVotes < totalVotes * percentageOfNoVotesNeededToNotClear) {
+	if (totalNoVotes <= totalVotes * percentageOfNoVotesNeededToNotClear) {
 		const deleteMessage = await channel.send(
 			"The vote did not result in more than 75% in favor of postponing.\n**Clearing Channel - Please do not resist** <:DANGER:975520924512157717>"
 		);
