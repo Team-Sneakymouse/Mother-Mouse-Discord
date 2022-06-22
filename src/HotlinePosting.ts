@@ -29,8 +29,8 @@ export default function HotlinePosting(client: Client) {
 		if (message.guildId === turtleFriendsId && triggerChannels.includes(message.channelId)) {
 			let content = message.content.toLowerCase().replace(/\s/gm, '');
 			let doPost = false;
-			for(let s of triggerWords) {
-				if (content.includes(s)) {
+			for (let word of triggerWords) {
+				if (content.includes(word)) {
 					doPost = true;
 					break;
 				}
