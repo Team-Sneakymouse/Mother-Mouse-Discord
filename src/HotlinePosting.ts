@@ -13,6 +13,7 @@ const triggerWords = [
 	"killmyself",
 	"kms",
 	"endingit",
+	"endit",
 	"endmyself",
 ];
 const triggerChannels = [
@@ -28,9 +29,7 @@ export default function HotlinePosting(client: Client) {
 	client.on("messageCreate", async (message) => {
 		if (!message.guild) return;
 		if (message.guildId === turtleFriendsId && triggerChannels.includes(message.channelId)) {
-			console.log(message.content);
 			message = await message.fetch();
-			console.log(message.content);
 			let text = message.content.toLowerCase().replace(/\s/gm, '');
 			let doPost = false;
 			for (let word of triggerWords) {
@@ -40,7 +39,6 @@ export default function HotlinePosting(client: Client) {
 					break;
 				}
 			}
-			console.log(doPost);
 			if (doPost && !isTimedOut) {
 				isTimedOut = true;
 				changeTimeout = setTimeout(() => { isTimedOut = false; }, timeout_ms);
