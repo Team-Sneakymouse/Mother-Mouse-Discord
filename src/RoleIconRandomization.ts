@@ -32,7 +32,6 @@ const icons = [
 
 
 const turtleFriendsId = "898925497508048896";// turtle friends discord id
-// const mamisId = "314963721795534848";
 const mamisRoleId = "976218563922759690";
 const timeout_unix = 60*60*6;
 
@@ -55,7 +54,7 @@ export default function RoleIconRandomization(client: Client, redis: Redis) {
 			} else {
 				let index = Math.floor(Math.random() * icons.length);
 				let chosenIcon = icons[index];
-				let icon = guild.emojis.resolve(chosenIcon);
+				let icon = client.emojis.resolve(chosenIcon);
 				if (icon) {
 					mamisRole.setIcon(icon);
 				} else {
