@@ -27,16 +27,19 @@ export default function HotlinePosting(client: Client) {
 	client.on("messageCreate", async (message) => {
 		if (!message.guild) return;
 		if (message.guildId === turtleFriendsId && triggerChannels.includes(message.channelId)) {
-			console.log("ffgix");
-			let content = message.content.toLowerCase().replace(/\s/gm, '');
+			console.log(message.content);
+			message = await message.fetch();
+			console.log(message.content);
+			let text = message.content.toLowerCase().replace(/\s/gm, '');
 			let doPost = false;
 			for (let word of triggerWords) {
-				if (content.includes(word)) {
+				if (text.includes(word)) {
 					doPost = true;
+					console.log(word);
 					break;
 				}
 			}
-			console.log("dsfs");
+			console.log(doPost);
 			if (doPost && !isTimedOut) {
 				isTimedOut = true;
 				changeTimeout = setTimeout(() => { isTimedOut = false; }, timeout_ms);
