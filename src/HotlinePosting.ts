@@ -35,7 +35,6 @@ export default function HotlinePosting(client: Client) {
 			for (let word of triggerWords) {
 				if (text.includes(word)) {
 					doPost = true;
-					console.log(word);
 					break;
 				}
 			}
