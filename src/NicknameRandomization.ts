@@ -12,7 +12,7 @@ const names = [
 	"Mother Kobold",
 	"Morbin Mouse",
 	"Jeb Bush",
-	"Doug Walker", 
+	"Doug Walker",
 	"Doug Bowser",
 	"Changing my nickname makes me sad :(",
 	"It's ok to leave me in a hot car",
@@ -29,6 +29,7 @@ const names = [
 	"Federal Agent",
 	"The Lightbringer",
 	"A dead rat in a trenchcoat",
+	"Ricky Rat",
 ];
 
 
