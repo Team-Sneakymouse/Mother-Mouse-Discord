@@ -1,4 +1,4 @@
-import { Client } from "discord.js";
+import { Client, TextChannel } from "discord.js";
 
 var changeTimeout: NodeJS.Timeout;
 var isTimedOut = false;
@@ -39,7 +39,7 @@ export default function HotlinePosting(client: Client) {
 				isTimedOut = true;
 				changeTimeout = setTimeout(() => { isTimedOut = false; }, timeout_ms);
 
-				message.channel.send(messageHotline);
+				(message.channel as TextChannel).send(messageHotline);
 			}
 		}
 	});
