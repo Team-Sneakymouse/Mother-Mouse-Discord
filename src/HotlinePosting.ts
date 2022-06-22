@@ -27,6 +27,7 @@ export default function HotlinePosting(client: Client) {
 	client.on("messageCreate", async (message) => {
 		if (!message.guild) return;
 		if (message.guildId === turtleFriendsId && triggerChannels.includes(message.channelId)) {
+			console.log("ffgix");
 			let content = message.content.toLowerCase().replace(/\s/gm, '');
 			let doPost = false;
 			for (let word of triggerWords) {
@@ -35,10 +36,12 @@ export default function HotlinePosting(client: Client) {
 					break;
 				}
 			}
+			console.log("dsfs");
 			if (doPost && !isTimedOut) {
 				isTimedOut = true;
 				changeTimeout = setTimeout(() => { isTimedOut = false; }, timeout_ms);
 
+				console.log("Hotline Posting: someone triggered this script, posting now");
 				(message.channel as TextChannel).send(messageHotline);
 			}
 		}
