@@ -2,7 +2,7 @@
 	"scripts": {
 		"start": "node --enable-source-maps dist/bot.js",
 		"build": "tsc",
-		"dev": "docker run --rm -v \"${PWD}:/app\" -w /app -p 80:80 --network db -t node:16-alpine npm run watch",
+		"dev": "docker run --rm -v \"${PWD}:/app\" -w /app -p 80:80 --network db -t --entrypoint sh node:16-alpine -c 'apk add youtube-dl ffmpeg && npm run watch'",
 		"watch": "concurrently -n TS,JS -c blue,yellow 'npm run watch-ts' 'npm run watch-js'",
 		"watch-ts": "tsc --watch --preserveWatchOutput",
 		"watch-js": "nodemon --watch ./dist --enable-source-maps --delay 2 dist/server.js"

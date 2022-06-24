@@ -6,6 +6,7 @@ import { config } from "dotenv";
 config();
 import { Tick } from "./utils/unixtime";
 import MulticraftAPI from "./utils/multicraft";
+import YouTubeDL from "./utils/youtube-dl";
 
 if (!process.env["MULTICRAFT_HOST"] || !process.env["MULTICRAFT_USER"] || !process.env["MULTICRAFT_KEY"])
 	throw new Error("Missing Multicraft credentials");
@@ -18,6 +19,8 @@ const multicraft = new MulticraftAPI(
 const gitlab = new Gitlab({
 	token: process.env["GITLAB_TOKEN"],
 });
+
+const ytdl = new YouTubeDL();
 
 const server = express();
 server.use(express.json());
@@ -127,9 +130,10 @@ import ClearSupportChannel from "./ClearSupportChannel";
 import NicknameRandomization from "./NicknameRandomization";
 
 import HotlinePosting from "./HotlinePosting";
+import YouTube from "./YouTube";
 
 if (process.env.PRODUCTION == "TRUE") {
-	client.setMaxListeners(31)
+	client.setMaxListeners(31);
 	console.log("Registering production plugins");
 
 	TwitchCommands(client);
@@ -164,6 +168,7 @@ if (process.env.PRODUCTION == "TRUE") {
 	HotlinePosting(client);
 } else {
 	console.log("Registering development plugins");
+	YouTube(client, ytdl);
 }
 
 server.get("/", (req, res) => res.send("ok"));
@@ -173,9 +178,10 @@ const token = process.env.DISCORD_TOKEN;
 if (!token) throw new Error("No token found!");
 client.login(token);
 
-client.once("ready", async () => {//manage events queued off of unix time
-	while(true) {
+client.once("ready", async () => {
+	//manage events queued off of unix time
+	while (true) {
 		let t = Tick(redis);
-		await new Promise((resolve) => setTimeout(resolve, t*1000))
+		await new Promise((resolve) => setTimeout(resolve, t * 1000));
 	}
 });
