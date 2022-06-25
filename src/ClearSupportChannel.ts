@@ -177,12 +177,12 @@ export default function ClearSupportChannel(client: Client, redis: Redis) {
 			ExecuteVote(redis, client, channelId, scheduledTime);
 		};
 
-		ScheduleRepeating(redis, {
-			eventId: eventStartVotingKey + channelId,
-			eventEpoch: clearEpoch,
-			secsBetweenEvents: frequency,
-			executor: exec,
-		});
+		ScheduleRepeating(redis,
+			eventStartVotingKey + channelId,
+			clearEpoch,
+			frequency,
+			exec,
+		);
 		RegisterOneTimeEvent(redis, eventStartVotingKey + channelId, exec);
 		RegisterOneTimeEvent(redis, eventEndVotingKey + channelId, (scheduledTime: number) => {
 			EndVote(redis, client, channelId, scheduledTime);
