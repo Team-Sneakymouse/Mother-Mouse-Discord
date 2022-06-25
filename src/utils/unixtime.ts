@@ -79,7 +79,7 @@ export function Tick(redis: Redis) {//ought to be called after all events are sc
 	return sleepTime;
 }
 
-export async function ScheduleRepeating(redis: Redis, {eventId, eventEpoch, secsBetweenEvents, executor}: Omit<RepeatingEvent, "lastEventUnix">) {
+export async function ScheduleRepeating(redis: Redis, eventId: string, eventEpoch: number, secsBetweenEvents: number, executor: (scheduledTime: number) => void) {
 
 	let ret = await redis.hget("repeating-events-last-unix", eventId);
 	let lastEventUnix = ret ? parseInt(ret) : eventEpoch;//is parseInt good? if it fails events will be unscheduled or too frequently scheduled

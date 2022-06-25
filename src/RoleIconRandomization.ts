@@ -37,11 +37,12 @@ const timeout_unix = 60*60*6;
 
 
 export default function RoleIconRandomization(client: Client, redis: Redis) {
-	ScheduleRepeating(redis, {
-		eventId: "RoleIconRandomization-mami",
-		eventEpoch: 0,
-		secsBetweenEvents: timeout_unix,
-		executor: async(time) => {
+	ScheduleRepeating(
+		redis,
+		"RoleIconRandomization-mami",//eventId
+		0,//eventEpoch
+		timeout_unix,//secsBetweenEvents
+		async (time) => {//executor
 			let guild = await client.guilds.fetch(turtleFriendsId);
 			const mamisRole = guild.roles.resolve(mamisRoleId);
 			if (!mamisRole) return console.log("Mami's role is missing!");
@@ -62,5 +63,5 @@ export default function RoleIconRandomization(client: Client, redis: Redis) {
 				}
 			}
 		}
-	});
+	);
 }

@@ -32,13 +32,12 @@ const turtleFriendsId = "898925497508048896";// turtle friends discord id
 const mmId = "713723936231129089";
 
 export default function NicknameRandomization(client: Client, redis: Redis) {
-	ScheduleRepeating(redis, {
-
-		eventId: "NicknameRandomization-mm",
-		eventEpoch: 1655424000,
-		secsBetweenEvents: SECS_IN_DAY,
-
-		executor: async (time) => {
+	ScheduleRepeating(
+		redis,
+		"NicknameRandomization-mm",//eventId
+		1655424000,//eventEpoch
+		SECS_IN_DAY,//secsBetweenEvents
+		async (time) => {//executor
 			let guild = await client.guilds.fetch(turtleFriendsId);
 			let mm = guild.members.resolve(mmId);
 			if (!mm) return console.log("NicknameRandomization: Mother Mouse is missing from the turtle server?");
@@ -50,6 +49,6 @@ export default function NicknameRandomization(client: Client, redis: Redis) {
 			}
 			mm.setNickname(chosenName);
 		}
-	});
+	);
 }
 
