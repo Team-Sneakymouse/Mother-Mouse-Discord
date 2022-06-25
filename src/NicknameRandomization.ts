@@ -2,6 +2,7 @@ import { Client } from "discord.js";
 import { Redis } from "ioredis";
 import { ScheduleRepeating, SECS_IN_DAY } from "./utils/unixtime";
 
+const primaryName = "Mother Mouse";
 const names = [
 	"DANGER",
 	"Mother Kobold",
@@ -27,7 +28,6 @@ const names = [
 	"Ricky Rat",
 ];
 
-const primaryName = "Mother Mouse";
 const turtleFriendsId = "898925497508048896";// turtle friends discord id
 const mmId = "713723936231129089";
 
@@ -44,7 +44,7 @@ export default function NicknameRandomization(client: Client, redis: Redis) {
 			if (!mm) return console.log("NicknameRandomization: Mother Mouse is missing from the turtle server?");
 
 			let chosenName = primaryName;
-			if(Math.random() < .75) {
+			if(Math.random() < 1.0/6.0) {
 				let index = Math.floor(Math.random() * names.length);
 				chosenName = names[index];
 			}

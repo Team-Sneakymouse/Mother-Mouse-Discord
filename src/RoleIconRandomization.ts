@@ -21,7 +21,7 @@ const icons = [
 	"988891270808223765",//pirate flag
 	"988891319034323004",//white flower
 	"988891359345795092",//fish cake
-	"988890666786488350", //yarn
+	"988890666786488350",//yarn
 	"988891396574416966",//clown
 	"988891431420702780",//birthday
 	"988891462815076482",//heart
@@ -54,10 +54,10 @@ export default function RoleIconRandomization(client: Client, redis: Redis) {
 			} else {
 				let index = Math.floor(Math.random() * icons.length);
 				let chosenIcon = icons[index];
-				let icon = client.emojis.resolve(chosenIcon);
-				if (icon) {
-					mamisRole.setIcon(icon);
-				} else {
+				// let icon = client.emojis.resolve(chosenIcon);
+				try {
+					mamisRole.setIcon(chosenIcon);
+				} catch {
 					console.log("RoleIconRandomization whitelist has a broken emoji: " + chosenIcon);
 				}
 			}
