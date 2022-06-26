@@ -12,7 +12,7 @@ export default class YouTubeDL {
 		});
 	}
 
-	async download(url: string, updateCallback: (progress: number, eta: string) => void): Promise<string> {
+	async download(url: string, updateCallback: (progress: number, eta: string) => Promise<any>): Promise<string> {
 		await this.init;
 		return await new Promise((resolve, reject) => {
 			const dl = spawn("youtube-dl", ["--extract-audio", "--audio-format", "mp3", "-o", "ffmpeg/%(title)s.%(ext)s", url]);
@@ -24,7 +24,7 @@ export default class YouTubeDL {
 					.match(/\[download\]\s+(\d+(?:\.\d+)?)% of (\d+\.\d+\w+) at (\d+\.\d+\w+\/s) ETA (\d+:\d+)/);
 				if (match) {
 					const [, progress, size, speed, eta] = match;
-					updateCallback(parseFloat(progress), eta);
+					if (progress !== "100%" && Math.random() < 0.4) updateCallback(parseFloat(progress), eta);
 					return;
 				}
 				file = data.toString().split("Destination:")[1]?.trim() || file;
