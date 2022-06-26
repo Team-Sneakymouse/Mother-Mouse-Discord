@@ -1,5 +1,5 @@
 FROM node:16-alpine
-RUN apk add youtube-dl
+RUN apk add youtube-dl ffmpeg
 
 WORKDIR /app
 
