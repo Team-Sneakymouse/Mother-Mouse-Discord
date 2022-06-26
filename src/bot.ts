@@ -166,9 +166,9 @@ if (process.env.PRODUCTION == "TRUE") {
 	MarisKobold(client);
 	ClearSupportChannel(client, redis);
 	HotlinePosting(client);
+	YouTube(client, ytdl);
 } else {
 	console.log("Registering development plugins");
-	YouTube(client, ytdl);
 }
 
 server.get("/", (req, res) => res.send("ok"));
