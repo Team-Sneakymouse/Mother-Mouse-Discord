@@ -101,5 +101,9 @@ export default function RenameVC(client: Client) {
 		}
 
 		commanderChannel.setName(name);
+		interaction.reply({
+			content: "The channel has been renamed to \"" + name + "\"",
+			ephemeral: false,
+		});
 	}
 }
