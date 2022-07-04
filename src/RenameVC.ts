@@ -17,7 +17,7 @@ const validChannelsAndDefaultNames = new Map<string, string> ([
 export const data = [
 	new SlashCommandBuilder()
 		.setName("renamevc")
-		.setDescription("Annouce what you are doing in voice channel by renaming it! It will be renamed back when everyone leaves the channel")
+		.setDescription("Annouce what you are doing in the voice channel by renaming it!")
 		.addStringOption(
 			new SlashCommandStringOption()
 			.setName("channel name")
