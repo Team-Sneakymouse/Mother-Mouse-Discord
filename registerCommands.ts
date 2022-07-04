@@ -13,6 +13,7 @@ enum GuildIds {
 }
 
 import { data as Vibecheck } from "./src/Vibecheck";
+import { data as RenameVC } from "./src/RenameVC";
 import { data as Roll } from "./src/Roll";
 import { data as PalsRoles } from "./src/PalsRoles";
 import { data as PronounRoles } from "./src/PronounRoles";
@@ -31,7 +32,7 @@ const commands = {
 	[GuildIds.TILII]: [...GitlabIssues],
 	[GuildIds.SNEAKYRP]: [...SneakyrpPlayerlist],
 	[GuildIds.OOC]: [...OocTools],
-	[GuildIds.TURTLES]: [...PalsRoles, ...PronounRoles, ...SneakyrpPlayerlist],
+	[GuildIds.TURTLES]: [...PalsRoles, ...PronounRoles, ...SneakyrpPlayerlist, ...RenameVC],
 };
 
 const clientId = process.env.DISCORD_CLIENTID!;

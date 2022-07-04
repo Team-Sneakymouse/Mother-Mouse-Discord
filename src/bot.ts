@@ -129,6 +129,8 @@ import ClearSupportChannel from "./ClearSupportChannel";
 
 import NicknameRandomization from "./NicknameRandomization";
 
+import RenameVC from "./RenameVC";
+
 import HotlinePosting from "./HotlinePosting";
 import YouTube from "./YouTube";
 
@@ -160,13 +162,14 @@ if (process.env.PRODUCTION == "TRUE") {
 	SneakyrpPlayerlist(client, multicraft);
 	SneakyrpPlayercount(client, multicraft);
 	RaidProtection(client, redis);
+	YouTube(client, ytdl);
 	//Mami's scripts
 	RoleIconRandomization(client, redis);
 	NicknameRandomization(client, redis);
 	MarisKobold(client);
 	ClearSupportChannel(client, redis);
 	HotlinePosting(client);
-	YouTube(client, ytdl);
+	RenameVC(client)
 } else {
 	console.log("Registering development plugins");
 }
