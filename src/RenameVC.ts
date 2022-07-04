@@ -20,10 +20,9 @@ export const data = [
 		.setDescription("Annouce what you are doing in the voice channel by renaming it!")
 		.addStringOption(
 			new SlashCommandStringOption()
-			.setName("channel name")
+			.setName("channel-name")
 			.setRequired(true)
 			.setDescription("Keep in mind long names will get cut off when displayed in the sidebar")
-			.setAutocomplete(true)
 		),
 ];
 
@@ -74,7 +73,7 @@ export default function RenameVC(client: Client) {
 			return;
 		}
 
-		let name = interaction.options.getString("channel name");
+		let name = interaction.options.getString("channel-name");
 		if (!name) {
 			interaction.reply({
 				content: "Please specify a channel name.",
