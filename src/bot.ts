@@ -93,8 +93,8 @@ import TooSlow from "./TooSlow";
 // Discord stats
 import Stats from "./Stats";
 
-// Allow users to pin messages in threads
-import ThreadPins from "./ThreadPins";
+// Allow users to pin messages
+import UserPins from "./UserPins";
 
 // Meme responsibly easteregg
 import MemeResponsibly from "./MemeResponsibly";
@@ -153,7 +153,7 @@ if (process.env.PRODUCTION == "TRUE") {
 	RedisRelay(client, redis);
 	TooSlow(client, redis);
 	Stats(client, redis);
-	ThreadPins(client);
+	UserPins(client);
 	MemeResponsibly(client);
 	GitlabIssues(client, redis, server, gitlab);
 	UnarchiveThreads(client, gitlab);
@@ -169,7 +169,7 @@ if (process.env.PRODUCTION == "TRUE") {
 	MarisKobold(client);
 	ClearSupportChannel(client, redis);
 	HotlinePosting(client);
-	RenameVC(client)
+	RenameVC(client);
 } else {
 	console.log("Registering development plugins");
 }

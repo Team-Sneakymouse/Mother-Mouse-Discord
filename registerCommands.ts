@@ -20,7 +20,7 @@ import { data as PronounRoles } from "./src/PronounRoles";
 //import { data as Todo } from "./src/Todo";
 //import { data as MoneyMilestone } from "./src/MoneyMilestone";
 import { data as Trivia } from "./src/Trivia";
-import { data as ThreadPins } from "./src/ThreadPins";
+import { data as UserPins } from "./src/UserPins";
 import { data as GitlabIssues } from "./src/GitlabIssues";
 import { data as OocTools } from "./src/OocTools";
 import { data as SneakyrpPlayerlist } from "./src/SneakyrpPlayerlist";
@@ -28,11 +28,11 @@ import { data as SneakyrpPlayerlist } from "./src/SneakyrpPlayerlist";
 const commands = {
 	global: [...Vibecheck, ...Roll],
 	[GuildIds.TEST]: [],
-	[GuildIds.RAWBTV]: [...PalsRoles, ...PronounRoles, ...Trivia, ...ThreadPins],
+	[GuildIds.RAWBTV]: [...PalsRoles, ...PronounRoles, ...Trivia, ...UserPins],
 	[GuildIds.TILII]: [...GitlabIssues],
 	[GuildIds.SNEAKYRP]: [...SneakyrpPlayerlist],
 	[GuildIds.OOC]: [...OocTools],
-	[GuildIds.TURTLES]: [...PalsRoles, ...PronounRoles, ...SneakyrpPlayerlist, ...RenameVC],
+	[GuildIds.TURTLES]: [...PalsRoles, ...PronounRoles, ...SneakyrpPlayerlist, ...RenameVC, ...UserPins],
 };
 
 const clientId = process.env.DISCORD_CLIENTID!;
