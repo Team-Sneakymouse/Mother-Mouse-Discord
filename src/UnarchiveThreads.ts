@@ -3,7 +3,34 @@ import { Gitlab } from "@gitbeaker/node";
 import { channelIds, projectIds, Projects } from "./GitlabIssues/utils";
 
 const hardCodedThreads = [
-	"987002461422227556", // TTT ADHD
+	"979858513180377108", // Daily wordle and other daily games
+	"1001935183072743504", // 😓 - Complaining about jobs
+	"997600089939902504", // Mana's Aquarium Trip
+	"998062739085873182", // Dieting
+	"975837301680767087", // recipes
+	"987002461422227556", // ADHD Things 2 Electric Boogaloo
+	"987408505399046186", // PTSD, C-PTSD, BPD, DID, and other trauma disorders support thread
+	"994090193533542522", // Physical Disabilities Support Thread
+	"988944471246917642", // 💪-exercise
+	"999510277865357433", // 💥-Comic Books
+	"981640103313154048", // 🐈-Cats Special Interest Thread
+	"980846785440411699", // 🌌-astronomy
+	"980846699964674068", // 🍀-drugs
+	"976231495184289842", // spamton g spamton
+	"980989057138049075", // 🌈 - musicals
+	"980848886509891614", // 🐱-internet-videos
+	"980848143052705842", // 🎤-podcasts
+	"980848265765453824", // 🎵-music
+	"980848802107887736", // 🎬-movies-and-tv
+	"981002986262257734", // Chuckle Chums (working title for puppet pals community remaster)
+	"981678740289515531", // 🧾-kinklists
+	"980843430735380501", // 🧶-bdsm-and-ropes
+	"990239687937507398", // 🍻-deep rock
+	"980845016169709620", // 🔫-gmod
+	"980844948557557781", // 🐤-pokemon
+	"980844557652611092", // 🌲🤛-minecraft
+	"980844874372894730", // 🏭-factorio
+	"975967966506156082", // 🧗-Breath Of The Wild
 ];
 
 export default function UnarchiveThreads(client: Client, gitlab: InstanceType<typeof Gitlab>) {
