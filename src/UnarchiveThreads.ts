@@ -40,6 +40,7 @@ export default function UnarchiveThreads(client: Client, gitlab: InstanceType<ty
 		if (thread.archived === false) return;
 
 		if (hardCodedThreads.includes(thread.id)) {
+			console.log(`unarchiving thread ${thread.guild.name}/${thread.name}`);
 			await thread.setArchived(false);
 			return;
 		}
@@ -54,7 +55,10 @@ export default function UnarchiveThreads(client: Client, gitlab: InstanceType<ty
 				try {
 					const issue = await gitlab.Issues.show(projectId, issueId);
 					if (issue) {
-						if (issue.state !== "closed") await thread.setArchived(false);
+						if (issue.state !== "closed") {
+							console.log(`unarchiving thread ${thread.guild.name}/${thread.name}`);
+							await thread.setArchived(false);
+						}
 						return;
 					}
 				} catch (e) {
@@ -66,6 +70,7 @@ export default function UnarchiveThreads(client: Client, gitlab: InstanceType<ty
 		// SneakyRP Applications
 		if (starterMessage.channelId === "963808503808557127") {
 			if (starterMessage.components !== undefined && starterMessage.components.length > 0) {
+				console.log(`unarchiving thread ${thread.guild.name}/${thread.name}`);
 				await thread.setArchived(false);
 				return;
 			}
