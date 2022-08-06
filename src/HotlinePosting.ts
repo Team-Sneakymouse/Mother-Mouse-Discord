@@ -15,6 +15,7 @@ const triggerWords = [
 	"endingit",
 	"endit",
 	"endmyself",
+	"wanttodie",
 ];
 const triggerChannels = [
 	"975496209882050640",
