@@ -132,7 +132,12 @@ import NicknameRandomization from "./NicknameRandomization";
 import RenameVC from "./RenameVC";
 
 import HotlinePosting from "./HotlinePosting";
+
+// Youtube/soundcloud downloader
 import YouTube from "./YouTube";
+
+// Delete forbidden reactions
+import DeleteHate from "./DeleteHate";
 
 if (process.env.PRODUCTION == "TRUE") {
 	client.setMaxListeners(31);
@@ -170,6 +175,7 @@ if (process.env.PRODUCTION == "TRUE") {
 	ClearSupportChannel(client, redis);
 	HotlinePosting(client);
 	RenameVC(client);
+	DeleteHate(client);
 } else {
 	console.log("Registering development plugins");
 }
