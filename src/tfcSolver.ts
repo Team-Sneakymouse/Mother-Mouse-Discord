@@ -8,7 +8,7 @@ import {
 	SlashCommandSubcommandBuilder,
 } from "discord.js";
 
-const MAX_ATTEMPTS = 10000;
+const MAX_ATTEMPTS = 100000;
 const INGOT_MB_TOTAL = 100;
 const ORE_ID_TOTAL = 4;
 const ORE_ID_COPPER = 0;
@@ -55,6 +55,7 @@ type AlloyProblem = {
 type AlloySolution = {
 	oreQuantityToUse: number[];
 	totalAlloy: number;
+	attemptsExceeded: boolean;
 }
 
 function SolveDiffToBadness(diff: number) {
@@ -92,6 +93,7 @@ function Solve(problem: AlloyProblem) {
 	let bestSolution: AlloySolution = {
 		oreQuantityToUse: [],
 		totalAlloy: 0,
+		attemptsExceeded: false,
 	}
 	for (let i = 0; i < problem_size; i++) {
 		oreQuantityToUse.push(0);
@@ -126,7 +128,6 @@ function Solve(problem: AlloyProblem) {
 			continue;
 		}
 
-		let badness = 0;
 		let totalAlloy = 0
 		let totalOres = totalOres_;
 		totalOres.fill(0);
@@ -164,6 +165,7 @@ function Solve(problem: AlloyProblem) {
 			bestSolution.totalAlloy = totalAlloy;
 		}
 	}
+	bestSolution.attemptsExceeded = true;
 	return bestSolution;
 }
 
@@ -525,16 +527,25 @@ export default function tfcSolver(client: Client) {
 			} else {
 				disclaimer = "This will create " + solution.totalAlloy + "mb worth of alloy, instead of the desired " + problem.desiredAlloyTotal + "mb";
 			}
+			if (solution.attemptsExceeded) {
+				disclaimer += "\nThe given material list was too complex, the mixture given was the best found";
+			}
 			interaction.reply({
 				content: preText + "Try a mix of '" + solutionText + "'\n" + disclaimer,
 				ephemeral: false,
 			});
 		} else {
-			interaction.reply({
-				content: preText + "It is not possible to create " + subCommand + " with the given ores",
-				ephemeral: false,
-			});
-			return;
+			if (solution.attemptsExceeded) {
+				interaction.reply({
+					content: preText + "The material list was too complex! Try reducing it's size",
+					ephemeral: false,
+				});
+			} else {
+				interaction.reply({
+					content: preText + "It is not possible to create " + subCommand + " with the given ores",
+					ephemeral: false,
+				});
+			}
 		}
 
 	}
