@@ -119,23 +119,27 @@ function Solve(problem: AlloyProblem) {
 				return bestSolution;
 			}
 			let matchesLookAhead = lookAheadLowOreId == null || problem.oreId[i] == lookAheadLowOreId;
-			if (matchesLookAhead) {
+			let oreIsAtMaxQuantity = oreQuantityToUse[i] >= problem.oreQuantity[i];
+			let oreIsZero = oreQuantityToUse[i] == 0;
+			let slotsAreExceeded = slotsUsed > problem.slotsTotal;
+			if (matchesLookAhead && !slotsAreExceeded) {
 				//increment
-				lookAheadLowOreId = null;
-				if (oreQuantityToUse[i] < problem.oreQuantity[i]) {
+				if (oreIsAtMaxQuantity) {
+					//carry
+					lookAheadLowOreId = null;
+					slotsUsed -= 1;
+					oreQuantityToUse[i] = 0;
+					i += 1;
+				} else {
 					//increment without carry
+					lookAheadLowOreId = null;
 					if (oreQuantityToUse[i] == 0) {
 						slotsUsed += 1;
 					}
 					oreQuantityToUse[i] += 1;
 					break;
-				} else {
-					//carry
-					slotsUsed -= 1;
-					oreQuantityToUse[i] = 0;
-					i += 1;
 				}
-			} else if (oreQuantityToUse[i] > 0) {
+			} else if (!oreIsZero) {
 				//look ahead carry
 				lookAheadLowOreId = null;
 				slotsUsed -= 1;
