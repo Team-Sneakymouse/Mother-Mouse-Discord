@@ -102,14 +102,23 @@ function Solve(problem: AlloyProblem) {
 	}
 
 	let slotsUsed = 0;
+	let lookAheadPreState = oreQuantityToUse;
 	let lookAheadLowOreId = null;
 	for (let attempts = 0; attempts < MAX_ATTEMPTS; attempts++) {
 		let i = 0;
 		while (true) {
+			//must terminate in 2*problem_size iterations
 			if (i >= problem_size) {
-				//full iteration achieved
-				//TODO: we might want more detail on the issues with this recipe
-				return bestSolution;
+				if (lookAheadLowOreId == null) {
+					//full iteration achieved
+					//TODO: we might want more detail on the issues with this recipe
+					return bestSolution;
+				} else {
+					//look ahead failed, return to normal incrementation
+					lookAheadLowOreId = null;
+					oreQuantityToUse = lookAheadPreState;
+					i = 0;
+				}
 			}
 			if (lookAheadLowOreId == null || problem.oreId[i] == lookAheadLowOreId) {
 				//increment
@@ -157,6 +166,7 @@ function Solve(problem: AlloyProblem) {
 			if (totalOrePercent < problem.recipe.oreMin[j]) {
 				isCorrectAlloy = false;
 				lookAheadLowOreId = oreId;
+				lookAheadPreState = [...oreQuantityToUse];
 				break;
 			} else if (totalOrePercent > problem.recipe.oreMax[j]) {
 				isCorrectAlloy = false;
