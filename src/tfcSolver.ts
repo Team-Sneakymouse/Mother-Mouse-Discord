@@ -124,15 +124,15 @@ function Solve(problem: AlloyProblem) {
 			let slotsAreExceeded = slotsUsed > problem.slotsTotal;
 			if (!slotsAreExceeded && matchesLookAheadLow && !matchesLookAheadHigh) {
 				//increment
+				lookAheadLowOreId = null;
+				lookAheadHighOreId = null;
 				if (oreIsAtMaxQuantity) {
 					//carry
-					lookAheadLowOreId = null;
 					slotsUsed -= 1;
 					oreQuantityToUse[i] = 0;
 					i += 1;
 				} else {
 					//increment without carry
-					lookAheadLowOreId = null;
 					if (oreQuantityToUse[i] == 0) {
 						slotsUsed += 1;
 					}
@@ -142,6 +142,7 @@ function Solve(problem: AlloyProblem) {
 			} else if (!oreIsZero) {
 				//look ahead carry
 				lookAheadLowOreId = null;
+				lookAheadHighOreId = null;
 				slotsUsed -= 1;
 				oreQuantityToUse[i] = 0;
 				i += 1;
