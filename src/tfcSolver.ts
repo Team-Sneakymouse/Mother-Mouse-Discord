@@ -54,11 +54,10 @@ type AlloyProblem = {
 
 type AlloySolution = {
 	oreQuantityToUse: number[];
-	diffFromDesired: number;
 	totalAlloy: number;
 }
 
-function DiffToBadness(diff: number) {
+function SolveDiffToBadness(diff: number) {
 	let badness;
 	if (diff < 0) {
 		//soft reject, too little
@@ -92,7 +91,6 @@ function Solve(problem: AlloyProblem) {
 	let oreQuantityToUse = [];
 	let bestSolution: AlloySolution = {
 		oreQuantityToUse: [],
-		diffFromDesired: -problem.desiredAlloyTotal,
 		totalAlloy: 0,
 	}
 	for (let i = 0; i < problem_size; i++) {
@@ -102,7 +100,6 @@ function Solve(problem: AlloyProblem) {
 
 	let slotsUsed = 0;
 	for (let attempts = 0; attempts < MAX_ATTEMPTS; attempts++) {
-		//NOTE: should we check 0?
 		let i = 0;
 		while (true) {
 			if (i >= problem_size) {
@@ -157,16 +154,13 @@ function Solve(problem: AlloyProblem) {
 		//check desiredAlloyTotal
 		let diff = totalAlloy - problem.desiredAlloyTotal;
 
-		if (diff == 0) {
-			bestSolution.diffFromDesired = 0;
+		if (totalAlloy == problem.desiredAlloyTotal) {
 			bestSolution.oreQuantityToUse = oreQuantityToUse;
 			bestSolution.totalAlloy = totalAlloy;
 			return bestSolution;
 		}
-		let last_diff = bestSolution.diffFromDesired;
-		if (DiffToBadness(diff) < DiffToBadness(bestSolution.diffFromDesired)) {
+		if (bestSolution.totalAlloy == 0 || SolveDiffToBadness(totalAlloy - problem.desiredAlloyTotal) < SolveDiffToBadness(bestSolution.totalAlloy - problem.desiredAlloyTotal)) {
 			bestSolution.oreQuantityToUse = [...oreQuantityToUse];
-			bestSolution.diffFromDesired = diff;
 			bestSolution.totalAlloy = totalAlloy;
 		}
 	}
@@ -510,7 +504,7 @@ export default function tfcSolver(client: Client) {
 		}
 
 
-		if (flag) {
+		if (solutionText != "") {
 			let disclaimer;
 			if (solution.diffFromDesired == 0) {
 				disclaimer = "This will create exactly " + solution.totalAlloy/INGOT_MB_TOTAL + " ingots worth of alloy";
