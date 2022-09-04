@@ -133,9 +133,11 @@ import RenameVC from "./RenameVC";
 
 import HotlinePosting from "./HotlinePosting";
 
+import tfcSolver from "./tfcSolver";
+
 // Youtube/soundcloud downloader
 import YouTube from "./YouTube";
-import tfcSolver from "./tfcSolver";
+
 
 // Delete forbidden reactions
 import DeleteHate from "./DeleteHate";
@@ -169,7 +171,6 @@ if (process.env.PRODUCTION == "TRUE") {
 	SneakyrpPlayercount(client, multicraft);
 	RaidProtection(client, redis);
 	YouTube(client, ytdl);
-	//Mami's scripts
 	RoleIconRandomization(client, redis);
 	NicknameRandomization(client, redis);
 	MarisKobold(client);

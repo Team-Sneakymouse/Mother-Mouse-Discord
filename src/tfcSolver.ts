@@ -274,10 +274,17 @@ function ParseInto(str: string, problem: AlloyProblem) {
 
 
 
+const MATERIAL_DESC = "The list of ores you have to work with, in order of desired usage priority";
+const MATERIAL_HELP = "Usage: tfcsolver <alloy-name> <ingot-total> <material-list>. The alloy-name is the name of the TFC alloy you want to make. The ingot-total is the desired number of ignots of that alloy you want to make. The material-list is the list of ores you have to work with, in order of desired usage priority. Example: 'tfcsolver bronze 3 cn 10, ts 8'. This is saying 'I want to make 3 ingots of bronze, I have 10 normal quality copper and 8 small tin ore to work with, and I would like to prioritize using more copper than tin'.";
 export const data = [
 	new SlashCommandBuilder()
 		.setName("tfcsolver")
-		.setDescription("Annouce what you are doing in the voice channel by renaming it!")
+		.setDescription("Find a mixture of terra firma craft ores that is ideal for creating an alloy")
+		.addSubcommand(
+			new SlashCommandSubcommandBuilder()
+				.setName("help")
+				.setDescription("Mother Mouse explains how to use this command (this solver is a prototype)")
+		)
 		.addSubcommand(
 			new SlashCommandSubcommandBuilder()
 				.setName("bismuth-bronze")
@@ -285,13 +292,14 @@ export const data = [
 				.addIntegerOption(
 					new SlashCommandIntegerOption()
 						.setName("ingots")
+						.setDescription("The number of alloy ingots you want to make (100mb)")
 						.setRequired(true)
 				)
 				.addStringOption(
 					new SlashCommandStringOption()
 						.setName("material-list")
 						.setRequired(true)
-						//.setDescription("The pronoun role to assign")
+						.setDescription(MATERIAL_DESC)
 						.setAutocomplete(false)
 				)
 		)
@@ -302,13 +310,14 @@ export const data = [
 				.addIntegerOption(
 					new SlashCommandIntegerOption()
 						.setName("ingots")
+						.setDescription("The number of alloy ingots you want to make (100mb)")
 						.setRequired(true)
 				)
 				.addStringOption(
 					new SlashCommandStringOption()
 						.setName("material-list")
 						.setRequired(true)
-						//.setDescription("The pronoun role to remove")
+						.setDescription(MATERIAL_DESC)
 						.setAutocomplete(false)
 				)
 		)
@@ -319,13 +328,14 @@ export const data = [
 				.addIntegerOption(
 					new SlashCommandIntegerOption()
 						.setName("ingots")
+						.setDescription("The number of alloy ingots you want to make (100mb)")
 						.setRequired(true)
 				)
 				.addStringOption(
 					new SlashCommandStringOption()
 						.setName("material-list")
 						.setRequired(true)
-						//.setDescription("The pronoun role to remove")
+						.setDescription(MATERIAL_DESC)
 						.setAutocomplete(false)
 				)
 		),
@@ -346,6 +356,12 @@ export default function tfcSolver(client: Client) {
 			recipe = RECIPE_BRONZE;
 		} else if (subCommand == "black-bronze") {
 			recipe = RECIPE_BLACK_BRONZE;
+		} else if (subCommand == "help") {
+			interaction.reply({
+				content: MATERIAL_HELP,
+				ephemeral: true,
+			});
+			return;
 		} else {
 			interaction.reply({
 				content: "An alloy type must be specified",
@@ -484,4 +500,5 @@ export default function tfcSolver(client: Client) {
 			ephemeral: false,
 		});
 	}
+	console.log("tfcSolver registered");
 }
