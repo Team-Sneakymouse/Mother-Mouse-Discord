@@ -275,9 +275,12 @@ function ParseInto(str: string, problem: AlloyProblem) {
 				num = 0;
 				num_started = false;
 				state = STATE_QUANTITY;
+			} else if (ch == ',') {
+				//parse error
+				return "Parse Error: Expected a space and then an integer quanity, but the item description was ended prematurely";
 			} else {
 				//parse error
-				return "Parse Error: Expected an integer quality literal, got '" + ch + "'";
+				return "Parse Error: Expected an integer quality, got '" + ch + "'";
 			}
 		}
 	}
