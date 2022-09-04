@@ -147,7 +147,7 @@ function Solve(problem: AlloyProblem) {
 				oreQuantityToUse[i] = 0;
 				i += 1;
 			} else {
-				//look ahead, don't bother incrementing anything other than the ore that is too low
+				//look ahead, don't bother incrementing anything other than ores which exceed the slot limit, ores which are too high or ores which are too low
 				i += 1;
 			}
 		}
@@ -190,10 +190,12 @@ function Solve(problem: AlloyProblem) {
 
 		//check desiredAlloyTotal
 		if (totalAlloy == problem.desiredAlloyTotal) {
+			//found exact solution, return immediately
 			bestSolution.oreQuantityToUse = oreQuantityToUse;
 			bestSolution.totalAlloy = totalAlloy;
 			return bestSolution;
 		}
+		//soft reject, check if it is better than previously found solutions
 		if (bestSolution.totalAlloy == 0 || SolveDiffToBadness(totalAlloy - problem.desiredAlloyTotal) < SolveDiffToBadness(bestSolution.totalAlloy - problem.desiredAlloyTotal)) {
 			copy(bestSolution.oreQuantityToUse, oreQuantityToUse);
 			bestSolution.totalAlloy = totalAlloy;
