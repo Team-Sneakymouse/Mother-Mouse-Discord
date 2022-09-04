@@ -135,6 +135,7 @@ import HotlinePosting from "./HotlinePosting";
 
 // Youtube/soundcloud downloader
 import YouTube from "./YouTube";
+import tfcSolver from "./tfcSolver";
 
 // Delete forbidden reactions
 import DeleteHate from "./DeleteHate";
@@ -176,6 +177,7 @@ if (process.env.PRODUCTION == "TRUE") {
 	HotlinePosting(client);
 	RenameVC(client);
 	DeleteHate(client);
+	tfcSolver(client);
 } else {
 	console.log("Registering development plugins");
 }
