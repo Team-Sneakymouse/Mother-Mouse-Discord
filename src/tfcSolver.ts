@@ -294,7 +294,7 @@ function ParseInto(str: string, problem: AlloyProblem) {
 
 
 const MATERIAL_DESC = "The list of ores you have to work with, in order of desired usage priority";
-const MATERIAL_HELP = "Usage: tfcsolver <alloy-name> <ingot-total> <material-list>. The alloy-name is the name of the TFC alloy you want to make. The ingot-total is the desired number of ignots of that alloy you want to make. The material-list is the list of ores you have to work with, in order of desired usage priority. Example: 'tfcsolver bronze 3 cn 10, ts 8'. This is saying 'I want to make 3 ingots of bronze, I have 10 normal quality copper and 8 small tin ore to work with, and I would like to prioritize using more copper than tin'.";
+const MATERIAL_HELP = "Usage: tfcsolver <alloy-name> <ingot-total> <material-list>. The alloy-name is the name of the TFC alloy you want to make. The ingot-total is the desired number of ignots of that alloy you want to make. The material-list is the list of ores you have to work with, where the first ore in the list will be used first over ores later in the list. Example: 'tfcsolver bronze 3 cn 10, ts 8'. This is saying 'I want to make 3 ingots of bronze, I have 10 normal quality copper and 8 small tin ore to work with, and I would like to prioritize using more copper than tin'.";
 export const data = [
 	new SlashCommandBuilder()
 		.setName("tfcsolver")
