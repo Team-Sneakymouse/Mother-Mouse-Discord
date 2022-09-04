@@ -52,24 +52,64 @@ type AlloyProblem = {
 	desiredAlloyTotal: number;//int mb
 };
 
+type AlloySolution = {
+	oreQuantityToUse: number[];
+	diffFromDesired: number;
+	totalAlloy: number;
+}
+
+function DiffToBadness(diff: number) {
+	let badness;
+	if (diff < 0) {
+		//soft reject, too little
+		diff *= -1;
+		if (diff % INGOT_MB_TOTAL == 0) {
+			badness = 2;
+		} else {
+			badness = 4;
+		}
+		//weigh rejects by how far they are from ideal
+		badness += 1 - (1 / (diff + 1));
+	} else if (diff > 0) {
+		//soft reject, too much
+		if (diff % INGOT_MB_TOTAL == 0) {
+			badness = 1;
+		} else {
+			badness = 3;
+		}
+		badness += 1 - (1 / (diff + 1));
+	} else {
+		badness = 0;
+	}
+	return badness;
+}
+
 function Solve(problem: AlloyProblem) {
 	let totalOres_ = new Array<number>(ORE_ID_TOTAL);
 	let problem_size = problem.oreId.length;
 	let alloy_size = problem.recipe.oreId.length;
 
 	let oreQuantityToUse = [];
-	let oreQuantityToUseBestFound: null | number[] = null;
-	let oreQuantityToUseBestFoundBadness = Infinity;
-	let slotsUsed = 0;
-
+	let bestSolution: AlloySolution = {
+		oreQuantityToUse: [],
+		diffFromDesired: -problem.desiredAlloyTotal,
+		totalAlloy: 0,
+	}
 	for (let i = 0; i < problem_size; i++) {
 		oreQuantityToUse.push(0);
+		bestSolution.oreQuantityToUse.push(0);
 	}
 
+	let slotsUsed = 0;
 	for (let attempts = 0; attempts < MAX_ATTEMPTS; attempts++) {
 		//NOTE: should we check 0?
 		let i = 0;
 		while (true) {
+			if (i >= problem_size) {
+				//full iteration achieved
+				//TODO: we might want more detail on the issues with this recipe
+				return bestSolution;
+			}
 			if (oreQuantityToUse[i] < problem.oreQuantity[i]) {
 				if (oreQuantityToUse[i] == 0) {
 					slotsUsed += 1;
@@ -80,11 +120,6 @@ function Solve(problem: AlloyProblem) {
 				slotsUsed -= 1;
 				oreQuantityToUse[i] = 0;
 				i += 1;
-				if (i >= problem_size) {
-					//full iteration achieved
-					//TODO: we might want more detail on the issues with this recipe
-					return oreQuantityToUseBestFound;
-				}
 			}
 		}
 
@@ -121,34 +156,21 @@ function Solve(problem: AlloyProblem) {
 
 		//check desiredAlloyTotal
 		let diff = totalAlloy - problem.desiredAlloyTotal;
-		if (diff < 0) {
-			//soft reject, too little
-			diff *= -1;
-			if (diff%INGOT_MB_TOTAL == 0) {
-				badness = 2;
-			} else {
-				badness = 4;
-			}
-			//weigh rejects by how far they are from ideal
-			badness += 1 - (1/(diff + 1));
-		} else if (diff > 0) {
-			//soft reject, too much
-			if (diff%INGOT_MB_TOTAL == 0) {
-				badness = 1;
-			} else {
-				badness = 3;
-			}
-			badness += 1 - (1/(diff + 1));
-		}
 
-		if(badness == 0) {
-			return oreQuantityToUse;
-		} else if (oreQuantityToUseBestFoundBadness > badness) {
-			oreQuantityToUseBestFoundBadness = badness;
-			oreQuantityToUseBestFound = [...oreQuantityToUse];
+		if (diff == 0) {
+			bestSolution.diffFromDesired = 0;
+			bestSolution.oreQuantityToUse = oreQuantityToUse;
+			bestSolution.totalAlloy = totalAlloy;
+			return bestSolution;
+		}
+		let last_diff = bestSolution.diffFromDesired;
+		if (DiffToBadness(diff) < DiffToBadness(bestSolution.diffFromDesired)) {
+			bestSolution.oreQuantityToUse = [...oreQuantityToUse];
+			bestSolution.diffFromDesired = diff;
+			bestSolution.totalAlloy = totalAlloy;
 		}
 	}
-	return oreQuantityToUseBestFound;
+	return bestSolution;
 }
 
 function ParseInto(str: string, problem: AlloyProblem) {
@@ -441,8 +463,65 @@ export default function tfcSolver(client: Client) {
 			}
 		}
 
-		let oreQuantityToUse = Solve(problem);
-		if (oreQuantityToUse == null) {
+		let solution = Solve(problem);
+
+		let solutionText = "";
+
+		let problem_size = problem.oreId.length;
+		let flag = false;
+		for (let i = 0; i < problem_size; i++) {
+			if (solution.oreQuantityToUse[i] > 0) {
+				if (flag) {
+					solutionText += ", ";
+				}
+				flag = true;
+				let oreId = problem.oreId[i];
+				if (oreId == ORE_ID_COPPER) {
+					solutionText += 'c';
+				} else if (oreId == ORE_ID_TIN) {
+					solutionText += 't';
+				} else if (oreId == ORE_ID_ZINC) {
+					solutionText += 'z';
+				} else if (oreId == ORE_ID_BISMUTH) {
+					solutionText += 'b';
+				} else if (oreId == ORE_ID_IRON) {
+					solutionText += 'i';
+				} else if (oreId == ORE_ID_GOLD) {
+					solutionText += 'g';
+				} else if (oreId == ORE_ID_SILVER) {
+					solutionText += 's';
+				}
+
+				let oreSize = problem.oreSize[i];
+				if (oreSize == 10) {
+					solutionText += 's';
+				} else if (oreSize == 15) {
+					solutionText += 'p';
+				} else if (oreSize == 25) {
+					solutionText += 'n';
+				} else if (oreSize == 35) {
+					solutionText += 'r';
+				} else {
+					solutionText += ':' + oreSize;
+				}
+
+				solutionText += ' ' + solution.oreQuantityToUse[i];
+			}
+		}
+
+
+		if (flag) {
+			let disclaimer;
+			if (solution.diffFromDesired == 0) {
+				disclaimer = "This will create exactly " + solution.totalAlloy/INGOT_MB_TOTAL + " ingots worth of alloy";
+			} else {
+				disclaimer = "This will create " + solution.totalAlloy/INGOT_MB_TOTAL + " ingots worth of alloy, instead of the desired " + problem.desiredAlloyTotal/INGOT_MB_TOTAL;
+			}
+			interaction.reply({
+				content: "Try a mix of '" + solutionText + "'\n" + disclaimer,
+				ephemeral: false,
+			});
+		} else {
 			interaction.reply({
 				content: "It is not possible to create " + subCommand + " with the given ores",
 				ephemeral: false,
@@ -450,55 +529,6 @@ export default function tfcSolver(client: Client) {
 			return;
 		}
 
-
-		let solution = "";
-
-		let problem_size = problem.oreId.length;
-		let flag = false;
-		for (let i = 0; i < problem_size; i++) {
-			if (oreQuantityToUse[i] > 0) {
-				if (flag) {
-					solution += ", ";
-				}
-				flag = true;
-				let oreId = problem.oreId[i];
-				if (oreId == ORE_ID_COPPER) {
-					solution += 'c';
-				} else if (oreId == ORE_ID_TIN) {
-					solution += 't';
-				} else if (oreId == ORE_ID_ZINC) {
-					solution += 'z';
-				} else if (oreId == ORE_ID_BISMUTH) {
-					solution += 'b';
-				} else if (oreId == ORE_ID_IRON) {
-					solution += 'i';
-				} else if (oreId == ORE_ID_GOLD) {
-					solution += 'g';
-				} else if (oreId == ORE_ID_SILVER) {
-					solution += 's';
-				}
-
-				let oreSize = problem.oreSize[i];
-				if (oreSize == 10) {
-					solution += 's';
-				} else if (oreSize == 15) {
-					solution += 'p';
-				} else if (oreSize == 25) {
-					solution += 'n';
-				} else if (oreSize == 35) {
-					solution += 'r';
-				} else {
-					solution += ':' + oreSize;
-				}
-
-				solution += ' ' + oreQuantityToUse[i];
-			}
-		}
-
-		interaction.reply({
-			content: "Try a mix of '" + solution + "'",
-			ephemeral: false,
-		});
 	}
 	console.log("tfcSolver registered");
 }
