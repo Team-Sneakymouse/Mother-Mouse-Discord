@@ -506,7 +506,7 @@ export default function tfcSolver(client: Client) {
 
 		if (solutionText != "") {
 			let disclaimer;
-			if (solution.diffFromDesired == 0) {
+			if (solution.totalAlloy == problem.desiredAlloyTotal) {
 				disclaimer = "This will create exactly " + solution.totalAlloy/INGOT_MB_TOTAL + " ingots worth of alloy";
 			} else {
 				disclaimer = "This will create " + solution.totalAlloy/INGOT_MB_TOTAL + " ingots worth of alloy, instead of the desired " + problem.desiredAlloyTotal/INGOT_MB_TOTAL;
