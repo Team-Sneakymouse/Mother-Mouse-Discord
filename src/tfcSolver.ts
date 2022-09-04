@@ -96,10 +96,9 @@ function Solve(problem: AlloyProblem) {
 	const problem_size = problem.oreId.length;
 	const alloy_size = problem.recipe.oreId.length;
 
-	let oreQuantityToUse = [];
-	for (let i = 0; i < problem_size; i++) {
-		oreQuantityToUse.push(0);
-	}
+	let oreQuantityToUse = new Array<number>(problem_size);
+	oreQuantityToUse.fill(0);
+
 	let bestSolution: AlloySolution = {
 		oreQuantityToUse: [...oreQuantityToUse],
 		totalAlloy: 0,
@@ -107,35 +106,28 @@ function Solve(problem: AlloyProblem) {
 	}
 
 	let slotsUsed = 0;
-	let lookAheadPreState = [...oreQuantityToUse];
-	let lookAheadPreSlotsUsed = slotsUsed;
+	//let lookAheadPreState = [...oreQuantityToUse];
+	//let lookAheadPreSlotsUsed = slotsUsed;
 	let lookAheadLowOreId = null;
 	for (let attempts = 0; attempts < MAX_ATTEMPTS; attempts++) {
 		let i = 0;
 		while (true) {
 			//must terminate in 2*problem_size iterations
 			if (i >= problem_size) {
-				if (lookAheadLowOreId == null) {
-					//full iteration achieved
-					//TODO: we might want more detail on the issues with this recipe
-					return bestSolution;
-				} else {
-					//look ahead failed, restore state and return to normal incrementation
-					lookAheadLowOreId = null;
-					copy(oreQuantityToUse, lookAheadPreState);
-					slotsUsed = lookAheadPreSlotsUsed;
-					i = 0;
-				}
+				//full iteration achieved
+				//TODO: we might want more detail on the issues with this recipe
+				return bestSolution;
 			}
-			if (lookAheadLowOreId == null || problem.oreId[i] == lookAheadLowOreId) {
+			let matchesLookAhead = lookAheadLowOreId == null || problem.oreId[i] == lookAheadLowOreId;
+			if (matchesLookAhead) {
 				//increment
+				lookAheadLowOreId = null;
 				if (oreQuantityToUse[i] < problem.oreQuantity[i]) {
 					//increment without carry
 					if (oreQuantityToUse[i] == 0) {
 						slotsUsed += 1;
 					}
 					oreQuantityToUse[i] += 1;
-					lookAheadLowOreId = null;
 					break;
 				} else {
 					//carry
@@ -143,6 +135,12 @@ function Solve(problem: AlloyProblem) {
 					oreQuantityToUse[i] = 0;
 					i += 1;
 				}
+			} else if (oreQuantityToUse[i] > 0) {
+				//look ahead carry
+				lookAheadLowOreId = null;
+				slotsUsed -= 1;
+				oreQuantityToUse[i] = 0;
+				i += 1;
 			} else {
 				//look ahead, don't bother incrementing anything other than the ore that is too low
 				i += 1;
@@ -172,7 +170,7 @@ function Solve(problem: AlloyProblem) {
 			let totalOrePercent = totalOres[oreId]*100/totalAlloy;
 			if (totalOrePercent < problem.recipe.oreMin[j]) {
 				isCorrectAlloy = false;
-				//lookAheadLowOreId = oreId;
+				lookAheadLowOreId = oreId;
 				//copy(lookAheadPreState, oreQuantityToUse);
 				//lookAheadPreSlotsUsed = slotsUsed;
 				break;
@@ -187,8 +185,6 @@ function Solve(problem: AlloyProblem) {
 		}
 
 		//check desiredAlloyTotal
-		let diff = totalAlloy - problem.desiredAlloyTotal;
-
 		if (totalAlloy == problem.desiredAlloyTotal) {
 			bestSolution.oreQuantityToUse = oreQuantityToUse;
 			bestSolution.totalAlloy = totalAlloy;
