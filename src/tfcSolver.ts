@@ -8,7 +8,7 @@ import {
 	SlashCommandSubcommandBuilder,
 } from "discord.js";
 
-const MAX_ATTEMPTS = 100000;
+const MAX_ATTEMPTS = 500000;
 const INGOT_MB_TOTAL = 100;
 const ORE_ID_TOTAL = 4;
 const ORE_ID_COPPER = 0;
