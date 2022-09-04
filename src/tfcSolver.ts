@@ -9,7 +9,7 @@ import {
 } from "discord.js";
 
 const STACK_SIZE = 16;
-const MAX_ATTEMPTS = 10000000;
+const MAX_ATTEMPTS = 100000000;
 const INGOT_MB_TOTAL = 100;
 const ORE_ID_TOTAL = 4;
 const ORE_ID_COPPER = 0;
@@ -112,7 +112,7 @@ function Solve(problem: AlloyProblem) {
 	for (let attempts = 0; attempts < MAX_ATTEMPTS; attempts++) {
 		let i = 0;
 		while (true) {
-			//must terminate in 2*problem_size iterations
+			//must terminate in problem_size iterations
 			if (i >= problem_size) {
 				//full iteration achieved
 				//TODO: we might want more detail on the issues with this recipe
