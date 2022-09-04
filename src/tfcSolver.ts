@@ -8,6 +8,7 @@ import {
 	SlashCommandSubcommandBuilder,
 } from "discord.js";
 
+const STACK_SIZE = 16;
 const MAX_ATTEMPTS = 1000000;
 const INGOT_MB_TOTAL = 100;
 const ORE_ID_TOTAL = 4;
@@ -271,6 +272,8 @@ function ParseInto(str: string, problem: AlloyProblem) {
 				num += Number(ch);
 			} else if (ch == ' ' && num_started) {
 				problem.oreSize.push(num);
+				num = 0;
+				num_started = false;
 				state = STATE_QUANTITY;
 			} else {
 				//parse error
@@ -458,11 +461,11 @@ export default function tfcSolver(client: Client) {
 				problem.oreSize.splice(i, 1);
 				problem.oreQuantity.splice(i, 1);
 			} else {
-				if (problem.oreQuantity[i] > 32) {
-					problem.oreQuantity[i] = 32;
+				if (problem.oreQuantity[i] > STACK_SIZE) {
+					problem.oreQuantity[i] = STACK_SIZE;
 					if (!hasReplied2) {
 						hasReplied2 = true;
-						preText += "Metal ores cannot stack above 32, rounding down to 32...\n";
+						preText += "Metal ores cannot stack above " + STACK_SIZE + ", rounding down to " + STACK_SIZE + "...\n";
 					}
 				}
 				i += 1;
