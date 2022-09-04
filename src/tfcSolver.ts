@@ -460,7 +460,7 @@ export default function tfcSolver(client: Client) {
 					problem.oreQuantity[i] = 32;
 					if (!hasReplied2) {
 						hasReplied2 = true;
-						preText += "Metal Ores cannot stack above 32, rounding down to 32...\n";
+						preText += "Metal ores cannot stack above 32, rounding down to 32...\n";
 					}
 				}
 				i += 1;
@@ -538,5 +538,4 @@ export default function tfcSolver(client: Client) {
 		}
 
 	}
-	console.log("tfcSolver registered");
 }
