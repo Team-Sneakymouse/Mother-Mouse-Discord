@@ -241,7 +241,7 @@ function ParseInto(str: string, problem: AlloyProblem) {
 				num *= 10;
 				num += Number(ch);
 			} else if (ch == ',' || ch == ' ') {
-				problem.oreQuantity.push(Math.min(num, 32));
+				problem.oreQuantity.push(num);
 				num = 0;
 				num_started = false;
 				if (ch == ',') {
@@ -282,7 +282,7 @@ function ParseInto(str: string, problem: AlloyProblem) {
 		//parse error
 		return "Parse Error: Expected an ore quality, but the list ended";
 	} else if (state == STATE_QUANTITY) {
-		problem.oreQuantity.push(Math.min(num, 32));
+		problem.oreQuantity.push(num);
 	} else if (state == STATE_COMMA) {
 	} else if (state == STATE_LITERAL_SIZE) {
 		return "Parse Error: Expected an ore quality literal, but the list ended";
@@ -425,37 +425,44 @@ export default function tfcSolver(client: Client) {
 
 		//TODO: input sanitization here
 		//let hasReplied = false;
+		let hasReplied1 = false;
+		let hasReplied2 = false;
+		let preText = "";
 		for (let i = 0; i < problem.oreId.length;) {
 			let oreId = problem.oreId[i];
 			let isFound = problem.recipe.oreId.includes(oreId);
 			if (!isFound) {
-				//if (!hasReplied) {
-				//	hasReplied = true;
-				//	let metalName;
-				//	if (oreId == ORE_ID_COPPER) {
-				//		metalName = "copper";
-				//	} else if (oreId == ORE_ID_TIN) {
-				//		metalName = "tin";
-				//	} else if (oreId == ORE_ID_ZINC) {
-				//		metalName = "zinc";
-				//	} else if (oreId == ORE_ID_BISMUTH) {
-				//		metalName = "bismuth";
-				//	} else if (oreId == ORE_ID_IRON) {
-				//		metalName = "iron";
-				//	} else if (oreId == ORE_ID_GOLD) {
-				//		metalName = "gold";
-				//	} else if (oreId == ORE_ID_SILVER) {
-				//		metalName = "silver";
-				//	}
-				//	interaction.reply({
-				//		content: "The given material list contains " + metalName + " which is not used to create " + subCommand + ", removing it and any other unnecessary metals...",
-				//		ephemeral: false,
-				//	});
-				//}
+				if (!hasReplied1) {
+					hasReplied1 = true;
+					let metalName;
+					if (oreId == ORE_ID_COPPER) {
+						metalName = "copper";
+					} else if (oreId == ORE_ID_TIN) {
+						metalName = "tin";
+					} else if (oreId == ORE_ID_ZINC) {
+						metalName = "zinc";
+					} else if (oreId == ORE_ID_BISMUTH) {
+						metalName = "bismuth";
+					} else if (oreId == ORE_ID_IRON) {
+						metalName = "iron";
+					} else if (oreId == ORE_ID_GOLD) {
+						metalName = "gold";
+					} else if (oreId == ORE_ID_SILVER) {
+						metalName = "silver";
+					}
+					preText += "The given material list contains " + metalName + " which is not used to create " + subCommand + ", removing it and any other unnecessary metals...\n";
+				}
 				problem.oreId.splice(i, 1);
 				problem.oreSize.splice(i, 1);
 				problem.oreQuantity.splice(i, 1);
 			} else {
+				if (problem.oreQuantity[i] > 32) {
+					problem.oreQuantity[i] = 32;
+					if (!hasReplied2) {
+						hasReplied2 = true;
+						preText += "Metal Ores cannot stack above 32, rounding down to 32...\n";
+					}
+				}
 				i += 1;
 			}
 		}
@@ -519,12 +526,12 @@ export default function tfcSolver(client: Client) {
 				disclaimer = "This will create " + solution.totalAlloy + "mb worth of alloy, instead of the desired " + problem.desiredAlloyTotal + "mb";
 			}
 			interaction.reply({
-				content: "Try a mix of '" + solutionText + "'\n" + disclaimer,
+				content: preText + "Try a mix of '" + solutionText + "'\n" + disclaimer,
 				ephemeral: false,
 			});
 		} else {
 			interaction.reply({
-				content: "It is not possible to create " + subCommand + " with the given ores",
+				content: preText + "It is not possible to create " + subCommand + " with the given ores",
 				ephemeral: false,
 			});
 			return;
