@@ -2,7 +2,7 @@ import { Client } from "discord.js";
 
 const bannedEmojis = ["🖕", "regional_indicator", "no", "😡", "stop"];
 
-const checkedUsers = ["416465357050609665"];
+const checkedUsers = ["416465357050609665", "919916816015437825"];
 
 export default function RawbColor(client: Client) {
 	client.on("messageReactionAdd", async (reaction, user) => {
