@@ -12,7 +12,7 @@ export default function RawbColor(client: Client) {
 
 		if (bannedEmojis.some((bannedEmoji) => addedEmoji.toLowerCase().includes(bannedEmoji))) {
 			console.log(`Deleting reaction ${addedEmoji} from ${user.tag}`);
-			setTimeout(() => reaction.users.remove(), 1000 * 60);
+			setTimeout(() => reaction.remove(), 1000 * 60);
 		}
 	});
 }
