@@ -421,34 +421,34 @@ export default function tfcSolver(client: Client) {
 		}
 
 		//TODO: input sanitization here
-		let hasReplied = false;
+		//let hasReplied = false;
 		for (let i = 0; i < problem.oreId.length;) {
 			let oreId = problem.oreId[i];
 			let isFound = problem.recipe.oreId.includes(oreId);
 			if (!isFound) {
-				if (!hasReplied) {
-					hasReplied = true;
-					let metalName;
-					if (oreId == ORE_ID_COPPER) {
-						metalName = "copper";
-					} else if (oreId == ORE_ID_TIN) {
-						metalName = "tin";
-					} else if (oreId == ORE_ID_ZINC) {
-						metalName = "zinc";
-					} else if (oreId == ORE_ID_BISMUTH) {
-						metalName = "bismuth";
-					} else if (oreId == ORE_ID_IRON) {
-						metalName = "iron";
-					} else if (oreId == ORE_ID_GOLD) {
-						metalName = "gold";
-					} else if (oreId == ORE_ID_SILVER) {
-						metalName = "silver";
-					}
-					interaction.reply({
-						content: "The given material list contains " + metalName + " which is not used to create " + subCommand + ", removing it and any other unnecessary metals...",
-						ephemeral: false,
-					});
-				}
+				//if (!hasReplied) {
+				//	hasReplied = true;
+				//	let metalName;
+				//	if (oreId == ORE_ID_COPPER) {
+				//		metalName = "copper";
+				//	} else if (oreId == ORE_ID_TIN) {
+				//		metalName = "tin";
+				//	} else if (oreId == ORE_ID_ZINC) {
+				//		metalName = "zinc";
+				//	} else if (oreId == ORE_ID_BISMUTH) {
+				//		metalName = "bismuth";
+				//	} else if (oreId == ORE_ID_IRON) {
+				//		metalName = "iron";
+				//	} else if (oreId == ORE_ID_GOLD) {
+				//		metalName = "gold";
+				//	} else if (oreId == ORE_ID_SILVER) {
+				//		metalName = "silver";
+				//	}
+				//	interaction.reply({
+				//		content: "The given material list contains " + metalName + " which is not used to create " + subCommand + ", removing it and any other unnecessary metals...",
+				//		ephemeral: false,
+				//	});
+				//}
 				problem.oreId.splice(i, 1);
 				problem.oreSize.splice(i, 1);
 				problem.oreQuantity.splice(i, 1);
@@ -508,8 +508,10 @@ export default function tfcSolver(client: Client) {
 			let disclaimer;
 			if (solution.totalAlloy == problem.desiredAlloyTotal) {
 				disclaimer = "This will create exactly " + solution.totalAlloy/INGOT_MB_TOTAL + " ingots worth of alloy";
+			} else if (solution.totalAlloy%INGOT_MB_TOTAL == 0) {
+				disclaimer = "This will create " + solution.totalAlloy / INGOT_MB_TOTAL + " ingots worth of alloy, instead of the desired " + problem.desiredAlloyTotal / INGOT_MB_TOTAL;
 			} else {
-				disclaimer = "This will create " + solution.totalAlloy/INGOT_MB_TOTAL + " ingots worth of alloy, instead of the desired " + problem.desiredAlloyTotal/INGOT_MB_TOTAL;
+				disclaimer = "This will create " + solution.totalAlloy + "mb worth of alloy, instead of the desired " + problem.desiredAlloyTotal + "mb";
 			}
 			interaction.reply({
 				content: "Try a mix of '" + solutionText + "'\n" + disclaimer,
