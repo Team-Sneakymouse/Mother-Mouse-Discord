@@ -170,8 +170,8 @@ function Solve(problem: AlloyProblem) {
 			let totalOrePercent = totalOres[oreId]*100/totalAlloy;
 			if (totalOrePercent < problem.recipe.oreMin[j]) {
 				isCorrectAlloy = false;
-				lookAheadLowOreId = oreId;
-				copy(lookAheadPreState, oreQuantityToUse);
+				//lookAheadLowOreId = oreId;
+				//copy(lookAheadPreState, oreQuantityToUse);
 				break;
 			} else if (totalOrePercent > problem.recipe.oreMax[j]) {
 				isCorrectAlloy = false;
