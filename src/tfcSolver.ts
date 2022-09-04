@@ -537,7 +537,7 @@ export default function tfcSolver(client: Client) {
 		} else {
 			if (solution.attemptsExceeded) {
 				interaction.reply({
-					content: preText + "The material list was too complex! Try reducing it's size",
+					content: preText + "The material list was too complex! Try reducing its size",
 					ephemeral: false,
 				});
 			} else {
