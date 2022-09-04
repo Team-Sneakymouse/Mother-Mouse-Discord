@@ -102,6 +102,7 @@ function Solve(problem: AlloyProblem) {
 	}
 
 	let slotsUsed = 0;
+	let lookAheadLowOreId = null;
 	for (let attempts = 0; attempts < MAX_ATTEMPTS; attempts++) {
 		let i = 0;
 		while (true) {
@@ -110,15 +111,24 @@ function Solve(problem: AlloyProblem) {
 				//TODO: we might want more detail on the issues with this recipe
 				return bestSolution;
 			}
-			if (oreQuantityToUse[i] < problem.oreQuantity[i]) {
-				if (oreQuantityToUse[i] == 0) {
-					slotsUsed += 1;
+			if (lookAheadLowOreId == null || problem.oreId[i] == lookAheadLowOreId) {
+				//increment
+				if (oreQuantityToUse[i] < problem.oreQuantity[i]) {
+					//increment without carry
+					if (oreQuantityToUse[i] == 0) {
+						slotsUsed += 1;
+					}
+					oreQuantityToUse[i] += 1;
+					lookAheadLowOreId = null;
+					break;
+				} else {
+					//carry
+					slotsUsed -= 1;
+					oreQuantityToUse[i] = 0;
+					i += 1;
 				}
-				oreQuantityToUse[i] += 1;
-				break;
 			} else {
-				slotsUsed -= 1;
-				oreQuantityToUse[i] = 0;
+				//look ahead, don't bother incrementing anything other than the ore that is too low
 				i += 1;
 			}
 		}
@@ -142,8 +152,13 @@ function Solve(problem: AlloyProblem) {
 		//check recipe
 		let isCorrectAlloy = true;
 		for (let j = 0; j < alloy_size; j++) {
-			let totalOrePercent = totalOres[problem.recipe.oreId[j]]*100/totalAlloy;
-			if (totalOrePercent < problem.recipe.oreMin[j] || totalOrePercent > problem.recipe.oreMax[j]) {
+			let oreId = problem.recipe.oreId[j];
+			let totalOrePercent = totalOres[oreId]*100/totalAlloy;
+			if (totalOrePercent < problem.recipe.oreMin[j]) {
+				isCorrectAlloy = false;
+				lookAheadLowOreId = oreId;
+				break;
+			} else if (totalOrePercent > problem.recipe.oreMax[j]) {
 				isCorrectAlloy = false;
 				break;
 			}
