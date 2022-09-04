@@ -59,6 +59,12 @@ type AlloySolution = {
 	attemptsExceeded: boolean;
 }
 
+function copy(dest: number[], src: number[]) {
+	for(let i = 0; i < dest.length; i++) {
+		dest[i] = src[i];
+	}
+}
+
 function SolveDiffToBadness(diff: number) {
 	let badness;
 	if (diff < 0) {
@@ -91,18 +97,17 @@ function Solve(problem: AlloyProblem) {
 	let alloy_size = problem.recipe.oreId.length;
 
 	let oreQuantityToUse = [];
+	for (let i = 0; i < problem_size; i++) {
+		oreQuantityToUse.push(0);
+	}
 	let bestSolution: AlloySolution = {
-		oreQuantityToUse: [],
+		oreQuantityToUse: [...oreQuantityToUse],
 		totalAlloy: 0,
 		attemptsExceeded: false,
 	}
-	for (let i = 0; i < problem_size; i++) {
-		oreQuantityToUse.push(0);
-		bestSolution.oreQuantityToUse.push(0);
-	}
 
 	let slotsUsed = 0;
-	let lookAheadPreState = oreQuantityToUse;
+	let lookAheadPreState = [...oreQuantityToUse];
 	let lookAheadLowOreId = null;
 	for (let attempts = 0; attempts < MAX_ATTEMPTS; attempts++) {
 		let i = 0;
@@ -116,7 +121,7 @@ function Solve(problem: AlloyProblem) {
 				} else {
 					//look ahead failed, return to normal incrementation
 					lookAheadLowOreId = null;
-					oreQuantityToUse = lookAheadPreState;
+					copy(oreQuantityToUse, lookAheadPreState);
 					i = 0;
 				}
 			}
@@ -166,7 +171,7 @@ function Solve(problem: AlloyProblem) {
 			if (totalOrePercent < problem.recipe.oreMin[j]) {
 				isCorrectAlloy = false;
 				lookAheadLowOreId = oreId;
-				lookAheadPreState = [...oreQuantityToUse];
+				copy(lookAheadPreState, oreQuantityToUse);
 				break;
 			} else if (totalOrePercent > problem.recipe.oreMax[j]) {
 				isCorrectAlloy = false;
@@ -187,7 +192,7 @@ function Solve(problem: AlloyProblem) {
 			return bestSolution;
 		}
 		if (bestSolution.totalAlloy == 0 || SolveDiffToBadness(totalAlloy - problem.desiredAlloyTotal) < SolveDiffToBadness(bestSolution.totalAlloy - problem.desiredAlloyTotal)) {
-			bestSolution.oreQuantityToUse = [...oreQuantityToUse];
+			copy(bestSolution.oreQuantityToUse, oreQuantityToUse);
 			bestSolution.totalAlloy = totalAlloy;
 		}
 	}
