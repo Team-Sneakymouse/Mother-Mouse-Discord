@@ -221,6 +221,9 @@ function ParseInto(str: string, problem: AlloyProblem) {
 			} else if (ch == 'r') {
 				problem.oreSize.push(35);
 				state = STATE_QUANTITY;
+			} else if (ch == 'i') {
+				problem.oreSize.push(INGOT_MB_TOTAL);
+				state = STATE_QUANTITY;
 			} else if (ch == ' ') {
 				problem.oreSize.push(25);
 				state = STATE_QUANTITY;
@@ -495,6 +498,8 @@ export default function tfcSolver(client: Client) {
 					solutionText += 'n';
 				} else if (oreSize == 35) {
 					solutionText += 'r';
+				} else if (oreSize == 100) {
+					solutionText += 'i';
 				} else {
 					solutionText += ':' + oreSize;
 				}
