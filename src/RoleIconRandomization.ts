@@ -54,10 +54,10 @@ export default function RoleIconRandomization(client: Client, redis: Redis) {
 				}
 			} else {
 				let index = Math.floor(Math.random() * icons.length);
-				let chosenIcon = icons[index];
+				let chosenIcon = client.emojis.resolveIdentifier(icons[index]);
 				// let icon = client.emojis.resolve(chosenIcon);
 				try {
-					mamisRole.setIcon(chosenIcon);
+					await mamisRole.setIcon(chosenIcon);
 				} catch {
 					console.log("RoleIconRandomization whitelist has a broken emoji: " + chosenIcon);
 				}
