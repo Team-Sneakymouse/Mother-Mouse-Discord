@@ -138,9 +138,10 @@ import tfcSolver from "./tfcSolver";
 // Youtube/soundcloud downloader
 import YouTube from "./YouTube";
 
-
 // Delete forbidden reactions
 import DeleteHate from "./DeleteHate";
+
+import TwitterFix from "./TwitterFix";
 
 if (process.env.PRODUCTION == "TRUE") {
 	client.setMaxListeners(31);
@@ -179,6 +180,7 @@ if (process.env.PRODUCTION == "TRUE") {
 	RenameVC(client);
 	DeleteHate(client);
 	tfcSolver(client);
+	TwitterFix(client);
 } else {
 	console.log("Registering development plugins");
 }

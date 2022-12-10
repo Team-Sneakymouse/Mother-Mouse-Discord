@@ -25,9 +25,10 @@ import { data as UserPins } from "./src/UserPins";
 import { data as GitlabIssues } from "./src/GitlabIssues";
 import { data as OocTools } from "./src/OocTools";
 import { data as SneakyrpPlayerlist } from "./src/SneakyrpPlayerlist";
+import { data as TwitterFix } from "./src/TwitterFix";
 
 const commands = {
-	global: [...Vibecheck, ...Roll],
+	global: [...Vibecheck, ...Roll, ...TwitterFix],
 	[GuildIds.TEST]: [],
 	[GuildIds.RAWBTV]: [...PalsRoles, ...PronounRoles, ...Trivia, ...UserPins],
 	[GuildIds.TILII]: [...GitlabIssues],
