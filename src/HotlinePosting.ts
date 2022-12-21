@@ -30,7 +30,7 @@ export default function HotlinePosting(client: Client) {
 	client.on("messageCreate", async (message) => {
 		if (!message.guild) return;
 		if (message.guildId === turtleFriendsId && triggerChannels.includes(message.channelId)) {
-			message = await message.fetch();
+			if(message.partial) message = await message.fetch();
 			let text = message.content.toLowerCase().replace(/\s/gm, '');
 			let doPost = false;
 			for (let word of triggerWords) {
