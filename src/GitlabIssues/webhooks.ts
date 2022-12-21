@@ -6,9 +6,9 @@ import {
 	Embed,
 	EmbedBuilder,
 	Message,
-	Attachment,
+	AttachmentBuilder,
 	TextChannel,
-	Util,
+	Utils,
 } from "discord.js";
 import { Redis } from "ioredis";
 import { Request, Response } from "express";
@@ -79,7 +79,7 @@ export default function init(client: Client, redis: Redis, gitlab: InstanceType<
 				title: title,
 				url: url,
 				description: description,
-				color: state === "opened" ? Util.resolveColor("#2DA160") : Util.resolveColor("#428FDC"),
+				color: state === "opened" ? 0x2da160 : 0x428fdc,
 				timestamp: new Date(created_at).toISOString(),
 				footer: {
 					text: "Issue #" + iid,
@@ -103,8 +103,9 @@ export default function init(client: Client, redis: Redis, gitlab: InstanceType<
 			const urls = (description as string).match(/https?:\/\/[^\s]+/gi) || [];
 			const streamPromises = urls.map((url) => axios.get(url, { responseType: "stream" }).then((res) => [res.data, url]));
 			const streams = await Promise.all(streamPromises);
-			const attachments = streams.map(
-				([stream, url]) => new Attachment(stream as Stream, (url as string).split("/").pop())
+			//const attachments = streams.map(([stream, url]) => new Attachment(stream as Stream, (url as string).split("/").pop()));
+			const attachments = streams.map(([stream, url]) =>
+				new AttachmentBuilder(stream as Stream).setName((url as string).split("/").pop()!)
 			);
 
 			if (!issueMessage) {
@@ -184,9 +185,7 @@ export default function init(client: Client, redis: Redis, gitlab: InstanceType<
 			if (!comment.system) {
 				await webhook.send({
 					threadId: thread.id,
-					username: !botUser
-						? comment.author.username
-						: comment.body.match(/\*\*([^\*]+)\*\*/)?.[1] || comment.author.username,
+					username: !botUser ? comment.author.username : comment.body.match(/\*\*([^\*]+)\*\*/)?.[1] || comment.author.username,
 					avatarURL: comment.body.match(/\[Profile Image\]\(([^?)]+)[^)]*\)/)?.[1] || comment.author.avatar_url,
 					content: (comment.body.split("\n---\n")[1] || comment.body).replaceAll(
 						/!?\[([^\]]+)\]\(\/([^\)]+)\)/g,

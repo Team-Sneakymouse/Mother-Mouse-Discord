@@ -48,7 +48,7 @@ export default function UnarchiveThreads(client: Client, gitlab: InstanceType<ty
 		const starterMessage = await thread.fetchStarterMessage();
 
 		// Gitlab
-		if (Object.keys(channelIds).includes(starterMessage.channelId)) {
+		if (starterMessage && Object.keys(channelIds).includes(starterMessage.channelId)) {
 			const projectId = projectIds[thread.guildId as Projects];
 			const issueId = parseInt(starterMessage.embeds[0].footer?.text.match(/\d+/)?.[0] as string);
 			if (!projectId || !issueId) {
@@ -68,8 +68,8 @@ export default function UnarchiveThreads(client: Client, gitlab: InstanceType<ty
 		}
 
 		// SneakyRP Applications
-		if (starterMessage.channelId === "963808503808557127") {
-			if (starterMessage.components !== undefined && starterMessage.components.length > 0) {
+		if (thread.parentId === "963808503808557127") {
+			if (starterMessage && starterMessage.components !== undefined && starterMessage.components.length > 0) {
 				console.log(`unarchiving thread ${thread.guild.name}/${thread.name}`);
 				await thread.setArchived(false);
 				return;

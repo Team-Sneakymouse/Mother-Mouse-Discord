@@ -15,6 +15,7 @@ export default function (client: Client, gitlab: InstanceType<typeof Gitlab>) {
 		handler: async function (message: Message) {
 			const channel = message.channel as ThreadChannel;
 			const starterMessage = await channel.fetchStarterMessage();
+			if (!starterMessage) return console.error(`No starter message found for thread ${channel.name} (${channel.id})`);
 			const project_id = projectIds[message.guildId as Projects];
 			const issueid = parseInt(starterMessage.embeds[0].footer?.text.match(/\d+/)?.[0] as string);
 

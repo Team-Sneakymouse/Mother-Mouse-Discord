@@ -5,7 +5,7 @@ import {
 	ComponentType,
 	GuildMember,
 	MessageEditOptions,
-	MessageOptions,
+	BaseMessageOptions,
 	MessagePayload,
 	Role,
 	SelectMenuInteraction,
@@ -33,9 +33,7 @@ export const data = [
 			new SlashCommandSubcommandBuilder()
 				.setName("leave")
 				.setDescription("Remove a game role from yourself")
-				.addRoleOption(
-					new SlashCommandRoleOption().setName("role").setDescription("The role to remove").setRequired(true)
-				)
+				.addRoleOption(new SlashCommandRoleOption().setName("role").setDescription("The role to remove").setRequired(true))
 		)
 		.addSubcommand(new SlashCommandSubcommandBuilder().setName("list").setDescription("List all your game roles")),
 ];
@@ -43,7 +41,7 @@ export const data = [
 export default function PalsRoles(client: Client, redis: Redis) {
 	client.on("interactionCreate", (interaction) => {
 		if (interaction.isChatInputCommand() && interaction.commandName == "pals") handlePalsCommand(interaction);
-		else if (interaction.isSelectMenu() && interaction.customId == "palsSelect") handleRolesUpdate(interaction);
+		else if (interaction.isStringSelectMenu() && interaction.customId == "palsSelect") handleRolesUpdate(interaction);
 	});
 
 	client.on("messageCreate", async (message): Promise<any> => {
@@ -58,7 +56,7 @@ export default function PalsRoles(client: Client, redis: Redis) {
 
 			const channelId = params[2]?.replace(/[<#>]/g, "");
 			const channel = message.guild.channels.cache.get(channelId) || message.channel;
-			if (!channel.isText()) return message.reply("Channel is not a text channel");
+			if (!channel.isTextBased()) return message.reply("Channel is not a text channel");
 
 			const roleIds = await redis.smembers(`DiscordPalsRoles:${message.guild.id}`);
 			const roles = roleIds.map((id) => message.guild!.roles.cache.get(id)).filter((r) => r !== undefined) as Role[];
@@ -191,7 +189,7 @@ export default function PalsRoles(client: Client, redis: Redis) {
 	}
 }
 
-function getPalsMessage(roles: Role[]): MessagePayload | (MessageOptions & MessageEditOptions) {
+function getPalsMessage(roles: Role[]): MessagePayload | (BaseMessageOptions & MessageEditOptions) {
 	return {
 		content: "\u00A0",
 		embeds: [

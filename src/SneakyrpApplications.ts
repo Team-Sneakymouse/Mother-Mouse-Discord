@@ -12,7 +12,7 @@ import {
 	ModalSubmitInteraction,
 	ModalBuilder,
 	TextInputStyle,
-	Attachment,
+	AttachmentBuilder,
 } from "discord.js";
 import { Redis } from "ioredis";
 import type { Express, Request, Response } from "express";
@@ -30,10 +30,8 @@ type ApplicationData = {
 
 export default function SneakyrpApplications(client: Client, redis: Redis, server: Express) {
 	client.on("interactionCreate", async (interaction) => {
-		if (interaction.isButton() && interaction.customId == "sneakyrp-applications:accept")
-			applicationAcceptHandler(interaction);
-		else if (interaction.isButton() && interaction.customId == "sneakyrp-applications:reject")
-			applicationRejectHandler(interaction);
+		if (interaction.isButton() && interaction.customId == "sneakyrp-applications:accept") applicationAcceptHandler(interaction);
+		else if (interaction.isButton() && interaction.customId == "sneakyrp-applications:reject") applicationRejectHandler(interaction);
 		else if (interaction.isModalSubmit() && interaction.customId.startsWith("sneakyrp-applications:rejectconfirm"))
 			applicationRejectConfirmHandler(interaction);
 	});
@@ -128,9 +126,7 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 		});
 		const reason = interaction.fields.getTextInputValue("sneakyrp-applications:rejectconfirm-reason");
 		await (msg.thread as ThreadChannel).send(
-			`${
-				(interaction.member as GuildMember).displayName
-			} rejected the application of <@${userId}> with reason:\n > ${reason}`
+			`${(interaction.member as GuildMember).displayName} rejected the application of <@${userId}> with reason:\n > ${reason}`
 		);
 		await (msg.thread as ThreadChannel).setArchived(true);
 	}
@@ -140,9 +136,7 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 		const appChannel = client.channels.cache.get("963808503808557127") as TextChannel;
 
 		const { id, form, timestamp, responses } = req.body as ApplicationData;
-		console.log(
-			`New SneakyRP application by ${responses.find((r) => r.title.includes("Discord"))?.response} for ${form} (${id})`
-		);
+		console.log(`New SneakyRP application by ${responses.find((r) => r.title.includes("Discord"))?.response} for ${form} (${id})`);
 
 		const discordTagResponse = responses.find((r) => r.title.includes("Discord tag"));
 		const nameResponse = responses.find((r) => r.title.includes("be referred to"));
@@ -158,9 +152,7 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 				console.error(`No guild member found for ${discordName}`);
 			} else {
 				member = results.find(
-					(m) =>
-						m.user.username.toLowerCase() === discordName.toLowerCase() &&
-						m.user.discriminator === discordDiscriminator
+					(m) => m.user.username.toLowerCase() === discordName.toLowerCase() && m.user.discriminator === discordDiscriminator
 				);
 			}
 		} else {
@@ -179,8 +171,7 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 			color: accepted ? Colors.Grey : Colors.Green,
 			author: {
 				name: `${name} (${pronouns})`,
-				icon_url:
-					member?.user.avatarURL() ?? "https://polybit-apps.s3.amazonaws.com/stdlib/users/discord/profile/image.png",
+				icon_url: member?.user.avatarURL() ?? "https://polybit-apps.s3.amazonaws.com/stdlib/users/discord/profile/image.png",
 			},
 			title: `${accepted ? "Closed" : "Open"} ${form[0].toUpperCase() + form.substring(1)} Application`,
 			description: `\`${id}\`\n\n${
@@ -295,10 +286,9 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 					content: "Application is too long to send as message",
 					embeds: [newEmbed],
 					files: [
-						new Attachment(
-							Buffer.from(contentEmbed.description ?? "Error: Can't find embed description", "utf8"),
-							`${discordTagResponse?.response}_${new Date().toISOString()}.md`
-						),
+						new AttachmentBuilder(
+							Buffer.from(contentEmbed.description ?? "Error: Can't find embed description", "utf8")
+						).setFile(`${discordTagResponse?.response}_${new Date().toISOString()}.md`),
 					],
 				});
 			}
@@ -315,10 +305,9 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 					content: "Application is too long to send as message",
 					embeds: [newEmbed],
 					files: [
-						new Attachment(
-							Buffer.from(contentEmbed.description ?? "Error: Can't find embed description", "utf8"),
-							`${discordTagResponse?.response}_${new Date().toISOString()}.md`
-						),
+						new AttachmentBuilder(
+							Buffer.from(contentEmbed.description ?? "Error: Can't find embed description", "utf8")
+						).setFile(`${discordTagResponse?.response}_${new Date().toISOString()}.md`),
 					],
 				});
 			}

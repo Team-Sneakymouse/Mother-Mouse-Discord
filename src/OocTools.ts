@@ -26,33 +26,25 @@ async function handleLockCommand(interaction: CommandInteraction) {
 		interaction.reply("no channel");
 		return;
 	}
-	// null if no parent, textchannel if thread
-	let category = (interaction.channel as GuildTextBasedChannel).parent;
+	if (interaction.channel.isDMBased()) {
+		return;
+	}
+
+	const category = interaction.channel.isThread() ? interaction.channel.parent?.parent : interaction.channel.parent;
 	if (!category) {
 		// check for null
 		interaction.reply("no parent category");
 		return;
 	}
-	if (!category.isCategory()) {
-		// check if thread
-		category = category.parent;
-		if (!category) {
-			// check for thread and null
-			interaction.reply("no parent category");
-			return;
-		}
-	}
 
 	if (!category.name.startsWith("🔒")) {
-		const voiceChannels = category.children.cache.filter((c) => c.isVoice());
+		const voiceChannels = category.children.cache.filter((c) => c.isVoiceBased());
 		await interaction.deferReply();
 
 		const permissionUpdatePromises: Promise<any>[] = [];
 		for (const voiceChannel of voiceChannels.values()) {
 			permissionUpdatePromises.push(
-				(voiceChannel as VoiceChannel)
-					.fetch()
-					.then((c) => c.permissionOverwrites.cache.map((p) => p.edit({ Connect: false })))
+				(voiceChannel as VoiceChannel).fetch().then((c) => c.permissionOverwrites.cache.map((p) => p.edit({ Connect: false })))
 			);
 		}
 		await Promise.all(permissionUpdatePromises);
@@ -61,7 +53,7 @@ async function handleLockCommand(interaction: CommandInteraction) {
 		await interaction.editReply(`Voice Channels in **${category.name.replace("🔒 ", "")}** locked.`);
 		return;
 	} else {
-		const voiceChannels = category.children.cache.filter((c) => c.isVoice());
+		const voiceChannels = category.children.cache.filter((c) => c.isVoiceBased());
 		await interaction.deferReply();
 
 		const permissionUpdatePromises: Promise<any>[] = [];

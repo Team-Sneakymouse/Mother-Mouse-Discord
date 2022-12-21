@@ -144,6 +144,13 @@ export default function PronounRoles(client: Client, redis: Redis) {
 				});
 				return;
 			}
+			if (!allRoles.includes(role.id)) {
+				interaction.reply({
+					content: `The role \`${role.name}\` is not a pronoun role. Please get a Helpful Turtle to remove it.`,
+					ephemeral: true,
+				});
+				return;
+			}
 			await interaction.member.roles.remove(role);
 			interaction.reply({
 				content: `Removed **${role.name}** from your pronouns`,

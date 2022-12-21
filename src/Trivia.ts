@@ -1,4 +1,4 @@
-import { Client, Attachment, TextChannel } from "discord.js";
+import { Client, AttachmentBuilder, TextChannel } from "discord.js";
 import { SlashCommandBuilder, SlashCommandStringOption, SlashCommandSubcommandBuilder } from "@discordjs/builders";
 import { Redis } from "ioredis";
 
@@ -11,10 +11,7 @@ export const data = [
 				.setName("answer")
 				.setDescription("Submit or edit your answer")
 				.addStringOption(
-					new SlashCommandStringOption()
-						.setName("text")
-						.setDescription("Your answer (max 80 characters)")
-						.setRequired(true)
+					new SlashCommandStringOption().setName("text").setDescription("Your answer (max 80 characters)").setRequired(true)
 				)
 		)
 		.addSubcommand(
@@ -122,7 +119,7 @@ export default function Trivia(client: Client, redis: Redis) {
 				const answersBuffer = Buffer.from(answersString, "utf8");
 				interaction.reply({
 					content: "✅ Stopped accepting responses and deleted answers. Here is the generated file:",
-					files: [new Attachment(answersBuffer, "answers.txt")],
+					files: [new AttachmentBuilder(answersBuffer).setName("answers.txt")],
 					ephemeral: true,
 				});
 			}

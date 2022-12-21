@@ -1,5 +1,5 @@
 import axios from "axios";
-import { Client, Attachment } from "discord.js";
+import { Client, AttachmentBuilder } from "discord.js";
 import { Stream } from "node:stream";
 
 export default function MediaEmbeds(client: Client) {
@@ -28,7 +28,7 @@ export default function MediaEmbeds(client: Client) {
 
 				await message.channel.send({
 					content: "\u00A0",
-					files: [new Attachment(res.data as Stream, url.pathname.split("/").pop())],
+					files: [new AttachmentBuilder(res.data as Stream).setName(url.pathname.split("/").pop()!)],
 				});
 				message.delete();
 			} catch (e) {
