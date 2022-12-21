@@ -72,9 +72,7 @@ export default function PronounRoles(client: Client, redis: Redis) {
 
 		const allRoleIds = await redis.smembers(`DiscordPronounRoles:${interaction.guildId}`);
 		if (subcommand === "add") {
-			const roles = interaction.guild.roles.cache.filter(
-				(role) => allRoleIds.includes(role.id) && !member.roles.cache.has(role.id)
-			);
+			const roles = interaction.guild.roles.cache.filter((role) => allRoleIds.includes(role.id) && !member.roles.cache.has(role.id));
 			const filteredRoles = roles.filter((role) => role.name.toLowerCase().includes(autocomplete.toLowerCase()));
 			const responses = filteredRoles.map((role) => ({ name: role.name, value: role.id }));
 			responses.push({ name: "Add new...", value: "create_role" });
@@ -83,9 +81,7 @@ export default function PronounRoles(client: Client, redis: Redis) {
 			const roles = member.roles.cache.filter((r) => allRoleIds.includes(r.id));
 			interaction.respond(roles.map((r) => ({ name: r.name, value: r.id })));
 		} else {
-			console.error(
-				`Command ${interaction.commandName}: Received autocomplete interaction for unknown subcommand ${subcommand}`
-			);
+			console.error(`Command ${interaction.commandName}: Received autocomplete interaction for unknown subcommand ${subcommand}`);
 			interaction.respond([{ name: "Unknown Subcommand. Please tell Dani!", value: "error" }]);
 		}
 	}
@@ -174,16 +170,20 @@ export default function PronounRoles(client: Client, redis: Redis) {
 		}
 
 		const subjectPronoun = interaction.fields.getTextInputValue("pronoun_role_create_subject").toLowerCase();
-		const objectPronoun = interaction.fields.getTextInputValue("pronoun_role_create_object").toLowerCase();
-		const possessivePronoun = interaction.fields.getTextInputValue("pronoun_role_create_possessive").toLowerCase();
+		const objectPronoun = interaction.fields.getTextInputValue("pronoun_role_create_object")?.toLowerCase();
+		const possessivePronoun = interaction.fields.getTextInputValue("pronoun_role_create_possessive")?.toLowerCase();
 		if ((subjectPronoun + objectPronoun + possessivePronoun).includes("/")) {
 			interaction.reply({
-				content: "Couldn't parse pronouns because there are slashes in them. If this is intentional, please tell Dani.",
+				content:
+					"Couldn't parse pronouns because there are slashes in them. If this doesn't make sense to you, please tell Dani to make it more clear.",
 				ephemeral: true,
 			});
 			return;
 		}
-		const roleName = `${subjectPronoun}/${objectPronoun}/${possessivePronoun}`;
+		let roleName = subjectPronoun;
+		roleName += !!objectPronoun ? `/${objectPronoun}` : `/-`;
+		roleName += !!possessivePronoun ? `/${possessivePronoun}` : `/-`;
+
 		const role = interaction.guild.roles.cache.find((r) => r.name === roleName);
 		if (role) {
 			await interaction.member.roles.add(role);
@@ -234,7 +234,7 @@ const createPronounModal = (prompt: string) => {
 						style: TextInputStyle.Short,
 						label: "Object Pronoun (e.g. him, her, them)",
 						customId: "pronoun_role_create_object",
-						required: true,
+						required: false,
 						value: pronouns[1] || "",
 					},
 				],
@@ -247,7 +247,7 @@ const createPronounModal = (prompt: string) => {
 						style: TextInputStyle.Short,
 						label: "Possessive Pronoun (e.g. his, hers, theirs)",
 						customId: "pronoun_role_create_possessive",
-						required: true,
+						required: false,
 						value: pronouns[2] || "",
 					},
 				],
