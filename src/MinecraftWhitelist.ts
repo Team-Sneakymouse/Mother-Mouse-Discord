@@ -92,7 +92,7 @@ export default function MinecraftWhitelist(client: Client, db: PocketBase, multi
 							title: "Success",
 							description: `Minecraft account \`${name}\` linked to Discord account <@${interaction.user.id}>.`,
 							color: 0x4db924,
-							image: {
+							thumbnail: {
 								url: `https://crafatar.com/renders/body/${id}?overlay`,
 							},
 						},
