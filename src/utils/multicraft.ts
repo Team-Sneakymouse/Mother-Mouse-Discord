@@ -140,8 +140,8 @@ type MulticraftMethods = {
 	findUsers: { field: string[]; value: string[] };
 	getUser: { id: number };
 	getCurrentUser: {};
-	updateUser: { id: number; field: string[]; value: string[]; send_mail: number };
-	createUser: { name: string; email: string; password: string; lang?: string; send_mail: number };
+	updateUser: { id: number; field: string[]; value: string[]; send_mail?: number };
+	createUser: { name: string; email: string; password: string; lang?: string; send_mail?: number };
 	deleteUser: { id: number };
 	getUserRole: { user_id: string; server_id: number };
 	setUserRole: { user_id: string; server_id: number; role: string };
@@ -152,13 +152,13 @@ type MulticraftMethods = {
 	generateUserApiKey: { user_id: string };
 	getUserApiKey: { user_id: string };
 	removeUserApiKey: { user_id: string };
-	getOwnApiKey: { password: string; generate: number; gauth_code: string };
+	getOwnApiKey: { password: string; generate?: number; gauth_code?: string };
 	//Player functions
 	listPlayers: { server_id: number };
 	findPlayers: { server_id: number; field: string[]; value: string[] };
 	getPlayer: { id: number };
 	updatePlayer: { id: number; field: string[]; value: string[] };
-	createPlayer: { server_id: number; name: string; op_command: number };
+	createPlayer: { server_id: number; name: string; op_command?: number };
 	deletePlayer: { id: number };
 	assignPlayerToUser: { player_id: number; user_id: number };
 	//Command functions
@@ -170,32 +170,32 @@ type MulticraftMethods = {
 	deleteCommand: { id: number };
 	//Server functions
 	listServers: {};
-	findServers: { field: string[]; value: string[]; details: number };
+	findServers: { field: string[]; value: string[]; details?: number };
 	listServersByConnection: { connection_id: number };
 	listServersByOwner: { user_id: number };
 	getServer: { id: number };
 	updateServer: { id: number; field: string[]; value: string[] };
-	createServerOn: { daemon_id: number; no_commands: number; no_setup_script: number };
+	createServerOn: { daemon_id?: number; no_commands?: number; no_setup_script?: number };
 	createServer: {
-		name: string;
-		port: number;
-		base: string;
-		players: number;
-		no_commands: number;
-		no_setup_script: number;
+		name?: string;
+		port?: number;
+		base?: string;
+		players?: number;
+		no_commands?: number;
+		no_setup_script?: number;
 	};
 	createAndConfigureServer: {
 		field: string[];
 		value: string[];
 		configField: string[];
 		configValue: string[];
-		no_commands: number;
-		no_setup_script: number;
+		no_commands?: number;
+		no_setup_script?: number;
 	};
-	suspendServer: { id: number; stop: number };
-	resumeServer: { id: number; start: number };
-	deleteServer: { id: number; delete_dir: string; delete_user: string };
-	getServerStatus: { id: number; player_list: number };
+	suspendServer: { id: number; stop?: number };
+	resumeServer: { id: number; start?: number };
+	deleteServer: { id: number; delete_dir?: string; delete_user?: string };
+	getServerStatus: { id: number; player_list?: number };
 	getServerOwner: { server_id: number };
 	setServerOwner: { server_id: number; user_id: string; send_mail: number };
 	getServerConfig: { id: number };
@@ -212,7 +212,7 @@ type MulticraftMethods = {
 	killAllServers: {};
 	sendConsoleCommand: { server_id: number; command: string };
 	sendAllConsoleCommand: { command: string };
-	runCommand: { server_id: number; command_id: string; run_for: number };
+	runCommand: { server_id: number; command_id: string; run_for?: number };
 	getServerLog: { id: number };
 	clearServerLog: { id: number };
 	getServerChat: { id: number };
@@ -222,7 +222,7 @@ type MulticraftMethods = {
 	moveServer: { server_id: number; daemon_id: string };
 	getMoveStatus: { server_id: number };
 	listServerPorts: { id: number };
-	addServerPort: { id: number; port: number };
+	addServerPort: { id: number; port?: number };
 	removeServerPort: { id: number; port: number };
 	//Daemon functions
 	listConnections: {};
@@ -230,9 +230,9 @@ type MulticraftMethods = {
 	getConnection: { id: number };
 	removeConnection: { id: number };
 	getConnectionStatus: { id: number };
-	getConnectionMemory: { id: number; include_suspended: number };
+	getConnectionMemory: { id: number; include_suspended?: number };
 	getStatistics: { id: number; include_suspended: number };
-	runScript: { daemon_id: string; script: string; args: string };
+	runScript: { daemon_id: string; script: string; args?: string };
 	getScript: { daemon_id: string; scriptId: string };
 	//Settings functions
 	listSettings: {};
