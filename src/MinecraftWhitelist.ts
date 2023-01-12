@@ -11,6 +11,21 @@ export const data = [
 export default function MinecraftWhitelist(client: Client, db: PocketBase, multicraft: MulticraftAPI) {
 	client.on("interactionCreate", async (interaction) => {
 		if (interaction.isChatInputCommand() && interaction.commandName === "link") {
+			const serverStatus = await multicraft.call("getServerStatus", { id: 14 });
+			if (serverStatus.data.status !== "online") {
+				await interaction.reply({
+					content: "",
+					embeds: [
+						{
+							title: "Error",
+							description: "Server is offline",
+							color: 0xa01a04,
+						},
+					],
+				});
+				return;
+			}
+
 			const username = interaction.options.getString("username", true);
 			const res = await fetch("https://api.mojang.com/users/profiles/minecraft/" + username);
 			if (res.status === 204) {
