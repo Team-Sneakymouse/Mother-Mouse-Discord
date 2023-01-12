@@ -1,5 +1,6 @@
 import Redis from "ioredis";
 import express from "express";
+import PocketBase from "pocketbase";
 import { Client, GatewayIntentBits, Partials } from "discord.js";
 import { Gitlab } from "@gitbeaker/node";
 import { config } from "dotenv";
@@ -24,6 +25,11 @@ server.use(express.json());
 const redis = new Redis({
 	host: process.env.REDIS_HOST || "redis",
 });
+
+if (!process.env["POCKETBASE_HOST"] || !process.env["POCKETBASE_USERNAME"] || !process.env["POCKETBASE_PASSWORD"])
+	throw new Error("Missing PocketBase credentials");
+const pocketbase = new PocketBase(process.env["POCKETBASE_HOST"]);
+pocketbase.admins.authWithPassword(process.env["POCKETBASE_USERNAME"], process.env["POCKETBASE_PASSWORD"]);
 
 const client = new Client({
 	intents: [
@@ -137,7 +143,11 @@ import YouTube from "./YouTube.js";
 // Delete forbidden reactions
 import DeleteHate from "./DeleteHate.js";
 
+// Convert Twitter links to FxTwitter
 import TwitterFix from "./TwitterFix.js";
+
+// Manage Discord <-> Minecraft linking for whitelist
+import MinecraftWhitelist from "./MinecraftWhitelist.js";
 
 if (process.env.PRODUCTION == "TRUE") {
 	client.setMaxListeners(31);
@@ -177,6 +187,7 @@ if (process.env.PRODUCTION == "TRUE") {
 	DeleteHate(client);
 	tfcSolver(client);
 	TwitterFix(client);
+	MinecraftWhitelist(client, pocketbase, multicraft);
 } else {
 	console.log("Registering development plugins");
 }
