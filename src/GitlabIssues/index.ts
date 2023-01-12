@@ -2,13 +2,13 @@ import type { Client } from "discord.js";
 import type { Redis } from "ioredis";
 import type { Express } from "express";
 import type { Gitlab } from "@gitbeaker/node";
-import initWebhook from "./webhooks";
-import initCommands from "./commands";
-import initModals from "./modals";
-import initButtons from "./buttons";
-import initMessages from "./messages";
+import initWebhook from "./webhooks.js";
+import initCommands from "./commands.js";
+import initModals from "./modals.js";
+import initButtons from "./buttons.js";
+import initMessages from "./messages.js";
 
-export { data } from "./commands";
+export { data } from "./commands.js";
 export default function GitlabIssues(client: Client, redis: Redis, server: Express, gitlab: InstanceType<typeof Gitlab>) {
 	const commands = initCommands(client, gitlab);
 	const modals = initModals(client, redis, gitlab);

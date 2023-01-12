@@ -1,5 +1,4 @@
-import { ContextMenuCommandBuilder } from "@discordjs/builders";
-import { ApplicationCommandType, Client, Message } from "discord.js";
+import { ApplicationCommandType, Client, ContextMenuCommandBuilder } from "discord.js";
 
 const type: number = ApplicationCommandType.Message;
 export const data = [new ContextMenuCommandBuilder().setType(type).setName("Translate Twitter Link")];

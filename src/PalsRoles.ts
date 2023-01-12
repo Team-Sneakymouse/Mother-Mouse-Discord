@@ -8,10 +8,12 @@ import {
 	BaseMessageOptions,
 	MessagePayload,
 	Role,
-	SelectMenuInteraction,
+	StringSelectMenuInteraction,
 	TextChannel,
+	SlashCommandBuilder,
+	SlashCommandRoleOption,
+	SlashCommandSubcommandBuilder,
 } from "discord.js";
-import { SlashCommandBuilder, SlashCommandRoleOption, SlashCommandSubcommandBuilder } from "@discordjs/builders";
 import { Redis } from "ioredis";
 
 export const data = [
@@ -156,7 +158,7 @@ export default function PalsRoles(client: Client, redis: Redis) {
 		}
 	}
 
-	async function handleRolesUpdate(interaction: SelectMenuInteraction) {
+	async function handleRolesUpdate(interaction: StringSelectMenuInteraction) {
 		console.log("Roles update");
 		const member = interaction.member as GuildMember;
 		const allRoles = await redis.smembers(`DiscordPalsRoles:${interaction.guildId}`);

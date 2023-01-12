@@ -1,6 +1,6 @@
 import { Gitlab } from "@gitbeaker/node";
 import { ChannelType, Client, Message, ThreadChannel } from "discord.js";
-import { projectIds, Projects } from "./utils";
+import { projectIds, Projects } from "./utils.js";
 
 export default function (client: Client, gitlab: InstanceType<typeof Gitlab>) {
 	return {

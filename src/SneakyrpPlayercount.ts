@@ -1,4 +1,4 @@
-import type MulticraftAPI from "./utils/multicraft";
+import type MulticraftAPI from "./utils/multicraft.js";
 import { Client } from "discord.js";
 
 export default function SneakyrpPlayercount(client: Client, multicraft: MulticraftAPI) {

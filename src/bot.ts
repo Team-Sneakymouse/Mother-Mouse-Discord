@@ -4,17 +4,13 @@ import { Client, GatewayIntentBits, Partials } from "discord.js";
 import { Gitlab } from "@gitbeaker/node";
 import { config } from "dotenv";
 config();
-import { Tick } from "./utils/unixtime";
-import MulticraftAPI from "./utils/multicraft";
-import YouTubeDL from "./utils/youtube-dl";
+import { Tick } from "./utils/unixtime.js";
+import MulticraftAPI from "./utils/multicraft.js";
+import YouTubeDL from "./utils/youtube-dl.js";
 
 if (!process.env["MULTICRAFT_HOST"] || !process.env["MULTICRAFT_USER"] || !process.env["MULTICRAFT_KEY"])
 	throw new Error("Missing Multicraft credentials");
-const multicraft = new MulticraftAPI(
-	process.env["MULTICRAFT_HOST"],
-	process.env["MULTICRAFT_USER"],
-	process.env["MULTICRAFT_KEY"]
-);
+const multicraft = new MulticraftAPI(process.env["MULTICRAFT_HOST"], process.env["MULTICRAFT_USER"], process.env["MULTICRAFT_KEY"]);
 
 const gitlab = new Gitlab({
 	token: process.env["GITLAB_TOKEN"],
@@ -49,99 +45,99 @@ client.once("ready", () => {
 });
 
 // Simple, canned command responses from Twitch
-import TwitchCommands from "./TwitchCommands";
+import TwitchCommands from "./TwitchCommands.js";
 
 // Assing default roles to new members
-import NewMemberRoles from "./NewMemberRoles";
+import NewMemberRoles from "./NewMemberRoles.js";
 
 // Swap rawb's role color when he sends messages
-import RawbColor from "./RawbColor";
+import RawbColor from "./RawbColor.js";
 
 // Convert video and sound links to embeds
-import MediaEmbed from "./MediaEmbeds";
+import MediaEmbed from "./MediaEmbeds.js";
 
 // Vibecheck command
-import Vibecheck from "./Vibecheck";
+import Vibecheck from "./Vibecheck.js";
 
 // Rolling dice and evaluating math expressions
-import Roll from "./Roll";
+import Roll from "./Roll.js";
 
 // Self-assignable roles for games
-import PalsRoles from "./PalsRoles";
+import PalsRoles from "./PalsRoles.js";
 
 // Self-assignable pronoun roles
-import PronounRoles from "./PronounRoles";
+import PronounRoles from "./PronounRoles.js";
 
 // Manage crossing out milestone messages for money stream
-// import MoneyMilestone from "./MoneyMilestone";
+// import MoneyMilestone from "./MoneyMilestone.js";
 
 // Manage trivia answers
-import Trivia from "./Trivia";
+import Trivia from "./Trivia.js";
 
 // Manage permissions for the stage chat channel
-import StageChatChannel from "./StageChatChannel";
+import StageChatChannel from "./StageChatChannel.js";
 
 // Picture submission for the guess who game
-import GuessWho from "./GuessWho";
+import GuessWho from "./GuessWho.js";
 
 // Execute Redis commands
-import RedisRelay from "./RedisRelay";
+import RedisRelay from "./RedisRelay.js";
 
 // Too Slow meme in DMs
-import TooSlow from "./TooSlow";
+import TooSlow from "./TooSlow.js";
 
 // Discord stats
-import Stats from "./Stats";
+import Stats from "./Stats.js";
 
 // Allow users to pin messages
-import UserPins from "./UserPins";
+import UserPins from "./UserPins.js";
 
 // Meme responsibly easteregg
-import MemeResponsibly from "./MemeResponsibly";
+import MemeResponsibly from "./MemeResponsibly.js";
 
 // Gitlab issues integration
-import GitlabIssues from "./GitlabIssues";
+import GitlabIssues from "./GitlabIssues/index.js";
 
 // Unarchive threads
-import UnarchiveThreads from "./UnarchiveThreads";
+import UnarchiveThreads from "./UnarchiveThreads.js";
 
 // SneakyRP new application webhook
-import SneakyrpApplications from "./SneakyrpApplications";
+import SneakyrpApplications from "./SneakyrpApplications.js";
 
 // OOC Discord Dani Power Up
-import OocTools from "./OocTools";
+import OocTools from "./OocTools.js";
 
 // SneakyRP playerlist
-import SneakyrpPlayerlist from "./SneakyrpPlayerlist";
+import SneakyrpPlayerlist from "./SneakyrpPlayerlist.js";
 
 // SneakyRP playercount
-import SneakyrpPlayercount from "./SneakyrpPlayercount";
-import RaidProtection from "./RaidProtection";
+import SneakyrpPlayercount from "./SneakyrpPlayercount.js";
+import RaidProtection from "./RaidProtection.js";
 
 // start of mami's script imports
 // Role Icon Randomization for mami's role
-import RoleIconRandomization from "./RoleIconRandomization";
+import RoleIconRandomization from "./RoleIconRandomization.js";
 
 // Reply kobold to maris
-import MarisKobold from "./MarisKobold";
+import MarisKobold from "./MarisKobold.js";
 
-import ClearSupportChannel from "./ClearSupportChannel";
+import ClearSupportChannel from "./ClearSupportChannel.js";
 
-import NicknameRandomization from "./NicknameRandomization";
+import NicknameRandomization from "./NicknameRandomization.js";
 
-import RenameVC from "./RenameVC";
+import RenameVC from "./RenameVC.js";
 
-import HotlinePosting from "./HotlinePosting";
+import HotlinePosting from "./HotlinePosting.js";
 
-import tfcSolver from "./tfcSolver";
+import tfcSolver from "./tfcSolver.js";
 
 // Youtube/soundcloud downloader
-import YouTube from "./YouTube";
+import YouTube from "./YouTube.js";
 
 // Delete forbidden reactions
-import DeleteHate from "./DeleteHate";
+import DeleteHate from "./DeleteHate.js";
 
-import TwitterFix from "./TwitterFix";
+import TwitterFix from "./TwitterFix.js";
 
 if (process.env.PRODUCTION == "TRUE") {
 	client.setMaxListeners(31);

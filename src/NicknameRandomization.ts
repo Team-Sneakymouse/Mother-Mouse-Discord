@@ -1,6 +1,6 @@
 import { Client } from "discord.js";
 import { Redis } from "ioredis";
-import { ScheduleRepeating, SECS_IN_DAY } from "./utils/unixtime";
+import { ScheduleRepeating, SECS_IN_DAY } from "./utils/unixtime.js";
 
 const primaryName = "Mother Mouse";
 const names = [

@@ -12,25 +12,26 @@ enum GuildIds {
 	TURTLES = "898925497508048896",
 }
 
-import { data as Vibecheck } from "./src/Vibecheck";
-import { data as RenameVC } from "./src/RenameVC";
-import { data as tfcSolver } from "./src/tfcSolver";
-import { data as Roll } from "./src/Roll";
-import { data as PalsRoles } from "./src/PalsRoles";
-import { data as PronounRoles } from "./src/PronounRoles";
-//import { data as Todo } from "./src/Todo";
-//import { data as MoneyMilestone } from "./src/MoneyMilestone";
-import { data as Trivia } from "./src/Trivia";
-import { data as UserPins } from "./src/UserPins";
-import { data as GitlabIssues } from "./src/GitlabIssues";
-import { data as OocTools } from "./src/OocTools";
-import { data as SneakyrpPlayerlist } from "./src/SneakyrpPlayerlist";
-import { data as TwitterFix } from "./src/TwitterFix";
+import { data as Vibecheck } from "./src/Vibecheck.js";
+import { data as RenameVC } from "./src/RenameVC.js";
+import { data as tfcSolver } from "./src/tfcSolver.js";
+import { data as Roll } from "./src/Roll.js";
+import { data as PalsRoles } from "./src/PalsRoles.js";
+import { data as PronounRoles } from "./src/PronounRoles.js";
+//import { data as Todo } from "./src/Todo.js";
+//import { data as MoneyMilestone } from "./src/MoneyMilestone.js";
+import { data as Trivia } from "./src/Trivia.js";
+import { data as UserPins } from "./src/UserPins.js";
+import { data as GitlabIssues } from "./src/GitlabIssues/index.js";
+import { data as OocTools } from "./src/OocTools.js";
+import { data as SneakyrpPlayerlist } from "./src/SneakyrpPlayerlist.js";
+import { data as TwitterFix } from "./src/TwitterFix.js";
+import { data as MinecraftWhitelist } from "./src/MinecraftWhitelist.js";
 
 const commands = {
 	global: [...Vibecheck, ...Roll, ...TwitterFix],
 	[GuildIds.TEST]: [],
-	[GuildIds.RAWBTV]: [...PalsRoles, ...PronounRoles, ...Trivia, ...UserPins],
+	[GuildIds.RAWBTV]: [...PalsRoles, ...PronounRoles, ...Trivia, ...UserPins, ...MinecraftWhitelist],
 	[GuildIds.TILII]: [...GitlabIssues],
 	[GuildIds.SNEAKYRP]: [...SneakyrpPlayerlist],
 	[GuildIds.OOC]: [...OocTools],

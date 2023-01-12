@@ -1,5 +1,5 @@
 import { Client } from "discord.js";
-import type YouTubeDL from "./utils/youtube-dl";
+import type YouTubeDL from "./utils/youtube-dl.js";
 
 export default function YouTube(client: Client, ytdl: YouTubeDL) {
 	client.on("messageCreate", async (message) => {

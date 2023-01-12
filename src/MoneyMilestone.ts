@@ -1,5 +1,4 @@
-import { Client, Message } from "discord.js";
-import { ContextMenuCommandBuilder } from "@discordjs/builders";
+import { Client, Message, ContextMenuCommandBuilder } from "discord.js";
 
 export const data = [new ContextMenuCommandBuilder().setType(3).setName("Mark as done")];
 

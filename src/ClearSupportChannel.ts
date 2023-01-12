@@ -1,6 +1,6 @@
 import { Redis } from "ioredis";
-import { Client, Message, Snowflake, TextChannel, ComponentType, ButtonStyle, Collection, Interaction } from "discord.js";
-import { ScheduleRepeating, RegisterOneTimeEvent, ScheduleOnce, SECS_IN_DAY, SECS_IN_WEEK, SECS_IN_HOUR } from "./utils/unixtime";
+import { Client, TextChannel, ComponentType, ButtonStyle, Collection, Interaction } from "discord.js";
+import { ScheduleRepeating, RegisterOneTimeEvent, ScheduleOnce, SECS_IN_DAY, SECS_IN_WEEK, SECS_IN_HOUR } from "./utils/unixtime.js";
 
 // const turtleFriendsId = "898925497508048896";// turtle friends discord id
 const textChannelsToClear = [

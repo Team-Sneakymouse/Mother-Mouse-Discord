@@ -3,20 +3,18 @@ import {
 	ButtonStyle,
 	Client,
 	ComponentType,
-	Embed,
 	EmbedBuilder,
 	Message,
 	AttachmentBuilder,
 	TextChannel,
-	Utils,
+	ThreadAutoArchiveDuration,
 } from "discord.js";
 import { Redis } from "ioredis";
 import { Request, Response } from "express";
-import { channelIds, projectIds, Projects, webhooks } from "./utils";
+import { channelIds, projectIds, Projects, webhooks } from "./utils.js";
 import { Gitlab } from "@gitbeaker/node";
 import axios from "axios";
 import { Stream } from "node:stream";
-import { ThreadAutoArchiveDuration } from "discord.js/node_modules/discord-api-types/v10";
 
 export default function init(client: Client, redis: Redis, gitlab: InstanceType<typeof Gitlab>) {
 	return async function (req: Request, res: Response) {

@@ -1,6 +1,5 @@
-import type MulticraftAPI from "./utils/multicraft";
-import { Client } from "discord.js";
-import { SlashCommandBuilder } from "@discordjs/builders";
+import type MulticraftAPI from "./utils/multicraft.js";
+import { Client, SlashCommandBuilder } from "discord.js";
 import axios from "axios";
 export const data = [new SlashCommandBuilder().setName("playerlist").setDescription("Displays a list of players on SneakyRP")];
 

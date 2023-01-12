@@ -1,5 +1,4 @@
-import { ContextMenuCommandBuilder } from "@discordjs/builders";
-import { ApplicationCommandType, Client, Message } from "discord.js";
+import { ApplicationCommandType, Client, Message, ContextMenuCommandBuilder } from "discord.js";
 
 const type: number = ApplicationCommandType.Message; //wtf
 export const data = [new ContextMenuCommandBuilder().setType(type).setName("Pin Message")];

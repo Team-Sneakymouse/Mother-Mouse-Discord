@@ -1,4 +1,3 @@
-import console from "console";
 import { Client, TextChannel } from "discord.js";
 
 const stageChannel = "827955182460993537";

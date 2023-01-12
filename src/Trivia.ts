@@ -1,5 +1,11 @@
-import { Client, AttachmentBuilder, TextChannel } from "discord.js";
-import { SlashCommandBuilder, SlashCommandStringOption, SlashCommandSubcommandBuilder } from "@discordjs/builders";
+import {
+	Client,
+	AttachmentBuilder,
+	TextChannel,
+	SlashCommandBuilder,
+	SlashCommandStringOption,
+	SlashCommandSubcommandBuilder,
+} from "discord.js";
 import { Redis } from "ioredis";
 
 export const data = [
@@ -23,8 +29,7 @@ export const data = [
 						.setName("action")
 						.setDescription("Action to perform")
 						.setRequired(true)
-						.addChoice("Stop Responses", "stop")
-						.addChoice("Allow Responses", "start")
+						.addChoices({ name: "Stop Responses", value: "stop" }, { name: "Allow Responses", value: "start" })
 				)
 		),
 ];

@@ -1,18 +1,23 @@
 import type { Gitlab } from "@gitbeaker/node";
-import { SlashCommandBuilder, SlashCommandStringOption } from "@discordjs/builders";
-import { ChatInputCommandInteraction, Client, ComponentType, Interaction, ModalBuilder, TextInputStyle } from "discord.js";
+import {
+	ChatInputCommandInteraction,
+	Client,
+	ComponentType,
+	Interaction,
+	ModalBuilder,
+	TextInputStyle,
+	SlashCommandBuilder,
+	SlashCommandStringOption,
+} from "discord.js";
 import { createHash } from "crypto";
-import { projectIds, Projects } from "./utils";
+import { projectIds, Projects } from "./utils.js";
 
 export const data = [
 	new SlashCommandBuilder()
 		.setName("report")
 		.setDescription("Report a bug or feature request")
 		.addStringOption(
-			new SlashCommandStringOption()
-				.setName("title")
-				.setDescription("Short description of your bug/request")
-				.setRequired(false)
+			new SlashCommandStringOption().setName("title").setDescription("Short description of your bug/request").setRequired(false)
 		),
 ];
 
@@ -27,8 +32,7 @@ export default function (client: Client, gitlab: InstanceType<typeof Gitlab>) {
 			const projectId = projectIds[interaction.guildId as Projects];
 			if (!projectId)
 				return interaction.reply({
-					content:
-						"This server is not configured for Gitlab integration. Please contact Dani if you can see this message!",
+					content: "This server is not configured for Gitlab integration. Please contact Dani if you can see this message!",
 					ephemeral: true,
 				});
 

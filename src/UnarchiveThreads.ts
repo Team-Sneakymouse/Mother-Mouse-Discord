@@ -1,6 +1,6 @@
 import { ChannelType, Client } from "discord.js";
 import { Gitlab } from "@gitbeaker/node";
-import { channelIds, projectIds, Projects } from "./GitlabIssues/utils";
+import { channelIds, projectIds, Projects } from "./GitlabIssues/utils.js";
 
 const hardCodedThreads = [
 	"979858513180377108", // Daily wordle and other daily games

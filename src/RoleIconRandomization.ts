@@ -1,6 +1,6 @@
 import { Client } from "discord.js";
 import { Redis } from "ioredis";
-import { ScheduleRepeating } from "./utils/unixtime";
+import { ScheduleRepeating } from "./utils/unixtime.js";
 
 
 const icons = [

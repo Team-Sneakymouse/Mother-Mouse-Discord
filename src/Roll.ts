@@ -1,15 +1,11 @@
-import { Client } from "discord.js";
-import { SlashCommandBooleanOption, SlashCommandBuilder, SlashCommandStringOption } from "@discordjs/builders";
+import { Client, SlashCommandBooleanOption, SlashCommandBuilder, SlashCommandStringOption } from "discord.js";
 import { evaluate } from "mathjs";
 export const data = [
 	new SlashCommandBuilder()
 		.setName("roll")
 		.setDescription("Roll dice to generate random numbers")
 		.addStringOption(
-			new SlashCommandStringOption()
-				.setName("dice")
-				.setDescription("The dice to roll (supports complex notation)")
-				.setRequired(true)
+			new SlashCommandStringOption().setName("dice").setDescription("The dice to roll (supports complex notation)").setRequired(true)
 		)
 		.addBooleanOption(
 			new SlashCommandBooleanOption().setName("private").setDescription("Shows this result only to you").setRequired(false)
@@ -44,8 +40,7 @@ export default function Roll(client: Client) {
 				interaction.reply({ content: "`" + dice + "`: " + result, ephemeral });
 				return;
 			} catch (e) {
-				const message: string =
-					typeof e == "string" ? e : (e as any).message ? (e as any).message : (e as any).toString();
+				const message: string = typeof e == "string" ? e : (e as any).message ? (e as any).message : (e as any).toString();
 				interaction.reply({ content: message, ephemeral });
 				return;
 			}

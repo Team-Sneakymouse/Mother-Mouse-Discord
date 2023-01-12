@@ -1,5 +1,4 @@
-import { Client } from "discord.js";
-import { SlashCommandBuilder } from "@discordjs/builders";
+import { Client, SlashCommandBuilder } from "discord.js";
 export const data = [new SlashCommandBuilder().setName("vibecheck").setDescription("Check the vibe")];
 
 export default function Vibecheck(client: Client) {
