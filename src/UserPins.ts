@@ -1,7 +1,6 @@
 import { ApplicationCommandType, Client, Message, ContextMenuCommandBuilder } from "discord.js";
 
-const type: number = ApplicationCommandType.Message; //wtf
-export const data = [new ContextMenuCommandBuilder().setType(type).setName("Pin Message")];
+export const data = [new ContextMenuCommandBuilder().setType(ApplicationCommandType.Message).setName("Pin Message")];
 
 const allowedGuilds = [
 	"898925497508048896", // TTT

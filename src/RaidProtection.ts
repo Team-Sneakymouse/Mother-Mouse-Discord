@@ -9,7 +9,7 @@ export default function RaidProtection(client: Client, redis: Redis) {
 		if (member.user.bot) return;
 
 		const count = await redis.hincrby("mmd-join-count", new Date().toISOString().split("T")[0], 1);
-		if (count > DAILY_USER_THRESHHOLD) {
+		if (false && count > DAILY_USER_THRESHHOLD) {
 			console.log(`${count} users have joined today. Deleting invites`);
 			const promises = member.guild.invites.cache.map((invite) => invite.delete());
 			await Promise.all(promises);
