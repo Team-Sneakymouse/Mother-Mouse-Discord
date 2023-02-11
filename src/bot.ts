@@ -148,7 +148,7 @@ import DeleteHate from "./DeleteHate.js";
 import TwitterFix from "./TwitterFix.js";
 
 // Manage Discord <-> Minecraft linking for whitelist
-import MinecraftWhitelist from "./MinecraftWhitelist.js";
+import MinecraftWhitelist from "./MinecraftDvzRegistrations.js";
 
 if (process.env.PRODUCTION == "TRUE") {
 	client.setMaxListeners(31);

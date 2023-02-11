@@ -18,7 +18,7 @@
 		"ioredis": "^4.28.5",
 		"mathjs": "^11.5.0",
 		"mime-types": "^2.1.35",
-		"pocketbase": "^0.10.0"
+		"pocketbase": "^0.10.1"
 	},
 	"devDependencies": {
 		"@discordjs/rest": "^1.5.0",
