@@ -1,3 +1,4 @@
+#! node_modules/.bin/ts-node-esm
 import { REST } from "@discordjs/rest";
 import { Routes } from "discord-api-types/v9";
 import { config } from "dotenv";
