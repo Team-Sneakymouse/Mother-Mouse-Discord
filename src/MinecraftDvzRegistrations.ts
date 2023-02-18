@@ -1,4 +1,11 @@
-import { Client, InteractionReplyOptions, SlashCommandBuilder, SlashCommandIntegerOption, SlashCommandStringOption } from "discord.js";
+import {
+	Client,
+	InteractionReplyOptions,
+	SlashCommandBuilder,
+	SlashCommandIntegerOption,
+	SlashCommandStringOption,
+	TextChannel,
+} from "discord.js";
 import PocketBase, { Record as PBRecord } from "pocketbase";
 import MulticraftAPI from "./utils/multicraft.js";
 export const data = [
@@ -128,7 +135,7 @@ export default function MinecraftWhitelist(client: Client, db: PocketBase, multi
 			}
 
 			// Check if user or minecraft account is already registered
-			let user: (Partial<PBRecord> & DvzUserRecord) | null = await db
+			let user: (PBRecord & DvzUserRecord) | null = await db
 				.collection("dvz_users")
 				.getFirstListItem<PBRecord & DvzUserRecord>(`discordId="${interaction.user.id}" || uuid="${profile.id}"`)
 				.catch(() => null);
@@ -163,38 +170,30 @@ export default function MinecraftWhitelist(client: Client, db: PocketBase, multi
 			}
 
 			// Update user db
-			const date = new Date().toISOString().split("T")[0];
 			if (user) {
 				user.uuid = profile.id;
 				user.username = profile.name;
 				user.tickets = tickets;
-				if (!user.history) user.history = { interaction: [interaction.id, interaction.token], registered: [], participated: [] };
-				if (!user.history.registered.includes(date)) user.history.registered.push(date);
-				user.history.interaction = [interaction.id, interaction.token];
-			} else
-				user = {
+				if (!user.usernames) user.usernames = [profile.name];
+				if (!user.usernames.includes(profile.name)) user.usernames.push(profile.name);
+				await db.collection("dvz_users").update(user.id, user);
+			} else {
+				await db.collection("dvz_users").create({
 					discordId: interaction.user.id,
 					uuid: profile.id,
 					username: profile.name,
 					tickets: tickets,
-					history: {
-						interaction: [interaction.id, interaction.token],
-						registered: [date],
-						participated: [],
-					},
-				};
-
-			if (user.id) await db.collection("dvz_users").update(user.id, user);
-			else await db.collection("dvz_users").create(user);
+					usernames: [profile.name],
+				});
+			}
 
 			// Send reply
-			const a = await interaction.reply(REPLIES.registered(profile.name, profile.id));
-
+			await interaction.reply(REPLIES.registered(profile.name, profile.id));
 			return;
 		} else if (interaction.isChatInputCommand() && interaction.commandName === "unregister") {
 			let user = await db
 				.collection("dvz_users")
-				.getFirstListItem<PBRecord & DvzUserRecord>(`discordId="${interaction.user.id}"`)
+				.getFirstListItem<PBRecord & DvzUserRecord>(`discordId="${interaction.user.id}" && uuid!=""`)
 				.catch(() => null);
 			if (!user) {
 				await interaction.reply(REPLIES.error("You are not yet registered for today's game."));
@@ -203,27 +202,31 @@ export default function MinecraftWhitelist(client: Client, db: PocketBase, multi
 
 			user.uuid = "";
 			user.tickets = 0;
-			if (!user.history) user.history = { interaction: null, registered: [], participated: [] };
-			user.history.interaction = null;
-
 			await db.collection("dvz_users").update(user.id, user);
 
-			await interaction.reply(REPLIES.info("You have been unregistered from today's game."));
+			await interaction.reply(REPLIES.info("You have been unregistered from future games."));
 			return;
 		} else if (interaction.isChatInputCommand() && interaction.commandName === "whitelist") {
 			const amount = interaction.options.getInteger("player_count", false) ?? 50;
 
-			const users = await db.collection("dvz_users").getFullList<PBRecord & DvzUserRecord>(undefined, {
-				filter: "tickets != 0",
+			const games = await db.collection("dvz_games").getFullList<PBRecord & DvzGameRecord>(undefined, {
+				filter: `name~"${new Date().toISOString().split("T")[0]}"`,
 			});
-			console.log(`Registering ${amount}/${users.length} users:`);
-			interaction.deferReply();
+			const gameId = Math.max(...games.map((g) => Number(g.name.split("/")[1] || "0") || 0), 0) + 1;
+			const game: DvzGameRecord = { name: `${new Date().toISOString().split("T")[0]}/${gameId}` };
 
-			const backupUsers = new Set<PBRecord & DvzUserRecord>();
-			const selectedUsers = new Set<PBRecord & DvzUserRecord>();
+			const pastParticipants = new Set(games.flatMap((g) => g.participants || []));
+			const users = await db.collection("dvz_users").getFullList<PBRecord & DvzUserRecord>(undefined, {
+				filter: 'tickets!=0 && uuid!="" && banned=false',
+			});
+			console.log(`Registering ${amount}/${users.length} users for game ${game.name}:`);
+			await interaction.deferReply();
+
 			const ticketPool: (PBRecord & DvzUserRecord)[] = [];
+			const selectedUsers = new Set<PBRecord & DvzUserRecord>();
+			const backupUsers = new Set<PBRecord & DvzUserRecord>();
 			for (const user of users) {
-				if (user.history?.participated.includes(new Date().toISOString().split("T")[0])) {
+				if (pastParticipants.has(user.id)) {
 					backupUsers.add(user);
 					continue;
 				}
@@ -257,6 +260,7 @@ export default function MinecraftWhitelist(client: Client, db: PocketBase, multi
 			} else {
 				console.log("Backup not needed");
 			}
+			game.participants = [...selectedUsers].map((u) => u.id);
 
 			for (const user of selectedUsers) {
 				const commandResponse = await multicraft.call("sendConsoleCommand", {
@@ -268,17 +272,31 @@ export default function MinecraftWhitelist(client: Client, db: PocketBase, multi
 					console.error("Multicraft error", JSON.stringify(commandResponse.errors, null, 2));
 					return;
 				}
-				user.history?.participated.push(new Date().toISOString().split("T")[0]);
 
-				await interaction.guild?.members.fetch(user.discordId).then((member) => member.roles.add("1074038162885714032"));
+				const member = await interaction.guild?.members
+					.fetch(user.discordId)
+					.then((member) => member.roles.add("1074038162885714032"));
+				if (!member) {
+					console.error("Failed to add role to", user.username);
+				}
 
 				console.log("Whitelisted", user.username);
 			}
-			await interaction.followUp({
-				content: `Whitelisted **${selectedUsers.size}**/${amount} users:\n${[...selectedUsers]
-					.map((u) => `<@${u.discordId}>`)
-					.join("\n")}\n\nPlease check <#1074038036234502224> for the server address to connect`,
-			});
+			await db.collection("dvz_games").create(game);
+			await interaction.followUp(
+				REPLIES.info(
+					`Whitelisted **${selectedUsers.size}**/${amount} users:\n${[...selectedUsers]
+						.map((u) => `<@${u.discordId}>`)
+						.join("\n")}\n\nPlease check <#1074038036234502224> for the server address to connect`
+				)
+			);
+
+			const dvzInfoChannel = client.channels.cache.get("1074038036234502224") as TextChannel;
+			if (!dvzInfoChannel) console.error("Failed to find DVZ info channel");
+			else
+				await dvzInfoChannel.send({
+					content: "@everyone, you can now connect to the using the address above 👆",
+				});
 		}
 	});
 }
@@ -310,5 +328,11 @@ type DvzUserRecord = {
 	uuid: string;
 	username: string;
 	tickets: number;
-	history: null | { interaction: null | [string, string]; registered: string[]; participated: string[] };
+	usernames: null | string[];
+};
+
+type DvzGameRecord = {
+	name: string;
+	description?: string;
+	participants?: string[];
 };

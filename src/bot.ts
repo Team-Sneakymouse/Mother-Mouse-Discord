@@ -30,6 +30,7 @@ if (!process.env["POCKETBASE_HOST"] || !process.env["POCKETBASE_USERNAME"] || !p
 	throw new Error("Missing PocketBase credentials");
 const pocketbase = new PocketBase(process.env["POCKETBASE_HOST"]);
 pocketbase.admins.authWithPassword(process.env["POCKETBASE_USERNAME"], process.env["POCKETBASE_PASSWORD"]);
+pocketbase.autoCancellation(false);
 
 const client = new Client({
 	intents: [
