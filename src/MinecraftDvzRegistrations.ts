@@ -78,6 +78,11 @@ const ROLE_TICKETS = {
 	"689250596532125737": 1, // Twitch 3.5
 };
 
+const DISCORD_IDS = {
+	AZ: "328625776381394966",
+	VID: "265285564905947136",
+};
+
 export default function MinecraftWhitelist(client: Client, db: PocketBase, multicraft: MulticraftAPI) {
 	client.on("interactionCreate", async (interaction) => {
 		if (interaction.isChatInputCommand() && interaction.commandName === "dvz_open") {
@@ -242,6 +247,15 @@ export default function MinecraftWhitelist(client: Client, db: PocketBase, multi
 				const index = Math.floor(Math.random() * ticketPool.length);
 				selectedUsers.add(ticketPool[index]);
 				ticketPool.splice(index, 1);
+
+				// Prevent Az and Vid from being selected separately
+				if (ticketPool[index].discordId === DISCORD_IDS.AZ) {
+					const vid = ticketPool.find((u) => u.discordId === DISCORD_IDS.VID);
+					if (vid) selectedUsers.add(vid);
+				} else if (ticketPool[index].discordId === DISCORD_IDS.VID) {
+					const az = ticketPool.find((u) => u.discordId === DISCORD_IDS.AZ);
+					if (az) selectedUsers.add(az);
+				}
 			}
 
 			console.log("Registered users", users.length);
@@ -303,7 +317,7 @@ export default function MinecraftWhitelist(client: Client, db: PocketBase, multi
 
 async function usernameToProfile(username: string) {
 	const res = await fetch("https://api.mojang.com/users/profiles/minecraft/" + username);
-	if (res.status === 204) return null;
+	if (res.status === 204 || res.status === 404) return null;
 	if (res.status !== 200) {
 		console.error("Mojang API error", res.status, res.statusText, await res.text());
 		throw new Error("Mojang API error");
