@@ -95,8 +95,20 @@ export default function MinecraftWhitelist(client: Client, db: PocketBase, multi
 				return;
 			}
 			await db.collection("settings").update(registrationOpen.id, { value: true });
-			await interaction.reply(
-				REPLIES.info("**Registrations are now open.**\nUse `/register <minecraft_username>` to register for today's shows.")
+
+			await interaction.deferReply();
+			const users = await db.collection("dvz_users").getFullList<PBRecord & DvzUserRecord>(undefined, {
+				filter: 'tickets!=0 || uuid!=""',
+			});
+			for (const user of users) {
+				user.tickets = 0;
+				user.uuid = "";
+				await db.collection("dvz_users").update(user.id, user);
+			}
+			console.log(`Unregistered ${users.length} users.`);
+
+			await interaction.followUp(
+				REPLIES.info("**Registrations are now open.**\nUse `/register <minecraft_username>` to register for the next game.")
 			);
 			return;
 		} else if (interaction.isChatInputCommand() && interaction.commandName === "dvz_close") {
@@ -109,7 +121,19 @@ export default function MinecraftWhitelist(client: Client, db: PocketBase, multi
 				return;
 			}
 			await db.collection("settings").update(registrationOpen.id, { value: false });
-			await interaction.reply(REPLIES.info("Registrations are now closed."));
+
+			await interaction.deferReply();
+			const users = await db.collection("dvz_users").getFullList<PBRecord & DvzUserRecord>(undefined, {
+				filter: 'tickets!=0 || uuid!=""',
+			});
+			for (const user of users) {
+				user.tickets = 0;
+				user.uuid = "";
+				await db.collection("dvz_users").update(user.id, user);
+			}
+			console.log(`Unregistered ${users.length} users.`);
+
+			await interaction.followUp(REPLIES.info("Registrations are now closed."));
 			return;
 		} else if (interaction.isChatInputCommand() && interaction.commandName === "register") {
 			if (!interaction.member) {
@@ -201,7 +225,7 @@ export default function MinecraftWhitelist(client: Client, db: PocketBase, multi
 				.getFirstListItem<PBRecord & DvzUserRecord>(`discordId="${interaction.user.id}" && uuid!=""`)
 				.catch(() => null);
 			if (!user) {
-				await interaction.reply(REPLIES.error("You are not yet registered for today's game."));
+				await interaction.reply(REPLIES.error("You are not yet registered for the next game."));
 				return;
 			}
 
@@ -209,7 +233,7 @@ export default function MinecraftWhitelist(client: Client, db: PocketBase, multi
 			user.tickets = 0;
 			await db.collection("dvz_users").update(user.id, user);
 
-			await interaction.reply(REPLIES.info("You have been unregistered from future games."));
+			await interaction.reply(REPLIES.info("You have been unregistered from the next game."));
 			return;
 		} else if (interaction.isChatInputCommand() && interaction.commandName === "whitelist") {
 			const amount = interaction.options.getInteger("player_count", false) ?? 50;
@@ -248,6 +272,7 @@ export default function MinecraftWhitelist(client: Client, db: PocketBase, multi
 				selectedUsers.add(ticketPool[index]);
 				ticketPool.splice(index, 1);
 
+				if (!ticketPool[index]) continue;
 				// Prevent Az and Vid from being selected separately
 				if (ticketPool[index].discordId === DISCORD_IDS.AZ) {
 					const vid = ticketPool.find((u) => u.discordId === DISCORD_IDS.VID);
