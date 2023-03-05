@@ -340,7 +340,12 @@ export default function MinecraftWhitelist(client: Client, db: PocketBase, multi
 }
 
 async function usernameToProfile(username: string) {
-	const res = await fetch("https://api.mojang.com/users/profiles/minecraft/" + username);
+	let res: Response = await fetch("https://api.mojang.com/users/profiles/minecraft/" + username);
+	while (res.status === 429) {
+		console.log("Mojang API rate limit, retrying in 1s");
+		await new Promise((resolve) => setTimeout(resolve, 1000));
+		res = await fetch("https://api.mojang.com/users/profiles/minecraft/" + username);
+	}
 	if (res.status === 204 || res.status === 404) return null;
 	if (res.status !== 200) {
 		console.error("Mojang API error", res.status, res.statusText, await res.text());
