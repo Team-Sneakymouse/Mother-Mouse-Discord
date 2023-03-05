@@ -122,18 +122,7 @@ export default function MinecraftWhitelist(client: Client, db: PocketBase, multi
 			}
 			await db.collection("settings").update(registrationOpen.id, { value: false });
 
-			await interaction.deferReply();
-			const users = await db.collection("dvz_users").getFullList<PBRecord & DvzUserRecord>(undefined, {
-				filter: 'tickets!=0 || uuid!=""',
-			});
-			for (const user of users) {
-				user.tickets = 0;
-				user.uuid = "";
-				await db.collection("dvz_users").update(user.id, user);
-			}
-			console.log(`Unregistered ${users.length} users.`);
-
-			await interaction.followUp(REPLIES.info("Registrations are now closed."));
+			await interaction.reply(REPLIES.info("Registrations are now closed."));
 			return;
 		} else if (interaction.isChatInputCommand() && interaction.commandName === "register") {
 			if (!interaction.member) {
@@ -236,6 +225,17 @@ export default function MinecraftWhitelist(client: Client, db: PocketBase, multi
 			await interaction.reply(REPLIES.info("You have been unregistered from the next game."));
 			return;
 		} else if (interaction.isChatInputCommand() && interaction.commandName === "whitelist") {
+			await interaction.deferReply();
+			const dvzRole = interaction.guild!.roles.cache.get("1074038162885714032");
+			let removedRoles = 0;
+			if (dvzRole) {
+				for (const member of dvzRole.members.values()) {
+					await member.roles.remove("1074038162885714032");
+					removedRoles++;
+				}
+				console.log(`Removed ${removedRoles} users from the role.`);
+			}
+
 			const amount = interaction.options.getInteger("player_count", false) ?? 50;
 
 			const games = await db.collection("dvz_games").getFullList<PBRecord & DvzGameRecord>(undefined, {
@@ -249,7 +249,6 @@ export default function MinecraftWhitelist(client: Client, db: PocketBase, multi
 				filter: 'tickets!=0 && uuid!="" && banned=false',
 			});
 			console.log(`Registering ${amount}/${users.length} users for game ${game.name}:`);
-			await interaction.deferReply();
 
 			const ticketPool: (PBRecord & DvzUserRecord)[] = [];
 			const selectedUsers = new Set<PBRecord & DvzUserRecord>();
