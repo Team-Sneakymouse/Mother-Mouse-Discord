@@ -1,5 +1,6 @@
 import {
 	Client,
+	GuildMember,
 	InteractionReplyOptions,
 	SlashCommandBuilder,
 	SlashCommandIntegerOption,
@@ -146,7 +147,20 @@ export default function MinecraftWhitelist(client: Client, db: PocketBase, multi
 			}
 
 			// Get uuid from username
-			const profile = await usernameToProfile(username);
+			let profile: {
+				name: string;
+				id: string;
+			} | null;
+			try {
+				profile = await usernameToProfile(username);
+			} catch (e) {
+				await interaction.reply(
+					REPLIES.error(`Error: Username lookup failed. Please try again.\nIf this keeps happening, please ping Dani.`, {
+						ephemeral: true,
+					})
+				);
+				return;
+			}
 			if (!profile) {
 				await interaction.reply(REPLIES.error(`Minecraft account \`${username}\` does not exist.`));
 				return;
@@ -170,7 +184,9 @@ export default function MinecraftWhitelist(client: Client, db: PocketBase, multi
 			}
 
 			// Calculate tickets
-			let tickets = 1;
+			const newMember =
+				((interaction.member as GuildMember).joinedTimestamp ?? Number.MAX_SAFE_INTEGER) + 1000 * 60 * 60 * 24 * 3 > Date.now();
+			let tickets = newMember ? 0 : 1;
 			const userRoles = Array.isArray(interaction.member.roles)
 				? interaction.member.roles
 				: Array.from(interaction.member.roles.cache.keys());
@@ -340,7 +356,13 @@ export default function MinecraftWhitelist(client: Client, db: PocketBase, multi
 }
 
 async function usernameToProfile(username: string) {
-	let res: Response = await fetch("https://api.mojang.com/users/profiles/minecraft/" + username);
+	let res: Response;
+	try {
+		res = await fetch("https://api.mojang.com/users/profiles/minecraft/" + username);
+	} catch (e) {
+		console.error("Fetch error", e);
+		throw new Error("Fetch error");
+	}
 	while (res.status === 429) {
 		console.log("Mojang API rate limit, retrying in 1s");
 		await new Promise((resolve) => setTimeout(resolve, 1000));
