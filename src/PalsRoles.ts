@@ -4,9 +4,9 @@ import {
 	CommandInteraction,
 	ComponentType,
 	GuildMember,
-	MessageEditOptions,
-	BaseMessageOptions,
 	MessagePayload,
+	MessageCreateOptions,
+	MessageEditOptions,
 	Role,
 	StringSelectMenuInteraction,
 	TextChannel,
@@ -191,7 +191,7 @@ export default function PalsRoles(client: Client, redis: Redis) {
 	}
 }
 
-function getPalsMessage(roles: Role[]): MessagePayload | (BaseMessageOptions & MessageEditOptions) {
+function getPalsMessage(roles: Role[]): MessagePayload | (MessageCreateOptions & MessageEditOptions) {
 	return {
 		content: "\u00A0",
 		embeds: [
