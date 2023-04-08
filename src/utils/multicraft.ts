@@ -342,8 +342,8 @@ type MulticraftResponses = {
 	getConnectionStatus: unknown;
 	getConnectionMemory: unknown;
 	getStatistics: unknown;
-	runScript: unknown;
-	getScript: unknown;
+	runScript: { scriptId: string };
+	getScript: { id: string; started: string; stopped: string; output: string; returned: string };
 	//Settings functions
 	listSettings: unknown;
 	getSetting: unknown;
