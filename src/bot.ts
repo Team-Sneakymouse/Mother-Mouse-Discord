@@ -151,6 +151,9 @@ import TwitterFix from "./TwitterFix.js";
 // Manage Discord <-> Minecraft linking for whitelist
 import MinecraftWhitelist from "./MinecraftDvzRegistrations.js";
 
+// Faq
+import Faq from "./Faq.js";
+
 if (process.env.PRODUCTION == "TRUE") {
 	client.setMaxListeners(31);
 	console.log("Registering production plugins");
@@ -190,6 +193,7 @@ if (process.env.PRODUCTION == "TRUE") {
 	tfcSolver(client);
 	TwitterFix(client);
 	MinecraftWhitelist(client, pocketbase, multicraft);
+	Faq(client, pocketbase);
 } else {
 	console.log("Registering development plugins");
 }

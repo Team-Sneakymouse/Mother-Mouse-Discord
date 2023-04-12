@@ -28,11 +28,12 @@ import { data as OocTools } from "./src/OocTools.js";
 import { data as SneakyrpPlayerlist } from "./src/SneakyrpPlayerlist.js";
 import { data as TwitterFix } from "./src/TwitterFix.js";
 import { data as MinecraftDvzRegistrations } from "./src/MinecraftDvzRegistrations.js";
+import { data as Faq } from "./src/Faq.js";
 
 const commands = {
 	global: [...Vibecheck, ...Roll, ...TwitterFix],
 	[GuildIds.TEST]: [],
-	[GuildIds.RAWBTV]: [...PalsRoles, ...PronounRoles, ...Trivia, ...UserPins, ...MinecraftDvzRegistrations],
+	[GuildIds.RAWBTV]: [...PalsRoles, ...PronounRoles, ...Trivia, ...UserPins, ...MinecraftDvzRegistrations, ...Faq],
 	[GuildIds.TILII]: [...GitlabIssues],
 	[GuildIds.SNEAKYRP]: [...SneakyrpPlayerlist],
 	[GuildIds.OOC]: [...OocTools],
