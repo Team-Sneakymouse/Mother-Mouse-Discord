@@ -29,9 +29,10 @@ import { data as SneakyrpPlayerlist } from "./src/SneakyrpPlayerlist.js";
 import { data as TwitterFix } from "./src/TwitterFix.js";
 import { data as MinecraftDvzRegistrations } from "./src/MinecraftDvzRegistrations.js";
 import { data as Faq } from "./src/Faq.js";
+import { data as Uuid } from "./src/Uuid.js";
 
 const commands = {
-	global: [...Vibecheck, ...Roll, ...TwitterFix],
+	global: [...Vibecheck, ...Roll, ...TwitterFix, ...Uuid],
 	[GuildIds.TEST]: [],
 	[GuildIds.RAWBTV]: [...PalsRoles, ...PronounRoles, ...Trivia, ...UserPins, ...MinecraftDvzRegistrations, ...Faq],
 	[GuildIds.TILII]: [...GitlabIssues],

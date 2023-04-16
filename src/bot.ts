@@ -154,6 +154,9 @@ import MinecraftWhitelist from "./MinecraftDvzRegistrations.js";
 // Faq
 import Faq from "./Faq.js";
 
+// Minecraft UUID lookup
+import Uuid from "./Uuid.js";
+
 if (process.env.PRODUCTION == "TRUE") {
 	client.setMaxListeners(31);
 	console.log("Registering production plugins");
@@ -194,6 +197,7 @@ if (process.env.PRODUCTION == "TRUE") {
 	TwitterFix(client);
 	MinecraftWhitelist(client, pocketbase, multicraft);
 	Faq(client, pocketbase);
+	Uuid(client);
 } else {
 	console.log("Registering development plugins");
 }
