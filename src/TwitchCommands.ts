@@ -5,7 +5,7 @@ export default function TwitchCommands(client: Client) {
 		// !beard
 		if (args[0] === "!beard") {
 			args.shift();
-			let name = args.join("") || message.author.toString();
+			let name = args.join(" ") || message.author.toString();
 			return await message.channel.send(`${name} has a pretty amazing beard <:meow:743957972031504384>`);
 		}
 
@@ -27,7 +27,7 @@ export default function TwitchCommands(client: Client) {
 		// !crabby
 		if (args[0] === "!crabby") {
 			args.shift();
-			let name = args.join("") || message.author.toString();
+			let name = args.join(" ") || message.author.toString();
 			return await message.channel.send(`I love that ${name}`);
 		}
 
@@ -48,21 +48,21 @@ export default function TwitchCommands(client: Client) {
 		// !dorky
 		if (args[0] === "!dorky") {
 			args.shift();
-			let name = args.join("") || message.author.toString();
+			let name = args.join(" ") || message.author.toString();
 			return await message.channel.send(`I've never seen that ${name} before <:ohNo:518193208878956584>`);
 		}
 
 		// !five
 		if (["!five", "!5"].includes(args[0])) {
 			args.shift();
-			let name = args.join("") || message.author.toString();
+			let name = args.join(" ") || message.author.toString();
 			return await message.channel.send(`We need five ${name}. More than that is a waste.`);
 		}
 
 		// !galar
 		if (args[0] === "!galar") {
 			args.shift();
-			let name = args.join("") || message.author.toString();
+			let name = args.join(" ") || message.author.toString();
 			return await message.channel.send(`${name} isn't even in Galar...`);
 		}
 
@@ -74,14 +74,14 @@ export default function TwitchCommands(client: Client) {
 		// !maris
 		if (args[0] === "!maris") {
 			args.shift();
-			let name = args.join("") || message.author.toString();
+			let name = args.join(" ") || message.author.toString();
 			return await message.channel.send(`I wish that ${name} was me <:lewd:743957971272466492>`);
 		}
 
 		// medal
 		if (args[0] === "!medal") {
 			args.shift();
-			let name = args.join("") || message.author.toString();
+			let name = args.join(" ") || message.author.toString();
 			return await message.channel.send(`${name} I've been waiting for you! You're doing terrific! Here's a new medal!`);
 		}
 
@@ -93,21 +93,21 @@ export default function TwitchCommands(client: Client) {
 		// !spin
 		if (args[0] === "!spin") {
 			args.shift();
-			let name = args.join("") || message.author.toString();
+			let name = args.join(" ") || message.author.toString();
 			return await message.channel.send(`SPIN THAT ${name}!`);
 		}
 
 		// !tudd
 		if (args[0] === "!tudd") {
 			args.shift();
-			let name = args.join("") || message.author.toString();
+			let name = args.join(" ") || message.author.toString();
 			return await message.channel.send(`I APPRECIATE ${name} <:love:631970630505332797>`);
 		}
 
 		// !zoo
 		if (["!zooloo", "!zoo"].includes(args[0])) {
 			args.shift();
-			let name = args.join("") || message.author.toString();
+			let name = args.join(" ") || message.author.toString();
 			return await message.channel.send(`${name} makes me so moist! <:robMyGoodness:805582450498600970>`);
 		}
 	});
