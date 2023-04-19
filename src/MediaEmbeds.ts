@@ -7,7 +7,7 @@ export default function MediaEmbeds(client: Client) {
 		if (!message.guild) return;
 		if (message.author.bot) return;
 
-		if (message.content.match(/^http.*\.(mp3|wav|ogg|webm|mov)$/)) {
+		if (message.content.match(/^http.*\.(mp3|wav|ogg)$/)) {
 			let url;
 			try {
 				url = new URL(message.content);
