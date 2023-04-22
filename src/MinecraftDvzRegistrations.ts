@@ -67,9 +67,10 @@ const REPLIES = {
 
 const ROLE_TICKETS = {
 	"932370313541460038": -1, // Birthday Mouse, guaranteed
+	"586309003441733648": 5, // VIPs
+	"1098628623461789757": 2, // Knight
 	"413104808334196757": 5, // Patreon 100
 	"444327585103478794": 3, // Patreon 25
-	"586309003441733648": 5, // VIPs
 	"413104736636502026": 2, // Patreon 10
 	"444770697106030602": 1, // Patreon 1
 	"1011423880562348174": 2, // YouTube 7
@@ -184,9 +185,7 @@ export default function MinecraftWhitelist(client: Client, db: PocketBase, multi
 			}
 
 			// Calculate tickets
-			const newMember =
-				((interaction.member as GuildMember).joinedTimestamp ?? Number.MAX_SAFE_INTEGER) + 1000 * 60 * 60 * 24 * 3 > Date.now();
-			let tickets = newMember ? 0 : 1;
+			let tickets = 1;
 			const userRoles = Array.isArray(interaction.member.roles)
 				? interaction.member.roles
 				: Array.from(interaction.member.roles.cache.keys());
