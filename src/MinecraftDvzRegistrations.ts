@@ -269,7 +269,7 @@ export default function MinecraftWhitelist(client: Client, db: PocketBase, multi
 			const selectedUsers = new Set<PBRecord & DvzUserRecord>();
 			const backupUsers = new Set<PBRecord & DvzUserRecord>();
 			for (const user of users) {
-				if (pastParticipants.has(user.id)) {
+				if (false && pastParticipants.has(user.id)) {
 					backupUsers.add(user);
 					continue;
 				}
