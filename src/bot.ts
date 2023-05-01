@@ -160,6 +160,9 @@ import Uuid from "./Uuid.js";
 // Channel filters
 import ChannelFilters from "./ChannelFilters.js";
 
+// Starboard
+import Starboard from "./Starboard.js";
+
 if (process.env.PRODUCTION == "TRUE") {
 	client.setMaxListeners(31);
 	console.log("Registering production plugins");
@@ -202,6 +205,7 @@ if (process.env.PRODUCTION == "TRUE") {
 	Faq(client, pocketbase);
 	Uuid(client);
 	ChannelFilters(client);
+	Starboard(client);
 } else {
 	console.log("Registering development plugins");
 }
