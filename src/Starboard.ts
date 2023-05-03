@@ -1,4 +1,5 @@
-import { ChannelType, Client, Emoji, TextChannel } from "discord.js";
+import { AttachmentBuilder, ChannelType, Client, Emoji, TextChannel } from "discord.js";
+import { Stream } from "node:stream";
 
 const guildId = "391355330241757205";
 const channelId = "1102684399948009522";
@@ -26,6 +27,19 @@ export default function Starboard(client: Client) {
 		const sourceChannel = reaction.message.channel;
 		if (sourceChannel.isDMBased()) return;
 
+		const links = Array.from(reaction.message.content?.matchAll(/https:\/\/[^\s]+\.(?:mp3|ogg|wav|png|jpg|jpeg|mov|mp4)/gi) ?? []).map(
+			(result) => result[0]
+		);
+		const linkAttachments = await Promise.all(
+			links.map(async (link) => {
+				const res = await fetch(link);
+				const buffer = Buffer.from(await res.arrayBuffer());
+				const attachment = new AttachmentBuilder(buffer).setName(link.split("/").pop()!);
+				return attachment;
+			})
+		);
+
+		const attachments = [...linkAttachments, ...reaction.message.attachments.values()];
 		(client.channels.cache.get(channelId) as TextChannel).send({
 			content: "",
 			embeds: [
@@ -43,7 +57,9 @@ export default function Starboard(client: Client) {
 						text: `#${sourceChannel.name}`,
 					},
 				},
+				...reaction.message.embeds,
 			],
+			files: attachments ?? undefined,
 		});
 	});
 }
