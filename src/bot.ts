@@ -83,7 +83,7 @@ import PronounRoles from "./PronounRoles.js";
 import Trivia from "./Trivia.js";
 
 // Manage permissions for the stage chat channel
-import StageChatChannel from "./StageChatChannel.js";
+import VoiceChannelVisibility from "./VoiceChannelVisibility.js";
 
 // Picture submission for the guess who game
 import GuessWho from "./GuessWho.js";
@@ -177,7 +177,7 @@ if (process.env.PRODUCTION == "TRUE") {
 	// MoneyMilestone(client);
 	Trivia(client, redis);
 	MediaEmbed(client);
-	StageChatChannel(client);
+	VoiceChannelVisibility(client);
 	GuessWho(client, redis);
 	RedisRelay(client, redis);
 	TooSlow(client, redis);
