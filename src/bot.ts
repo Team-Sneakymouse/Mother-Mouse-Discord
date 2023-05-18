@@ -149,7 +149,7 @@ import DeleteHate from "./DeleteHate.js";
 import TwitterFix from "./TwitterFix.js";
 
 // Manage Discord <-> Minecraft linking for whitelist
-import MinecraftWhitelist from "./MinecraftDvzRegistrations.js";
+import DvzRegistrations from "./MinecraftDvzRegistrations.js";
 
 // Faq
 import Faq from "./Faq.js";
@@ -162,6 +162,9 @@ import ChannelFilters from "./ChannelFilters.js";
 
 // Starboard
 import Starboard from "./Starboard.js";
+
+// Minecraft whitelist
+import MinecraftWhitelist from "./MinecraftWhitelist.js";
 
 if (process.env.PRODUCTION == "TRUE") {
 	client.setMaxListeners(31);
@@ -201,11 +204,12 @@ if (process.env.PRODUCTION == "TRUE") {
 	DeleteHate(client);
 	tfcSolver(client);
 	TwitterFix(client);
-	MinecraftWhitelist(client, pocketbase, multicraft);
+	DvzRegistrations(client, pocketbase, multicraft);
 	Faq(client, pocketbase);
 	Uuid(client);
 	ChannelFilters(client);
 	Starboard(client);
+	MinecraftWhitelist(client, multicraft);
 } else {
 	console.log("Registering development plugins");
 }

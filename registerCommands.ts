@@ -11,6 +11,7 @@ enum GuildIds {
 	SNEAKYRP = "725854554939457657",
 	OOC = "971479608664924202",
 	TURTLES = "898925497508048896",
+	MSD = "787222656926744586",
 }
 
 import { data as Vibecheck } from "./src/Vibecheck.js";
@@ -30,6 +31,7 @@ import { data as TwitterFix } from "./src/TwitterFix.js";
 import { data as MinecraftDvzRegistrations } from "./src/MinecraftDvzRegistrations.js";
 import { data as Faq } from "./src/Faq.js";
 import { data as Uuid } from "./src/Uuid.js";
+import { data as MinecraftWhitelist } from "./src/MinecraftWhitelist.js";
 
 const commands = {
 	global: [...Vibecheck, ...Roll, ...TwitterFix, ...Uuid],
@@ -39,6 +41,7 @@ const commands = {
 	[GuildIds.SNEAKYRP]: [...SneakyrpPlayerlist],
 	[GuildIds.OOC]: [...OocTools],
 	[GuildIds.TURTLES]: [...PalsRoles, ...PronounRoles, ...SneakyrpPlayerlist, ...RenameVC, ...UserPins, ...tfcSolver],
+	[GuildIds.MSD]: [...MinecraftWhitelist],
 };
 
 const clientId = process.env.DISCORD_CLIENTID!;

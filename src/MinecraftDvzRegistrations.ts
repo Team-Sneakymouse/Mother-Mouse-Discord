@@ -18,7 +18,7 @@ export const data = [
 	new SlashCommandBuilder().setName("dvz_open").setDescription("Open whitelist registrations"),
 	new SlashCommandBuilder().setName("dvz_close").setDescription("Close whitelist registrations"),
 	new SlashCommandBuilder()
-		.setName("whitelist")
+		.setName("dvz-whitelist")
 		.setDescription("Whitelist additional players")
 		.addIntegerOption(
 			new SlashCommandIntegerOption().setName("player_count").setDescription("Number of players (default: 50)").setRequired(false)
@@ -85,7 +85,7 @@ const DISCORD_IDS = {
 	VID: "265285564905947136",
 };
 
-export default function MinecraftWhitelist(client: Client, db: PocketBase, multicraft: MulticraftAPI) {
+export default function DvzRegistrations(client: Client, db: PocketBase, multicraft: MulticraftAPI) {
 	client.on("interactionCreate", async (interaction) => {
 		if (interaction.isChatInputCommand() && interaction.commandName === "dvz_open") {
 			const registrationOpen = await db
@@ -239,7 +239,7 @@ export default function MinecraftWhitelist(client: Client, db: PocketBase, multi
 
 			await interaction.reply(REPLIES.info("You have been unregistered from the next game."));
 			return;
-		} else if (interaction.isChatInputCommand() && interaction.commandName === "whitelist") {
+		} else if (interaction.isChatInputCommand() && interaction.commandName === "dvz-whitelist") {
 			await interaction.deferReply();
 			const dvzRole = interaction.guild!.roles.cache.get("1074038162885714032");
 			let removedRoles = 0;
