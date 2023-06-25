@@ -142,7 +142,9 @@ export default function DvzRegistrations(client: Client, db: PocketBase, multicr
 			// Check if registrations are open
 			if (registrationOpen.value === false) {
 				await interaction.reply(
-					REPLIES.error("Registrations not currently open. Check here for info on the next game:\nhttps://whenisdvz.rawb.tv")
+					REPLIES.error(
+						"Registrations are not currently open. You'll be able to register at the start of the next game.\nKeep an eye on https://whenisdvz.rawb.tv for dates."
+					)
 				);
 				return;
 			}
