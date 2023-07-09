@@ -6,17 +6,17 @@ import { ScheduleRepeating, RegisterOneTimeEvent, ScheduleOnce, SECS_IN_DAY, SEC
 const textChannelsToClear = [
 	{
 		channelId: "975496209882050640",
-		frequency: SECS_IN_WEEK,
+		frequency: SECS_IN_WEEK * 4,
 		clearEpoch: 1655568000,
 	},
 	{
 		channelId: "980550809005736066",
-		frequency: SECS_IN_WEEK,
+		frequency: SECS_IN_WEEK * 4,
 		clearEpoch: 1655222400,
 	},
 	{
 		channelId: "980550256116785252",
-		frequency: SECS_IN_WEEK,
+		frequency: SECS_IN_WEEK * 4,
 		clearEpoch: 1655395200,
 	},
 ];
