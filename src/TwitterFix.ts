@@ -18,7 +18,7 @@ export default function ThreadPins(client: Client) {
 		}
 
 		await interaction.reply({
-			content: links.map((l) => l.replace("twitter.com", "fxtwitter.com")).join("\n"),
+			content: links.map((l) => l.replace("twitter.com", "vxtwitter.com")).join("\n"),
 			ephemeral: true,
 		});
 	});
