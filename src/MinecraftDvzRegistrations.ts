@@ -196,10 +196,19 @@ export default function DvzRegistrations(client: Client, db: PocketBase, multicr
 			}
 			for (const role of userRoles) {
 				if (rolePresent(role)) {
+					// Birthday Mouse gets in guaranteed
 					if (ROLE_TICKETS[role] === -1) {
 						tickets = -1;
 						break;
 					}
+
+					// Sneaky Boss should be ignored on higher Patreon roles
+					if (
+						role === "413104736636502026" && // Sneaky Boss
+						(userRoles.includes("444327585103478794") || userRoles.includes("413104808334196757")) // Sneaky Dragon, Sneaky Angel
+					)
+						continue;
+
 					tickets += ROLE_TICKETS[role];
 				}
 			}
