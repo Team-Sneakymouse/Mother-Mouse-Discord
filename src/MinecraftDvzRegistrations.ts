@@ -85,6 +85,8 @@ const DISCORD_IDS = {
 	VID: "265285564905947136",
 };
 
+const pendingRegistrations = new Map<string, string>();
+
 export default function DvzRegistrations(client: Client, db: PocketBase, multicraft: MulticraftAPI) {
 	client.on("interactionCreate", async (interaction) => {
 		if (interaction.isChatInputCommand() && interaction.commandName === "dvz_open") {
@@ -138,6 +140,14 @@ export default function DvzRegistrations(client: Client, db: PocketBase, multicr
 				.getFirstListItem<PBRecord & { value: boolean }>('key="dvz_registrations_open"');
 			if (typeof registrationOpen.value !== "boolean") throw new Error("setting 'dvz_registrations_open' is not a boolean");
 
+			const registrerUrl = pendingRegistrations.get(interaction.user.id);
+			if (registrerUrl) {
+				await interaction.reply(
+					REPLIES.error("Your registration is pending. Please wait for it to complete: " + registrerUrl, { ephemeral: true })
+				);
+				return;
+			}
+
 			// Sign up user
 			// Check if registrations are open
 			if (registrationOpen.value === false) {
@@ -146,8 +156,12 @@ export default function DvzRegistrations(client: Client, db: PocketBase, multicr
 						"Registrations are not currently open. You'll be able to register at the start of the next game.\nKeep an eye on https://whenisdvz.rawb.tv for dates."
 					)
 				);
+				pendingRegistrations.delete(interaction.user.id);
 				return;
 			}
+
+			const reply = await (await interaction.deferReply()).fetch();
+			pendingRegistrations.set(interaction.user.id, reply.url);
 
 			// Get uuid from username
 			let profile: {
@@ -157,15 +171,17 @@ export default function DvzRegistrations(client: Client, db: PocketBase, multicr
 			try {
 				profile = await usernameToProfile(username);
 			} catch (e) {
-				await interaction.reply(
+				await interaction.editReply(
 					REPLIES.error(`Error: Username lookup failed. Please try again.\nIf this keeps happening, please ping Dani.`, {
 						ephemeral: true,
 					})
 				);
+				pendingRegistrations.delete(interaction.user.id);
 				return;
 			}
 			if (!profile) {
-				await interaction.reply(REPLIES.error(`Minecraft account \`${username}\` does not exist.`));
+				await interaction.editReply(REPLIES.error(`Minecraft account \`${username}\` does not exist.`));
+				pendingRegistrations.delete(interaction.user.id);
 				return;
 			}
 
@@ -182,7 +198,8 @@ export default function DvzRegistrations(client: Client, db: PocketBase, multicr
 					const oldUsername = await uuidToProfile(user.uuid);
 					error = `You are already registered with the Minecraft account \`${oldUsername}\`.\nIf you want to change your Minecraft account, use /unregister.`;
 				}
-				await interaction.reply(REPLIES.error(error));
+				await interaction.editReply(REPLIES.error(error));
+				pendingRegistrations.delete(interaction.user.id);
 				return;
 			}
 
@@ -232,7 +249,8 @@ export default function DvzRegistrations(client: Client, db: PocketBase, multicr
 			}
 
 			// Send reply
-			await interaction.reply(REPLIES.registered(profile.name, profile.id));
+			await interaction.editReply(REPLIES.registered(profile.name, profile.id));
+			pendingRegistrations.delete(interaction.user.id);
 			return;
 		} else if (interaction.isChatInputCommand() && interaction.commandName === "unregister") {
 			let user = await db
