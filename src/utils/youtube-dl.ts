@@ -12,16 +12,14 @@ export default class YouTubeDL {
 		});
 	}
 
-	async download(url: string, updateCallback: (progress: number, eta: string) => Promise<any>): Promise<string> {
+	async download(url: string, updateCallback: (progress: number, eta: string) => any): Promise<string> {
 		await this.init;
 		return await new Promise((resolve, reject) => {
 			const dl = spawn("youtube-dl", ["--extract-audio", "--audio-format", "mp3", "-o", "ffmpeg/%(title)s.%(ext)s", url]);
 
 			let file: string;
 			dl.stdout.on("data", (data: Buffer) => {
-				const match = data
-					.toString()
-					.match(/\[download\]\s+(\d+(?:\.\d+)?)% of (\d+\.\d+\w+) at (\d+\.\d+\w+\/s) ETA (\d+:\d+)/);
+				const match = data.toString().match(/\[download\]\s+(\d+(?:\.\d+)?)% of (\d+\.\d+\w+) at (\d+\.\d+\w+\/s) ETA (\d+:\d+)/);
 				if (match) {
 					const [, progress, size, speed, eta] = match;
 					if (progress !== "100%" && Math.random() < 0.4) updateCallback(parseFloat(progress), eta);
