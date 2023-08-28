@@ -1,6 +1,5 @@
 #! node_modules/.bin/ts-node-esm
-import { REST } from "@discordjs/rest";
-import { Routes } from "discord-api-types/v9";
+import { REST, Routes } from "discord.js";
 import { config } from "dotenv";
 config();
 
@@ -32,6 +31,7 @@ import { data as MinecraftDvzRegistrations } from "./src/MinecraftDvzRegistratio
 import { data as Faq } from "./src/Faq.js";
 import { data as Uuid } from "./src/Uuid.js";
 import { data as MinecraftWhitelist } from "./src/MinecraftWhitelist.js";
+import { metadata as RoleConnectionMetadata } from "./src/LinkedRole.js";
 
 const commands = {
 	global: [...Vibecheck, ...Roll, ...TwitterFix, ...Uuid],
@@ -44,8 +44,10 @@ const commands = {
 	[GuildIds.MSD]: [...MinecraftWhitelist],
 };
 
+const roleConnectionMetadata = RoleConnectionMetadata;
+
 const clientId = process.env.DISCORD_CLIENTID!;
-const rest = new REST({ version: "9" }).setToken(process.env.DISCORD_TOKEN!);
+const rest = new REST().setToken(process.env.DISCORD_TOKEN!);
 
 (async () => {
 	try {
@@ -66,6 +68,10 @@ const rest = new REST({ version: "9" }).setToken(process.env.DISCORD_TOKEN!);
 		}
 
 		console.log("Successfully reloaded application (/) commands.");
+
+		await rest.put(Routes.applicationRoleConnectionMetadata(clientId), { body: roleConnectionMetadata });
+
+		console.log("Successfully reloaded application role connection metadata.");
 	} catch (error) {
 		console.error(error);
 	}
