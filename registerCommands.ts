@@ -32,6 +32,7 @@ import { data as Faq } from "./src/Faq.js";
 import { data as Uuid } from "./src/Uuid.js";
 import { data as MinecraftWhitelist } from "./src/MinecraftWhitelist.js";
 import { metadata as RoleConnectionMetadata } from "./src/LinkedRole.js";
+import { data as YouTube } from "./src/YouTube.js";
 
 const commands = {
 	global: [...Vibecheck, ...Roll, ...TwitterFix, ...Uuid],
@@ -39,7 +40,7 @@ const commands = {
 	[GuildIds.RAWBTV]: [...PalsRoles, ...PronounRoles, ...Trivia, ...UserPins, ...MinecraftDvzRegistrations, ...Faq],
 	[GuildIds.TILII]: [...GitlabIssues],
 	[GuildIds.SNEAKYRP]: [...SneakyrpPlayerlist],
-	[GuildIds.OOC]: [...OocTools],
+	[GuildIds.OOC]: [...OocTools, ...YouTube],
 	[GuildIds.TURTLES]: [...PalsRoles, ...PronounRoles, ...SneakyrpPlayerlist, ...RenameVC, ...UserPins, ...tfcSolver],
 	[GuildIds.MSD]: [...MinecraftWhitelist],
 };
