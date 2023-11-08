@@ -8,7 +8,8 @@ export default function ThreadPins(client: Client) {
 		if (!interaction.isMessageContextMenuCommand()) return;
 		if (interaction.commandName !== "Translate Twitter Link") return;
 
-		const links = [...interaction.targetMessage.content.matchAll(/https:\/\/twitter.com\/\w+\/status\/\d+/g)].map((s) => s[0]);
+		const content = interaction.targetMessage.content;
+		const links = [...content.matchAll(/https:\/\/(?:twitter.com|x.com)\/\w+\/status\/\d+/g)].map((s) => s[0]);
 		if (links.length === 0) {
 			await interaction.reply({
 				content: "This message doesn't contain a Twitter link.",
@@ -18,7 +19,7 @@ export default function ThreadPins(client: Client) {
 		}
 
 		await interaction.reply({
-			content: links.map((l) => l.replace("twitter.com", "vxtwitter.com")).join("\n"),
+			content: links.map((l) => l.replace(/(?:twitter.com|x.com)/, "vxtwitter.com")).join("\n"),
 			ephemeral: true,
 		});
 	});
