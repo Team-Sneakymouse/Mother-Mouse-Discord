@@ -9,6 +9,7 @@ const allowedGuilds = [
 
 const allowedChannels = [
 	// allowed in channel and all sub threads (forum posts)
+	"1178083753801830482", // LoM Discussions
 	"1078757609621962782", // DvZ Discussions
 	"893307440551067648", // Sneakymouse Recipes
 	"928544850691891221", // Wordle Bragging
