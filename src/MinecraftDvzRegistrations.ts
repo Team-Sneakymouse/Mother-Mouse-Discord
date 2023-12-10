@@ -12,9 +12,9 @@ import MulticraftAPI from "./utils/multicraft.js";
 export const data = [
 	new SlashCommandBuilder()
 		.setName("register")
-		.setDescription("Register for this weeks whitelist raffle")
+		.setDescription("Register for the LoM Delay Refund™️")
 		.addStringOption(new SlashCommandStringOption().setName("username").setDescription("Minecraft username").setRequired(true)),
-	new SlashCommandBuilder().setName("unregister").setDescription("Unrgister from this weeks whitelist raffle"),
+	new SlashCommandBuilder().setName("unregister").setDescription("Unregister from the refund (to register a different account)"),
 	new SlashCommandBuilder().setName("dvz_open").setDescription("Open whitelist registrations"),
 	new SlashCommandBuilder().setName("dvz_close").setDescription("Close whitelist registrations"),
 	new SlashCommandBuilder()
@@ -55,7 +55,7 @@ const REPLIES = {
 		embeds: [
 			{
 				title: "Success",
-				description: `Whitelist registration of \`${username}\` has been received.`,
+				description: `Refund registration of \`${username}\` has been received. You will receive 5 free gold on launch!`,
 				color: 0x4db924,
 				thumbnail: {
 					url: `https://crafatar.com/renders/body/${uuid}?overlay`,
@@ -191,7 +191,7 @@ export default function DvzRegistrations(client: Client, db: PocketBase, multicr
 				.getFirstListItem<PBRecord & DvzUserRecord>(`discordId="${interaction.user.id}" || uuid="${profile.id}"`)
 				.catch(() => null);
 			if (user && user.uuid !== "") {
-				let error = "You are already registered. Good luck in the next whitelist raffle!";
+				let error = "You are already registered for the refund!";
 				if (user.discordId !== interaction.user.id) {
 					error = `Minecraft account \`${profile.name}\` is already registered to another Discord account.`;
 				} else if (user.uuid !== profile.id) {
