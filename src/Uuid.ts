@@ -12,15 +12,30 @@ export default function Uuid(client: Client) {
 	client.on("interactionCreate", async (interaction) => {
 		if (interaction.isChatInputCommand() && interaction.commandName === "uuid") {
 			const username = interaction.options.getString("username", true);
-			const res = await fetch("https://api.mojang.com/users/profiles/minecraft/" + username);
 
-			if (res.status === 204 || res.status === 404) {
-				interaction.reply("User not found");
+			if (/^[a-f0-9-]{36}$/.test(username)) {
+				// UUID to username
+				const uuid = username.replace(/-/g, "");
+				const res = await fetch("https://api.mojang.com/user/profile/" + uuid);
+				if (res.status === 204 || res.status === 404) {
+					interaction.reply("User not found");
+					return;
+				}
+				const data = (await res.json()) as { name: string; id: string };
+				interaction.reply("```" + data.name + "```");
+				return;
+			} else {
+				// Username to UUID
+				const res = await fetch("https://api.mojang.com/users/profiles/minecraft/" + username);
+
+				if (res.status === 204 || res.status === 404) {
+					interaction.reply("User not found");
+					return;
+				}
+				const data = (await res.json()) as { name: string; id: string };
+				interaction.reply("```" + data.id + "```");
 				return;
 			}
-			const data = (await res.json()) as { name: string; id: string };
-			interaction.reply("```" + data.id + "```");
-			return;
 		}
 	});
 }
