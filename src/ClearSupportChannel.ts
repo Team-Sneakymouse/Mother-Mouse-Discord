@@ -101,6 +101,7 @@ async function EndVote(redis: Redis, client: Client, channelId: string, schedule
 			if (!isBulkFailed) {
 				let deleted = await modernChannel.bulkDelete(messages, true)
 				.catch((reason) => {
+					reason = typeof reason === "string" ? reason : JSON.stringify(reason);
 					console.log(`ClearSupportChannel: Failed to bulkDelete ${messages.size} messages, ` + reason);
 					failures += 1;
 				});
@@ -111,6 +112,7 @@ async function EndVote(redis: Redis, client: Client, channelId: string, schedule
 				for (let [s, m] of messages) {
 					let hasFailed = false;
 					await m.delete().catch((reason) => {
+						reason = typeof reason === "string" ? reason : JSON.stringify(reason);
 						console.log(`ClearSupportChannel: Failed to delete ${messages.size} messages, ` + reason);
 						failures += 1;
 						hasFailed = true;
