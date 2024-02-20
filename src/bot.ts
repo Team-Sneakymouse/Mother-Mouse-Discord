@@ -1,7 +1,7 @@
 import Redis from "ioredis";
 import express from "express";
 import PocketBase from "pocketbase";
-import { Client, GatewayIntentBits, Partials, REST } from "discord.js";
+import { Client, GatewayIntentBits, Partials } from "discord.js";
 import { Gitlab } from "@gitbeaker/node";
 import { config } from "dotenv";
 config();
@@ -31,8 +31,6 @@ if (!process.env["POCKETBASE_HOST"] || !process.env["POCKETBASE_USERNAME"] || !p
 const pocketbase = new PocketBase(process.env["POCKETBASE_HOST"]);
 pocketbase.admins.authWithPassword(process.env["POCKETBASE_USERNAME"], process.env["POCKETBASE_PASSWORD"]);
 pocketbase.autoCancellation(false);
-
-const restClient = new REST().setToken(process.env.DISCORD_TOKEN!);
 
 const client = new Client({
 	intents: [
@@ -215,7 +213,7 @@ if (process.env.PRODUCTION == "TRUE") {
 	ChannelFilters(client);
 	Starboard(client);
 	MinecraftWhitelist(client, multicraft);
-	LinkedRole(client, restClient, server, pocketbase);
+	LinkedRole(client, server, pocketbase);
 } else {
 	console.log("Registering development plugins");
 }

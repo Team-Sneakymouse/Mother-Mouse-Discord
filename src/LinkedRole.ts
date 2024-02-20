@@ -25,7 +25,8 @@ export const metadata: { key: keyof Metadata; name: string; description: string;
 	},
 ];
 
-export default function LinkedRole(client: Client, restClient: REST, server: Express, pocketbase: PocketBase) {
+export default function LinkedRole(client: Client, server: Express, pocketbase: PocketBase) {
+	const restClient = client.rest;
 	const cookie = cookieParser(process.env["COOKIE_SECRET"]);
 
 	server.get("/linkedrole", cookie, async (req, res) => {
