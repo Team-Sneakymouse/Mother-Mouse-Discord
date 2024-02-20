@@ -27,16 +27,12 @@ const redisVotingKey = "ClearSupportChannel-voting-";
 const eventEndVotingKey = "ClearSupportChannel-endvote-";
 const eventStartVotingKey = "ClearSupportChannel-";
 
-
 async function ExecuteVote(redis: Redis, client: Client, channelId: string, scheduledTime: number) {
-	const channel = await client.channels.fetch(channelId) as TextChannel;
+	const channel = (await client.channels.fetch(channelId)) as TextChannel;
 
 	//if channel is empty skip deletion
-	let temp_messages = (await channel.messages.fetch({ limit: 16 })).filter(
-		(m) => !m.pinned && !m.system && !m.hasThread && m.deletable
-	);
+	let temp_messages = (await channel.messages.fetch({ limit: 16 })).filter((m) => !m.pinned && !m.system && !m.hasThread && m.deletable);
 	if (temp_messages.size <= 0) return;
-
 
 	await channel.send({
 		content:
@@ -66,13 +62,13 @@ async function ExecuteVote(redis: Redis, client: Client, channelId: string, sche
 }
 
 async function EndVote(redis: Redis, client: Client, channelId: string, scheduledTime: number) {
-	const channel = await client.channels.fetch(channelId) as TextChannel;
+	const channel = (await client.channels.fetch(channelId)) as TextChannel;
 	let key = redisVotingKey + channelId;
 
 	//Voting is Closed
 	let votingResults = await redis.hvals(key);
 	let totalNoVotes = 0;
-	let totalVotes = votingResults.length
+	let totalVotes = votingResults.length;
 	for (let isYes of votingResults) {
 		totalNoVotes += isYes == "0" ? 1 : 0;
 	}
@@ -90,7 +86,7 @@ async function EndVote(redis: Redis, client: Client, channelId: string, schedule
 		while (attempts < 1000 && failures < 8) {
 			attempts += 1;
 			//delete all channels
-			let modernChannel = await client.channels.fetch(channelId) as TextChannel;
+			let modernChannel = (await client.channels.fetch(channelId)) as TextChannel;
 			let messages = (await modernChannel.messages.fetch({ limit: 100, before: deleteMessage.id })).filter(
 				(m) => !m.pinned && !m.system && !m.hasThread && m.deletable
 			);
@@ -99,13 +95,12 @@ async function EndVote(redis: Redis, client: Client, channelId: string, schedule
 			console.log(`ClearSupportChannel: Deleting ${messages.size} messages`);
 
 			if (!isBulkFailed) {
-				let deleted = await modernChannel.bulkDelete(messages, true)
-				.catch((reason) => {
+				let deleted = await modernChannel.bulkDelete(messages, true).catch((reason) => {
 					reason = typeof reason === "string" ? reason : JSON.stringify(reason);
 					console.log(`ClearSupportChannel: Failed to bulkDelete ${messages.size} messages, ` + reason);
 					failures += 1;
 				});
-				isBulkFailed = deleted ? deleted.size > 0 : false;
+				isBulkFailed = deleted ? deleted.size !== messages.size : false;
 				await new Promise((resolve) => setTimeout(resolve, 2000));
 			}
 			if (isBulkFailed) {
@@ -113,7 +108,7 @@ async function EndVote(redis: Redis, client: Client, channelId: string, schedule
 					let hasFailed = false;
 					await m.delete().catch((reason) => {
 						reason = typeof reason === "string" ? reason : JSON.stringify(reason);
-						console.log(`ClearSupportChannel: Failed to delete ${messages.size} messages, ` + reason);
+						console.log(`ClearSupportChannel: Failed to delete message: ${JSON.stringify(m)}, ` + reason);
 						failures += 1;
 						hasFailed = true;
 					});
@@ -125,7 +120,9 @@ async function EndVote(redis: Redis, client: Client, channelId: string, schedule
 		if (attempts < 1000 && failures < 8) {
 			deleteMessage.edit("The channel has been cleared. Stay safe! <:bless:975520085919809587>");
 		} else {
-			deleteMessage.edit("I cannot delete the last few messages in this channel. Discord makes me sad :(. <:bless:975520085919809587>");
+			deleteMessage.edit(
+				"I cannot delete the last few messages in this channel. Discord makes me sad :(. <:bless:975520085919809587>"
+			);
 		}
 	} else {
 		channel.send("The channel has been spared. Stay safe! <:bless:975520085919809587>");
@@ -179,12 +176,7 @@ export default function ClearSupportChannel(client: Client, redis: Redis) {
 			ExecuteVote(redis, client, channelId, scheduledTime);
 		};
 
-		ScheduleRepeating(redis,
-			eventStartVotingKey + channelId,
-			clearEpoch,
-			frequency,
-			exec,
-		);
+		ScheduleRepeating(redis, eventStartVotingKey + channelId, clearEpoch, frequency, exec);
 		RegisterOneTimeEvent(redis, eventStartVotingKey + channelId, exec);
 		RegisterOneTimeEvent(redis, eventEndVotingKey + channelId, (scheduledTime: number) => {
 			EndVote(redis, client, channelId, scheduledTime);
