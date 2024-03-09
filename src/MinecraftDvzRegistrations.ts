@@ -114,6 +114,8 @@ export default function DvzRegistrations(client: Client, db: PocketBase, multicr
 			await interaction.followUp(
 				REPLIES.info("**Registrations are now open.**\nUse `/register <minecraft_username>` to register for the next game.")
 			);
+
+			await client.users.fetch("90956966947467264").then((user) => user.send("DvZ Registrations are now open"));
 			return;
 		} else if (interaction.isChatInputCommand() && interaction.commandName === "dvz_close") {
 			const registrationOpen = await db
@@ -127,6 +129,7 @@ export default function DvzRegistrations(client: Client, db: PocketBase, multicr
 			await db.collection("settings").update(registrationOpen.id, { value: false });
 
 			await interaction.reply(REPLIES.info("Registrations are now closed."));
+			await client.users.fetch("90956966947467264").then((user) => user.send("DvZ Registrations are now closed"));
 			return;
 		} else if (interaction.isChatInputCommand() && interaction.commandName === "register") {
 			if (!interaction.member) {
@@ -379,6 +382,8 @@ export default function DvzRegistrations(client: Client, db: PocketBase, multicr
 				await dvzInfoChannel.send({
 					content: "@everyone, you can now connect to the using the address above 👆",
 				});
+
+			await client.users.fetch("90956966947467264").then((user) => user.send(`Whitelisted ${selectedUsers.size} players`));
 		}
 	});
 }
