@@ -13,7 +13,7 @@ export default function Uuid(client: Client) {
 		if (interaction.isChatInputCommand() && interaction.commandName === "uuid") {
 			const username = interaction.options.getString("username", true);
 
-			if (/^[a-f0-9-]{36}$/.test(username)) {
+			if ((username.length == 32 || username.length == 36) && /^[a-f0-9-]$/.test(username)) {
 				// UUID to username
 				const uuid = username.replace(/-/g, "");
 				const res = await fetch("https://api.mojang.com/user/profile/" + uuid);
