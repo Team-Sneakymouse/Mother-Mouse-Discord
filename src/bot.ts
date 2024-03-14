@@ -169,6 +169,9 @@ import MinecraftWhitelist from "./MinecraftWhitelist.js";
 // Linked Role
 import LinkedRole from "./LinkedRole.js";
 
+// Text Commands
+import TextCommands from "./TextCommands.js";
+
 if (process.env.PRODUCTION == "TRUE") {
 	client.setMaxListeners(31);
 	console.log("Registering production plugins");
@@ -214,6 +217,7 @@ if (process.env.PRODUCTION == "TRUE") {
 	Starboard(client);
 	MinecraftWhitelist(client, multicraft);
 	LinkedRole(client, server, pocketbase);
+	TextCommands(client, pocketbase);
 } else {
 	console.log("Registering development plugins");
 }
