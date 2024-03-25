@@ -3,6 +3,7 @@ import express from "express";
 import PocketBase from "pocketbase";
 import { Client, GatewayIntentBits, Partials } from "discord.js";
 import { Gitlab } from "@gitbeaker/node";
+import RssParser from "rss-parser";
 import { config } from "dotenv";
 config();
 import { Tick } from "./utils/unixtime.js";
@@ -18,6 +19,8 @@ const gitlab = new Gitlab({
 });
 
 const ytdl = new YouTubeDL();
+
+const rss = new RssParser();
 
 const server = express();
 server.use(express.json());
@@ -172,6 +175,9 @@ import LinkedRole from "./LinkedRole.js";
 // Text Commands
 import TextCommands from "./TextCommands.js";
 
+// RSS
+import RSS from "./RSS.js";
+
 if (process.env.PRODUCTION == "TRUE") {
 	client.setMaxListeners(31);
 	console.log("Registering production plugins");
@@ -218,6 +224,7 @@ if (process.env.PRODUCTION == "TRUE") {
 	MinecraftWhitelist(client, multicraft);
 	LinkedRole(client, server, pocketbase);
 	TextCommands(client, pocketbase);
+	RSS(client, rss, pocketbase);
 } else {
 	console.log("Registering development plugins");
 }
