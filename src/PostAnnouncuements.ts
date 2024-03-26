@@ -1,4 +1,4 @@
-import { APIEmbedImage, Attachment, AttachmentBuilder, Client, TextChannel } from "discord.js";
+import { APIEmbedImage, Client, TextChannel } from "discord.js";
 import Parser from "rss-parser";
 import PocketBase, { Record as PBRecord } from "pocketbase";
 import { CronJob } from "cron";
@@ -13,9 +13,10 @@ type TwitterPost = {
 	guid: string;
 	isoDate: string;
 };
-export default async function rss(client: Client, rss: Parser, db: PocketBase) {
+export default async function PostAnnouncements(client: Client, rss: Parser, db: PocketBase) {
 	// https://github.com/zedeus/nitter/wiki/Instances
-	const feedUrl = "https://nitter.poast.org/ms_dvil/rss";
+	const nitterHost = "https://nitter.poast.org";
+	const feedUrl = `${nitterHost}/ms_dvil/rss`;
 	let lastTweetId: string | null = null;
 	let lastTweetRecord: (PBRecord & { value: [string] }) | null = null;
 	let feedChannel: TextChannel | null = null;
@@ -31,7 +32,7 @@ export default async function rss(client: Client, rss: Parser, db: PocketBase) {
 		lastTweetId = lastTweetRecord?.value[0] ?? null;
 		console.log("Last tweet ID:", lastTweetId);
 
-		feedChannel = (client.channels.cache.get("806994887773519913") as TextChannel) ?? null;
+		feedChannel = (client.channels.cache.get("1222124483700068362") as TextChannel) ?? null;
 		// feedChannel = (client.channels.cache.get("155020885521203200") as TextChannel) ?? null;
 		if (!feedChannel) {
 			console.error("Failed to find feed channel");
@@ -75,6 +76,11 @@ export default async function rss(client: Client, rss: Parser, db: PocketBase) {
 		console.log("Updated last tweet ID to", currentTweetId);
 
 		for (const post of unseenPosts) {
+			const isReply = post.title.startsWith(`R to @${feed.title?.split(" / ")[1]}: `);
+			const isRetweet = post.title.startsWith(`RT by ${feed.title?.split(" / ")[1]}: `);
+			const isQuote = post.content.includes('<a href="' + nitterHost);
+			if (isReply || isRetweet || isQuote) return;
+
 			const username = post.creator.substring(1);
 			const imageTags = post.content.match(/<img src="([^"]+)"/g);
 			const imageUrls = (imageTags ?? []).map((imageUrl) => imageUrl.substring(10, imageUrl.length - 1)); // <img src="https://nitter.poast.org/pic/orig/media%2F<IMAGE_ID>.jpg"
@@ -85,19 +91,15 @@ export default async function rss(client: Client, rss: Parser, db: PocketBase) {
 			const postId = post.link.match(/status\/(\d+)/)![1];
 			const postLink = `https://twitter.com/${username}/status/${postId}`;
 
-			const message = post.title.startsWith(`RT by ${feed.title?.split(" / ")[1]}: `)
-				? `Hey @everyone, **MsDVil** just retweeted ${post.creator}:\n<${postLink}>`
-				: `Hey @everyone, **MsDVil** just tweeted:\n<${postLink}>`;
-
 			await feedChannel?.send({
-				content: message,
+				content: `Hey @everyone, **MsDVil** just tweeted:\n<${postLink}>`,
 				embeds: images.map((image) => ({
 					author: {
 						name: feed.title?.includes(post.creator) ? feed.title?.split(" / ")[0] : post.creator,
 						url: `https://twitter.com/${username}`,
 						icon_url: `https://unavatar.io/twitter/${username}`,
 					},
-					description: post.title.replace(`RT by ${feed.title?.split(" / ")[1]}: `, ""),
+					description: post.contentSnippet,
 					url: post.link,
 					image,
 					color: 0x08a0e9,

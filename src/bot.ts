@@ -176,7 +176,7 @@ import LinkedRole from "./LinkedRole.js";
 import TextCommands from "./TextCommands.js";
 
 // RSS
-import RSS from "./RSS.js";
+import PostAnnouncements from "./PostAnnouncuements.js";
 
 if (process.env.PRODUCTION == "TRUE") {
 	client.setMaxListeners(31);
@@ -224,7 +224,7 @@ if (process.env.PRODUCTION == "TRUE") {
 	MinecraftWhitelist(client, multicraft);
 	LinkedRole(client, server, pocketbase);
 	TextCommands(client, pocketbase);
-	RSS(client, rss, pocketbase);
+	PostAnnouncements(client, rss, pocketbase);
 } else {
 	console.log("Registering development plugins");
 }
