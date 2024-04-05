@@ -70,6 +70,7 @@ export default async function PostAnnouncements(client: Client, rss: Parser, db:
 			if (tweetId === lastTweetId) break;
 			unseenPosts.push(post);
 		}
+		if (unseenPosts.length === 0) return;
 		console.log(`Found ${unseenPosts.length}/${feed.items.length} new tweets`);
 		await db.collection("settings").update(lastTweetRecord!.id, { value: [currentTweetId] });
 		lastTweetId = currentTweetId;
@@ -111,7 +112,7 @@ export default async function PostAnnouncements(client: Client, rss: Parser, db:
 					timestamp: new Date(post.isoDate).toISOString(),
 				})),
 			});
-			console.log("Posted tweet", images);
+			// console.log("Posted tweet", images);
 		}
 	}
 }
