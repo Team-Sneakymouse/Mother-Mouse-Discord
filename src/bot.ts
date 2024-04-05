@@ -178,6 +178,9 @@ import TextCommands from "./TextCommands.js";
 // RSS
 import PostAnnouncements from "./PostAnnouncuements.js";
 
+// Delete/Edit Log
+import DeleteLog from "./DeleteLog.js";
+
 if (process.env.PRODUCTION == "TRUE") {
 	client.setMaxListeners(31);
 	console.log("Registering production plugins");
@@ -225,6 +228,7 @@ if (process.env.PRODUCTION == "TRUE") {
 	LinkedRole(client, server, pocketbase);
 	TextCommands(client, pocketbase);
 	PostAnnouncements(client, rss, pocketbase);
+	DeleteLog(client);
 } else {
 	console.log("Registering development plugins");
 }
