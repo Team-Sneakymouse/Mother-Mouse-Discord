@@ -1,4 +1,5 @@
 import {
+	AttachmentBuilder,
 	Client,
 	GuildMember,
 	InteractionReplyOptions,
@@ -50,19 +51,25 @@ const REPLIES = {
 		],
 		...raw,
 	}),
-	registered: (username: string, uuid: string) => ({
-		content: "",
-		embeds: [
-			{
-				title: "Success",
-				description: `Whitelist registration of \`${username}\` has been received.`,
-				color: 0x4db924,
-				thumbnail: {
-					url: `https://crafatar.com/renders/body/${uuid}?overlay`,
+	registered: (username: string, uuid: string) => {
+		const attachment = new AttachmentBuilder(`https://crafatar.com/renders/body/${uuid}?overlay`, {
+			name: "skin.png",
+		});
+		return {
+			content: "",
+			embeds: [
+				{
+					title: "Success",
+					description: `Whitelist registration of \`${username}\` has been received.`,
+					color: 0x4db924,
+					thumbnail: {
+						url: `attachment://skin.png`,
+					},
 				},
-			},
-		],
-	}),
+			],
+			files: [attachment],
+		};
+	},
 } satisfies Record<string, (...args: any[]) => InteractionReplyOptions>;
 
 const ROLE_TICKETS = {
