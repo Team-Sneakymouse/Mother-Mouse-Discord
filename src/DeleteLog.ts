@@ -37,7 +37,7 @@ export default function MediaEmbeds(client: Client) {
 
 	client.on("messageDelete", async (message) => {
 		if (message.guildId !== RAWBTV_SERVER_ID) return;
-		if (message.author?.bot) return;
+		if (message.channelId === LOG_THREAD_ID) return;
 
 		const channel = client.channels.cache.get(MOD_CHANNEL_ID) as TextChannel;
 		if (!channel) return console.log("deletelog - unknown channel");
