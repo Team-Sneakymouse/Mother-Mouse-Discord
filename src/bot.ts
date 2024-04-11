@@ -184,6 +184,9 @@ import DeleteLog from "./DeleteLog.js";
 // ModChat
 import ModChat from "./ModChat.js";
 
+// EditBotMessages
+import EditBotMessages from "./EditBotMessages.js";
+
 if (process.env.PRODUCTION == "TRUE") {
 	client.setMaxListeners(31);
 	console.log("Registering production plugins");
@@ -233,6 +236,7 @@ if (process.env.PRODUCTION == "TRUE") {
 	PostAnnouncements(client, rss, pocketbase);
 	DeleteLog(client);
 	ModChat(client);
+	EditBotMessages(client);
 } else {
 	console.log("Registering development plugins");
 }
