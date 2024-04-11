@@ -181,6 +181,9 @@ import PostAnnouncements from "./PostAnnouncuements.js";
 // Delete/Edit Log
 import DeleteLog from "./DeleteLog.js";
 
+// ModChat
+import ModChat from "./ModChat.js";
+
 if (process.env.PRODUCTION == "TRUE") {
 	client.setMaxListeners(31);
 	console.log("Registering production plugins");
@@ -229,6 +232,7 @@ if (process.env.PRODUCTION == "TRUE") {
 	TextCommands(client, pocketbase);
 	PostAnnouncements(client, rss, pocketbase);
 	DeleteLog(client);
+	ModChat(client);
 } else {
 	console.log("Registering development plugins");
 }
