@@ -40,13 +40,13 @@ export default function ModChat(client: Client) {
 		if (!interaction.channel) return;
 		if (interaction.channel.type !== ChannelType.GuildText) return;
 
-		await interaction.deferUpdate();
+		await interaction.deferReply({ ephemeral: true });
 
 		const option = interaction.values[0];
 		const emoji = SelectMenu.options.find((o) => o.data.value === option)?.data.emoji;
 		const thread = await interaction.channel.threads.create({
 			type: ChannelType.PrivateThread,
-			name: `${emoji} ${client.users.cache.get(interaction.user.id)?.displayName}`,
+			name: `${emoji?.name} ${client.users.cache.get(interaction.user.id)?.displayName}`,
 			autoArchiveDuration: ThreadAutoArchiveDuration.OneWeek,
 			invitable: false,
 			reason: "User requested mod chat",
@@ -58,8 +58,9 @@ export default function ModChat(client: Client) {
 			`Hi <@${interaction.user.id}>, thanks for reaching out! This is a private chat between you and the mods. Please describe your issue here.`
 		);
 
-		await interaction.update({
-			components: [{ type: ComponentType.ActionRow, components: [SelectMenu.toJSON()] }],
+		await interaction.editReply({
+			content: `Your private chat has been created: <#${thread.id}>`,
+			// components: [{ type: ComponentType.ActionRow, components: [SelectMenu.toJSON()] }],
 		});
 	});
 }

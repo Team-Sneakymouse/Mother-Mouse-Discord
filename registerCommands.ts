@@ -33,9 +33,10 @@ import { data as Uuid } from "./src/Uuid.js";
 import { data as MinecraftWhitelist } from "./src/MinecraftWhitelist.js";
 import { metadata as RoleConnectionMetadata } from "./src/LinkedRole.js";
 import { data as YouTube } from "./src/YouTube.js";
+import { data as EditBotMessages } from "./src/EditBotMessages.js";
 
 const commands = {
-	global: [...Vibecheck, ...Roll, ...TwitterFix, ...Uuid],
+	global: [...Vibecheck, ...Roll, ...TwitterFix, ...Uuid, ...EditBotMessages],
 	[GuildIds.TEST]: [],
 	[GuildIds.RAWBTV]: [...PalsRoles, ...PronounRoles, ...Trivia, ...UserPins, ...MinecraftDvzRegistrations, ...Faq],
 	[GuildIds.TILII]: [...GitlabIssues],

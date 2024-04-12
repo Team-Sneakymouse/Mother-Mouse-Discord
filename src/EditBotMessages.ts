@@ -10,7 +10,12 @@ import {
 	TextInputStyle,
 } from "discord.js";
 
-export const data = [new ContextMenuCommandBuilder().setType(ApplicationCommandType.Message).setName("Edit Message")];
+export const data = [
+	new ContextMenuCommandBuilder()
+		.setType(ApplicationCommandType.Message)
+		.setName("Edit Message")
+		.setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages),
+];
 
 export default function EditBotMessages(client: Client) {
 	// 1. check if user may edit message
