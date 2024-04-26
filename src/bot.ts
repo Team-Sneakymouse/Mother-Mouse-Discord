@@ -154,6 +154,9 @@ import TwitterFix from "./TwitterFix.js";
 // Manage Discord <-> Minecraft linking for whitelist
 import DvzRegistrations from "./MinecraftDvzRegistrations.js";
 
+// Manage pocketbase listeners for the LoM2 Job Board
+import Lom2JobBoard from "./Lom2JobBoard.js";
+
 // Faq
 import Faq from "./Faq.js";
 
@@ -226,6 +229,7 @@ if (process.env.PRODUCTION == "TRUE") {
 	tfcSolver(client);
 	TwitterFix(client);
 	DvzRegistrations(client, pocketbase, multicraft);
+	Lom2JobBoard(client, pocketbase);
 	Faq(client, pocketbase);
 	Uuid(client);
 	ChannelFilters(client);
