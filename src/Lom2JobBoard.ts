@@ -5,6 +5,9 @@ import {
 	ChannelType,
 } from "discord.js";
 import PocketBase, { Record } from 'pocketbase';
+import EventSource from 'eventsource';
+
+(global as any).EventSource = EventSource;
 
 const jobChannelId = "1233508899630481408"
 
