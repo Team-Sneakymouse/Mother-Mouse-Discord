@@ -13,15 +13,15 @@ export const SelectMenu = new StringSelectMenuBuilder()
 	.setMaxValues(1)
 	.addOptions([
 		{
-			label: "Technical Problem",
+			label: "Technical",
 			value: "technical",
-			description: "Disruptive bugs, account issues, etc.",
+			description: "Critical bugs, account issues, etc.",
 			emoji: "🔧",
 		},
 		{
-			label: "Social Problem",
+			label: "Interpersonal",
 			value: "social",
-			description: "Negative interactions with other roleplayers",
+			description: "Negative interactions with other community members",
 			emoji: "👥",
 		},
 		{
@@ -55,12 +55,15 @@ export default function ModChat(client: Client) {
 		await msg.delete();
 		// await thread.members.add(interaction.user.id);
 		await thread.send(
-			`Hi <@${interaction.user.id}>, thanks for reaching out! This is a private chat between you and the mods. Please describe your issue here.`
+			`Hi <@${interaction.user.id}>, thanks for reaching out! This is a private chat between you and the mods. Please tell us what's on your mind.`
 		);
+
+		await interaction.message.edit({
+			components: [{ type: ComponentType.ActionRow, components: [SelectMenu.toJSON()] }],
+		});
 
 		await interaction.editReply({
 			content: `Your private chat has been created: <#${thread.id}>`,
-			// components: [{ type: ComponentType.ActionRow, components: [SelectMenu.toJSON()] }],
 		});
 	});
 }
