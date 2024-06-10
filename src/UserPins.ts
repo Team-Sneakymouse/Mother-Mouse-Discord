@@ -9,6 +9,7 @@ const allowedGuilds = [
 
 const allowedChannels = [
 	// allowed in channel and all sub threads (forum posts)
+	"1249536990253154356", // Wiki Discussions
 	"1178083753801830482", // LoM Discussions
 	"1187395188293894154", // LoM Screenshots
 	"1078757609621962782", // DvZ Discussions
