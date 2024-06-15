@@ -60,4 +60,36 @@ export default function MediaEmbeds(client: Client) {
 			],
 		});
 	});
+
+	client.on("guildMemberAdd", async (member) => {
+		if (member.guild.id !== RAWBTV_SERVER_ID) return;
+
+		const channel = client.channels.cache.get(MOD_CHANNEL_ID) as TextChannel;
+		if (!channel) return console.log("deletelog - unknown channel");
+		const thread = channel.threads.cache.get(LOG_THREAD_ID);
+		if (!thread) return console.log("deletelog - unknown thread");
+
+		const username = member.user?.username ?? "Unknown User";
+		const joinMessage = `➕ **${username}** (${member.id}) has joined the server.`;
+		thread.send(joinMessage);
+
+		const lomchannel = client.channels.cache.get("1178373136857710592") as TextChannel;
+		if (!lomchannel) return console.log("deletelog - unknown channel");
+		lomchannel.permissionOverwrites.create(member.id, {
+			ViewChannel: false,
+		});
+	});
+
+	client.on("guildMemberRemove", async (member) => {
+		if (member.guild.id !== RAWBTV_SERVER_ID) return;
+
+		const channel = client.channels.cache.get(MOD_CHANNEL_ID) as TextChannel;
+		if (!channel) return console.log("deletelog - unknown channel");
+		const thread = channel.threads.cache.get(LOG_THREAD_ID);
+		if (!thread) return console.log("deletelog - unknown thread");
+
+		const username = member.user?.username ?? "Unknown User";
+		const leaveMessage = `❌ **${username}** (${member.id}) has left the server.`;
+		thread.send(leaveMessage);
+	});
 }
