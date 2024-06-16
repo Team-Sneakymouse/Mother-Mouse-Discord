@@ -190,6 +190,10 @@ import ModChat from "./ModChat.js";
 // EditBotMessages
 import EditBotMessages from "./EditBotMessages.js";
 
+
+// FillCache
+import FillCache from "./FillCache.js";
+
 if (process.env.PRODUCTION == "TRUE") {
 	client.setMaxListeners(31);
 	console.log("Registering production plugins");
@@ -241,6 +245,7 @@ if (process.env.PRODUCTION == "TRUE") {
 	DeleteLog(client);
 	ModChat(client);
 	EditBotMessages(client);
+	FillCache(client);
 } else {
 	console.log("Registering development plugins");
 }
