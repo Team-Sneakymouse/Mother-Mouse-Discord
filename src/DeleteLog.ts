@@ -3,6 +3,7 @@ import { Client, TextChannel } from "discord.js";
 const RAWBTV_SERVER_ID = "391355330241757205";
 const MOD_CHANNEL_ID = "688137973698658360";
 const LOG_THREAD_ID = "1159792578619768882";
+const JOIN_LEAVE_THREAD_ID = "1252000364971163801";
 
 export default function MediaEmbeds(client: Client) {
 	client.on("messageUpdate", async (oldMessage, newMessage) => {
@@ -66,7 +67,7 @@ export default function MediaEmbeds(client: Client) {
 
 		const channel = client.channels.cache.get(MOD_CHANNEL_ID) as TextChannel;
 		if (!channel) return console.log("deletelog - unknown channel");
-		const thread = channel.threads.cache.get(LOG_THREAD_ID);
+		const thread = channel.threads.cache.get(JOIN_LEAVE_THREAD_ID);
 		if (!thread) return console.log("deletelog - unknown thread");
 
 		const username = member.user?.username ?? "Unknown User";
@@ -78,6 +79,12 @@ export default function MediaEmbeds(client: Client) {
 		lomchannel.permissionOverwrites.create(member.id, {
 			ViewChannel: false,
 		});
+
+		const muteRole = member.guild.roles.cache.get("1251600130147356762")!;
+		const dvzRole = member.guild.roles.cache.get("1164552739422994553")!;
+
+		member.roles.add(muteRole);
+		member.roles.remove(dvzRole);
 	});
 
 	client.on("guildMemberRemove", async (member) => {
@@ -85,7 +92,7 @@ export default function MediaEmbeds(client: Client) {
 
 		const channel = client.channels.cache.get(MOD_CHANNEL_ID) as TextChannel;
 		if (!channel) return console.log("deletelog - unknown channel");
-		const thread = channel.threads.cache.get(LOG_THREAD_ID);
+		const thread = channel.threads.cache.get(JOIN_LEAVE_THREAD_ID);
 		if (!thread) return console.log("deletelog - unknown thread");
 
 		const username = member.user?.username ?? "Unknown User";
