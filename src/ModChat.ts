@@ -51,7 +51,7 @@ export default function ModChat(client: Client) {
 			invitable: false,
 			reason: "User requested mod chat",
 		});
-		const msg = await thread.send("<@&490697044260945938>");
+		const msg = await thread.send("<@&1253134360740102244>");
 		await msg.delete();
 		// await thread.members.add(interaction.user.id);
 		await thread.send(
