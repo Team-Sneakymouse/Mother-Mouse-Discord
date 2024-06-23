@@ -21,7 +21,7 @@ export const SelectMenu = new StringSelectMenuBuilder()
 		{
 			label: "Interpersonal",
 			value: "social",
-			description: "Negative interactions with other community members",
+			description: "Interactions with other community members",
 			emoji: "👥",
 		},
 		{
