@@ -21,7 +21,7 @@
 		"ioredis": "^4.28.5",
 		"mathjs": "^11.5.0",
 		"mime-types": "^2.1.35",
-		"pocketbase": "^0.10.2",
+		"pocketbase": "^0.21.2",
 		"rss-parser": "^3.13.0"
 	},
 	"devDependencies": {

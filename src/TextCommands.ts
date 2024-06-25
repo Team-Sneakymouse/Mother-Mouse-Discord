@@ -1,5 +1,5 @@
 import { Client, Message } from "discord.js";
-import PocketBase, { Record as PBRecord } from "pocketbase";
+import PocketBase, { RecordModel } from "pocketbase";
 
 type CommandRecord = { server: string; command: string; response: string };
 
@@ -13,7 +13,7 @@ export default function TextCommands(client: Client, pocketbase: PocketBase) {
 
 		const record = await pocketbase
 			.collection("commands")
-			.getFirstListItem<PBRecord & CommandRecord>(`discord_server~"${message.guild.id}"&&command="${command}"`)
+			.getFirstListItem<RecordModel & CommandRecord>(`discord_server~"${message.guild.id}"&&command="${command}"`)
 			.catch((e) => {
 				if (e.status !== 404) throw e;
 				else return null;

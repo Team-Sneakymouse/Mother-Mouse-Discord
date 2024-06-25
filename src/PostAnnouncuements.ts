@@ -1,6 +1,6 @@
 import { APIEmbedImage, Client, TextChannel } from "discord.js";
 import Parser from "rss-parser";
-import PocketBase, { Record as PBRecord } from "pocketbase";
+import PocketBase, { RecordModel } from "pocketbase";
 import { CronJob } from "cron";
 
 type TwitterPost = {
@@ -18,13 +18,13 @@ export default async function PostAnnouncements(client: Client, rss: Parser, db:
 	const nitterHost = "https://nitter.poast.org";
 	const feedUrl = `${nitterHost}/ms_dvil/rss`;
 	let lastTweetId: string | null = null;
-	let lastTweetRecord: (PBRecord & { value: [string] }) | null = null;
+	let lastTweetRecord: (RecordModel & { value: [string] }) | null = null;
 	let feedChannel: TextChannel | null = null;
 
 	client.once("ready", async () => {
 		lastTweetRecord = await db
 			.collection("settings")
-			.getFirstListItem<PBRecord & { value: [string] }>('key="rss_msdvil_last_tweet"')
+			.getFirstListItem<RecordModel & { value: [string] }>('key="rss_msdvil_last_tweet"')
 			.catch((e) => {
 				if (e.status === 404) return null;
 				throw e;

@@ -1,5 +1,5 @@
 import { Client, SlashCommandBuilder, SlashCommandStringOption } from "discord.js";
-import PocketBase, { Record as PBRecord } from "pocketbase";
+import PocketBase, { RecordModel } from "pocketbase";
 export const data = [
 	new SlashCommandBuilder()
 		.setName("faq")
@@ -14,7 +14,7 @@ export const data = [
 ];
 
 type FaqQuestion = { question: string; answer: string; tags: string };
-const questionCache: Record<string, (PBRecord & FaqQuestion)[] | null> = {};
+const questionCache: Record<string, (RecordModel & FaqQuestion)[] | null> = {};
 
 export default function Vibecheck(client: Client, pocketbase: PocketBase) {
 	client.on("interactionCreate", async (interaction) => {
@@ -31,7 +31,7 @@ export default function Vibecheck(client: Client, pocketbase: PocketBase) {
 
 			let questions = questionCache[interaction.guild.id];
 			if (!questions) {
-				questions = await pocketbase.collection("mm_faq").getFullList<PBRecord & FaqQuestion>(undefined, {
+				questions = await pocketbase.collection("mm_faq").getFullList<RecordModel & FaqQuestion>(undefined, {
 					filter: `server="${interaction.guild.id}"`,
 				});
 				questionCache[interaction.guild.id] = questions;
@@ -51,7 +51,7 @@ export default function Vibecheck(client: Client, pocketbase: PocketBase) {
 		if (interaction.isChatInputCommand() && interaction.commandName === "faq") {
 			const questionId = interaction.options.getString("query", true);
 			try {
-				const question = await pocketbase.collection("mm_faq").getOne<PBRecord & FaqQuestion>(questionId);
+				const question = await pocketbase.collection("mm_faq").getOne<RecordModel & FaqQuestion>(questionId);
 
 				interaction.reply({
 					content: "",

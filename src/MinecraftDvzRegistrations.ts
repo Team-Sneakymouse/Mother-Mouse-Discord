@@ -8,7 +8,7 @@ import {
 	SlashCommandStringOption,
 	TextChannel,
 } from "discord.js";
-import PocketBase, { Record as PBRecord } from "pocketbase";
+import PocketBase, { RecordModel } from "pocketbase";
 import MulticraftAPI from "./utils/multicraft.js";
 export const data = [
 	new SlashCommandBuilder()
@@ -99,7 +99,7 @@ export default function DvzRegistrations(client: Client, db: PocketBase, multicr
 		if (interaction.isChatInputCommand() && interaction.commandName === "dvz_open") {
 			const registrationOpen = await db
 				.collection("settings")
-				.getFirstListItem<PBRecord & { value: boolean }>('key="dvz_registrations_open"');
+				.getFirstListItem<RecordModel & { value: boolean }>('key="dvz_registrations_open"');
 			if (typeof registrationOpen.value !== "boolean") throw new Error("setting 'dvz_registrations_open' is not a boolean");
 			if (registrationOpen.value === true) {
 				await interaction.reply(REPLIES.error("Registrations are already open", { ephemeral: true }));
@@ -108,7 +108,7 @@ export default function DvzRegistrations(client: Client, db: PocketBase, multicr
 			await db.collection("settings").update(registrationOpen.id, { value: true });
 
 			await interaction.deferReply();
-			const users = await db.collection("dvz_users").getFullList<PBRecord & DvzUserRecord>(undefined, {
+			const users = await db.collection("dvz_users").getFullList<RecordModel & DvzUserRecord>(undefined, {
 				filter: 'tickets!=0 || uuid!=""',
 			});
 			for (const user of users) {
@@ -127,7 +127,7 @@ export default function DvzRegistrations(client: Client, db: PocketBase, multicr
 		} else if (interaction.isChatInputCommand() && interaction.commandName === "dvz_close") {
 			const registrationOpen = await db
 				.collection("settings")
-				.getFirstListItem<PBRecord & { value: boolean }>('key="dvz_registrations_open"');
+				.getFirstListItem<RecordModel & { value: boolean }>('key="dvz_registrations_open"');
 			if (typeof registrationOpen.value !== "boolean") throw new Error("setting 'dvz_registrations_open' is not a boolean");
 			if (registrationOpen.value === false) {
 				await interaction.reply(REPLIES.error("Registrations are already closed", { ephemeral: true }));
@@ -147,7 +147,7 @@ export default function DvzRegistrations(client: Client, db: PocketBase, multicr
 			const username = interaction.options.getString("username", true);
 			const registrationOpen = await db
 				.collection("settings")
-				.getFirstListItem<PBRecord & { value: boolean }>('key="dvz_registrations_open"');
+				.getFirstListItem<RecordModel & { value: boolean }>('key="dvz_registrations_open"');
 			if (typeof registrationOpen.value !== "boolean") throw new Error("setting 'dvz_registrations_open' is not a boolean");
 
 			const registrerUrl = pendingRegistrations.get(interaction.user.id);
@@ -196,9 +196,9 @@ export default function DvzRegistrations(client: Client, db: PocketBase, multicr
 			}
 
 			// Check if user or minecraft account is already registered
-			let user: (PBRecord & DvzUserRecord) | null = await db
+			let user: (RecordModel & DvzUserRecord) | null = await db
 				.collection("dvz_users")
-				.getFirstListItem<PBRecord & DvzUserRecord>(`discordId="${interaction.user.id}" || uuid="${profile.id}"`)
+				.getFirstListItem<RecordModel & DvzUserRecord>(`discordId="${interaction.user.id}" || uuid="${profile.id}"`)
 				.catch(() => null);
 			if (user && user.uuid !== "") {
 				let error = "You are already registered. Good luck in the next whitelist raffle!";
@@ -265,7 +265,7 @@ export default function DvzRegistrations(client: Client, db: PocketBase, multicr
 		} else if (interaction.isChatInputCommand() && interaction.commandName === "unregister") {
 			let user = await db
 				.collection("dvz_users")
-				.getFirstListItem<PBRecord & DvzUserRecord>(`discordId="${interaction.user.id}" && uuid!=""`)
+				.getFirstListItem<RecordModel & DvzUserRecord>(`discordId="${interaction.user.id}" && uuid!=""`)
 				.catch(() => null);
 			if (!user) {
 				await interaction.reply(REPLIES.error("You are not yet registered for the next game."));
@@ -292,21 +292,21 @@ export default function DvzRegistrations(client: Client, db: PocketBase, multicr
 
 			const amount = interaction.options.getInteger("player_count", false) ?? 50;
 
-			const games = await db.collection("dvz_games").getFullList<PBRecord & DvzGameRecord>(undefined, {
+			const games = await db.collection("dvz_games").getFullList<RecordModel & DvzGameRecord>(undefined, {
 				filter: `name~"${new Date().toISOString().split("T")[0]}"`,
 			});
 			const gameId = Math.max(...games.map((g) => Number(g.name.split("/")[1] || "0") || 0), 0) + 1;
 			const game: DvzGameRecord = { name: `${new Date().toISOString().split("T")[0]}/${gameId}` };
 
 			const pastParticipants = new Set(games.flatMap((g) => g.participants || []));
-			const users = await db.collection("dvz_users").getFullList<PBRecord & DvzUserRecord>(undefined, {
+			const users = await db.collection("dvz_users").getFullList<RecordModel & DvzUserRecord>(undefined, {
 				filter: 'tickets!=0 && uuid!="" && banned=false',
 			});
 			console.log(`Registering ${amount}/${users.length} users for game ${game.name}:`);
 
-			const ticketPool: (PBRecord & DvzUserRecord)[] = [];
-			const selectedUsers = new Set<PBRecord & DvzUserRecord>();
-			const backupUsers = new Set<PBRecord & DvzUserRecord>();
+			const ticketPool: (RecordModel & DvzUserRecord)[] = [];
+			const selectedUsers = new Set<RecordModel & DvzUserRecord>();
+			const backupUsers = new Set<RecordModel & DvzUserRecord>();
 			for (const user of users) {
 				if (false && pastParticipants.has(user.id)) {
 					backupUsers.add(user);
