@@ -1,5 +1,6 @@
 import { ChannelType, Client } from "discord.js";
 import { Gitlab } from "@gitbeaker/node";
+import PocketBase, { RecordModel } from "pocketbase";
 import { channelIds, projectIds, Projects } from "./GitlabIssues/utils.js";
 
 const hardCodedThreads = [
@@ -33,10 +34,8 @@ const hardCodedThreads = [
 	"975967966506156082", // 🧗-Breath Of The Wild
 ];
 
-export default function UnarchiveThreads(client: Client, gitlab: InstanceType<typeof Gitlab>) {
+export default function UnarchiveThreads(client: Client, db: PocketBase, gitlab: InstanceType<typeof Gitlab>) {
 	client.on("threadUpdate", async (_, thread) => {
-		if (thread.type !== ChannelType.GuildPublicThread) return;
-		if (thread.ownerId !== client.user?.id) return;
 		if (thread.archived === false) return;
 
 		if (hardCodedThreads.includes(thread.id)) {
@@ -45,34 +44,45 @@ export default function UnarchiveThreads(client: Client, gitlab: InstanceType<ty
 			return;
 		}
 
-		const starterMessage = await thread.fetchStarterMessage();
-
-		// Gitlab
-		if (starterMessage && Object.keys(channelIds).includes(starterMessage.channelId)) {
-			const projectId = projectIds[thread.guildId as Projects];
-			const issueId = parseInt(starterMessage.embeds[0].footer?.text.match(/\d+/)?.[0] as string);
-			if (!projectId || !issueId) {
-				try {
-					const issue = await gitlab.Issues.show(projectId, issueId);
-					if (issue) {
-						if (issue.state !== "closed") {
-							console.log(`unarchiving thread ${thread.guild.name}/${thread.name}`);
-							await thread.setArchived(false);
-						}
-						return;
-					}
-				} catch (e) {
-					console.error(`Error in fetching gitlab issue ${projectId}, ${issueId}. Is it just missing?`, e);
-				}
-			}
-		}
-
 		// SneakyRP Applications
 		if (thread.parentId === "963808503808557127") {
+			const starterMessage = await thread.fetchStarterMessage();
 			if (starterMessage && starterMessage.components !== undefined && starterMessage.components.length > 0) {
 				console.log(`unarchiving thread ${thread.guild.name}/${thread.name}`);
 				await thread.setArchived(false);
 				return;
+			}
+		}
+
+		// Gitlab
+		// if (starterMessage && Object.keys(channelIds).includes(starterMessage.channelId)) {
+		// 	const projectId = projectIds[thread.guildId as Projects];
+		// 	const issueId = parseInt(starterMessage.embeds[0].footer?.text.match(/\d+/)?.[0] as string);
+		// 	if (!projectId || !issueId) {
+		// 		try {
+		// 			const issue = await gitlab.Issues.show(projectId, issueId);
+		// 			if (issue) {
+		// 				if (issue.state !== "closed") {
+		// 					console.log(`unarchiving thread ${thread.guild.name}/${thread.name}`);
+		// 					await thread.setArchived(false);
+		// 				}
+		// 				return;
+		// 			}
+		// 		} catch (e) {
+		// 			console.error(`Error in fetching gitlab issue ${projectId}, ${issueId}. Is it just missing?`, e);
+		// 		}
+		// 	}
+		// }
+
+		if (!thread.locked) {
+			const ids = await db
+				.collection("settings")
+				.getFirstListItem<RecordModel & { value: string[] }>('key="discord_threads_no_autoclose"');
+			const hasThread = ids && ids.value.includes(thread.id);
+			const hasParent = thread.parentId && ids && ids.value.includes(thread.parentId);
+			if (hasThread || hasParent) {
+				console.log(`unarchiving thread ${thread.guild.name}/${thread.name}`);
+				await thread.setArchived(false);
 			}
 		}
 	});

@@ -216,7 +216,7 @@ if (process.env.PRODUCTION == "TRUE") {
 	UserPins(client);
 	MemeResponsibly(client);
 	GitlabIssues(client, redis, server, gitlab);
-	UnarchiveThreads(client, gitlab);
+	UnarchiveThreads(client, pocketbase, gitlab);
 	SneakyrpApplications(client, redis, server);
 	OocTools(client);
 	SneakyrpPlayerlist(client, multicraft);
