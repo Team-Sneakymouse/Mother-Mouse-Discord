@@ -1,4 +1,4 @@
-import { ChannelType, Client } from "discord.js";
+import { ChannelType, Client, ThreadAutoArchiveDuration } from "discord.js";
 import { Gitlab } from "@gitbeaker/node";
 import PocketBase, { RecordModel } from "pocketbase";
 import { channelIds, projectIds, Projects } from "./GitlabIssues/utils.js";
@@ -74,7 +74,7 @@ export default function UnarchiveThreads(client: Client, db: PocketBase, gitlab:
 		// 	}
 		// }
 
-		if (!thread.locked) {
+		if (!thread.locked && thread.autoArchiveDuration && thread.autoArchiveDuration > ThreadAutoArchiveDuration.OneHour) {
 			const ids = await db
 				.collection("settings")
 				.getFirstListItem<RecordModel & { value: string[] }>('key="discord_threads_no_autoclose"');
