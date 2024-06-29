@@ -1,6 +1,6 @@
 import { Client } from "discord.js";
 
-const bannedEmojis = ["🖕", "regional_indicator", "no", "😡", "stop", "scam"];
+const bannedEmojis = ["🖕", "regional_indicator", "no", "😡", "stop", "scam", "👎"];
 
 const checkedUsers = ["416465357050609665", "919916816015437825"];
 
