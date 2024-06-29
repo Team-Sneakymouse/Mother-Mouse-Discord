@@ -2,6 +2,7 @@ import {
 	ChannelType,
 	Client,
 	ComponentType,
+	PrivateThreadChannel,
 	StringSelectMenuBuilder,
 	StringSelectMenuOptionBuilder,
 	ThreadAutoArchiveDuration,
@@ -41,6 +42,17 @@ export default function ModChat(client: Client) {
 		if (interaction.channel.type !== ChannelType.GuildText) return;
 
 		await interaction.deferReply({ ephemeral: true });
+
+		if (!interaction.channel.permissionsFor(interaction.user)?.has("UseApplicationCommands")) {
+			await (client.channels.cache.get("1159792578619768882") as PrivateThreadChannel)?.send(
+				`${interaction.user.username} (<@${interaction.user.id}>) tried to use the mod chat but doesn't have permissions.`
+			);
+			await new Promise((resolve) => setTimeout(resolve, 20000));
+			await interaction.editReply({
+				content: "Your session is temporarily unavailable. Please try again later.",
+			});
+			return;
+		}
 
 		const option = interaction.values[0];
 		const emoji = SelectMenu.options.find((o) => o.data.value === option)?.data.emoji;
