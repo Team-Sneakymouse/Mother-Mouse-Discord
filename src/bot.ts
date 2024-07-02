@@ -55,9 +55,6 @@ client.once("ready", () => {
 	console.log("Ready!", client.user?.tag);
 });
 
-// Simple, canned command responses from Twitch
-import TwitchCommands from "./TwitchCommands.js";
-
 // Assing default roles to new members
 import NewMemberRoles from "./NewMemberRoles.js";
 
@@ -90,9 +87,6 @@ import VoiceChannelVisibility from "./VoiceChannelVisibility.js";
 
 // Picture submission for the guess who game
 import GuessWho from "./GuessWho.js";
-
-// Execute Redis commands
-import RedisRelay from "./RedisRelay.js";
 
 // Too Slow meme in DMs
 import TooSlow from "./TooSlow.js";
@@ -198,7 +192,6 @@ if (process.env.PRODUCTION == "TRUE") {
 	client.setMaxListeners(31);
 	console.log("Registering production plugins");
 
-	TwitchCommands(client);
 	NewMemberRoles(client);
 	RawbColor(client);
 	Vibecheck(client);
@@ -210,17 +203,16 @@ if (process.env.PRODUCTION == "TRUE") {
 	MediaEmbed(client);
 	VoiceChannelVisibility(client);
 	GuessWho(client, redis);
-	RedisRelay(client, redis);
 	TooSlow(client, redis);
 	Stats(client, redis);
-	UserPins(client);
+	UserPins(client, pocketbase);
 	MemeResponsibly(client);
 	GitlabIssues(client, redis, server, gitlab);
 	UnarchiveThreads(client, pocketbase, gitlab);
 	SneakyrpApplications(client, redis, server);
 	OocTools(client);
-	SneakyrpPlayerlist(client, multicraft);
-	SneakyrpPlayercount(client, multicraft);
+	// SneakyrpPlayerlist(client, multicraft);
+	// SneakyrpPlayercount(client, multicraft);
 	RaidProtection(client, redis);
 	YouTube(client, ytdl);
 	RoleIconRandomization(client, redis);

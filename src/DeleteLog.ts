@@ -71,20 +71,8 @@ export default function MediaEmbeds(client: Client) {
 		if (!thread) return console.log("deletelog - unknown thread");
 
 		const username = member.user?.username ?? "Unknown User";
-		const joinMessage = `➕ **${username}** (${member.id}) has joined the server.`;
+		const joinMessage = `➕ **${username}** (<@${member.id}>, \`${member.id}\`) has joined the server.`;
 		thread.send(joinMessage);
-
-		const lomchannel = client.channels.cache.get("1178373136857710592") as TextChannel;
-		if (!lomchannel) return console.log("deletelog - unknown channel");
-		lomchannel.permissionOverwrites.create(member.id, {
-			ViewChannel: false,
-		});
-
-		const muteRole = member.guild.roles.cache.get("1251600130147356762")!;
-		const dvzRole = member.guild.roles.cache.get("1164552739422994553")!;
-
-		member.roles.add(muteRole);
-		member.roles.remove(dvzRole);
 	});
 
 	client.on("guildMemberRemove", async (member) => {
@@ -96,7 +84,7 @@ export default function MediaEmbeds(client: Client) {
 		if (!thread) return console.log("deletelog - unknown thread");
 
 		const username = member.user?.username ?? "Unknown User";
-		const leaveMessage = `❌ **${username}** (${member.id}) has left the server.`;
+		const leaveMessage = `❌ **${username}** (<@${member.id}>, \`${member.id}\`) has left the server.`;
 		thread.send(leaveMessage);
 	});
 }

@@ -36,7 +36,7 @@ export default function RawbColor(client: Client) {
 			await digitalBardRole.setColor(digitalBardRole.hexColor.toUpperCase() == "#0FB5E5" ? "#FF26A4" : "#0FB5E5");
 
 			if (changeBackTimeout) clearTimeout(changeBackTimeout);
-			changeBackTimeout = setTimeout(() => digitalBardRole.setColor("#0FB5E5"), 5000);
+			changeBackTimeout = setTimeout(() => digitalBardRole.setColor("#0FB5E5"), message.content.length * 100);
 		} else if (message.guildId === "971479608664924202") {
 			// ooc
 			if (!Object.keys(colors).includes(message.author.id)) return;

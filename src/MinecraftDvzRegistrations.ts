@@ -1,7 +1,6 @@
 import {
 	AttachmentBuilder,
 	Client,
-	GuildMember,
 	InteractionReplyOptions,
 	SlashCommandBuilder,
 	SlashCommandIntegerOption,

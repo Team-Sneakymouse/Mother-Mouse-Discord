@@ -1,12 +1,4 @@
-import {
-	ChannelType,
-	Client,
-	ComponentType,
-	PrivateThreadChannel,
-	StringSelectMenuBuilder,
-	StringSelectMenuOptionBuilder,
-	ThreadAutoArchiveDuration,
-} from "discord.js";
+import { ChannelType, Client, ComponentType, StringSelectMenuBuilder, TextBasedChannel, ThreadAutoArchiveDuration } from "discord.js";
 
 export const SelectMenu = new StringSelectMenuBuilder()
 	.setCustomId("modchat")
@@ -44,7 +36,7 @@ export default function ModChat(client: Client) {
 		await interaction.deferReply({ ephemeral: true });
 
 		if (!interaction.channel.permissionsFor(interaction.user)?.has("UseApplicationCommands")) {
-			await (client.channels.cache.get("1159792578619768882") as PrivateThreadChannel)?.send(
+			await (client.channels.cache.get("1159792578619768882") as TextBasedChannel)?.send(
 				`${interaction.user.username} (<@${interaction.user.id}>) tried to use the mod chat but doesn't have permissions.`
 			);
 			await new Promise((resolve) => setTimeout(resolve, 20000));
@@ -63,9 +55,8 @@ export default function ModChat(client: Client) {
 			invitable: false,
 			reason: "User requested mod chat",
 		});
-		const msg = await thread.send("<@&1253134360740102244>");
+		const msg = await thread.send(`<@&1253134360740102244> new mod chat for ${interaction.user.username}`);
 		await msg.delete();
-		// await thread.members.add(interaction.user.id);
 		await thread.send(
 			`Hi <@${interaction.user.id}>, thanks for reaching out! This is a private chat between you and the mods. Please tell us what's on your mind.`
 		);

@@ -74,7 +74,26 @@ export default function UnarchiveThreads(client: Client, db: PocketBase, gitlab:
 		// 	}
 		// }
 
-		if (!thread.locked && thread.autoArchiveDuration && thread.autoArchiveDuration > ThreadAutoArchiveDuration.OneHour) {
+		// Unlock public forums
+		const forums = [
+			"1249536990253154356", // wiki cooridnation
+			"1187395188293894154", // lom screenshots
+			"1178083753801830482", // lom discussion
+			"1254164634630361209", // build server
+			"1127728447360348311", // dvz screenshots
+			"1078757609621962782", // dvz discussion
+			"1153431952058241034", // games
+		];
+		if (thread.locked && thread.parentId && forums.includes(thread.parentId)) {
+			if (thread.autoArchiveDuration && thread.autoArchiveDuration <= ThreadAutoArchiveDuration.OneHour) return;
+			console.log(`unlocking thread ${thread.guild.name}/${thread.name}`);
+			thread.setLocked(false);
+			return;
+		}
+
+		// Prevent auto-archive
+		if (!thread.locked && thread.archived) {
+			if (thread.autoArchiveDuration && thread.autoArchiveDuration <= ThreadAutoArchiveDuration.OneHour) return;
 			const ids = await db
 				.collection("settings")
 				.getFirstListItem<RecordModel & { value: string[] }>('key="discord_threads_no_autoclose"');

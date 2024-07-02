@@ -1,4 +1,4 @@
-#! node_modules/.bin/ts-node-esm
+#! node_modules/.bin/tsx
 import { REST, Routes } from "discord.js";
 import { config } from "dotenv";
 config();

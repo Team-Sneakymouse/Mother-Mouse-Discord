@@ -21,9 +21,8 @@ export default function FillCache(client: Client) {
 
 			if (channel.isTextBased()) await cacheMessages(client, channel);
 			if (hasTheads(channel)) {
-				const archiveCuttoff = new Date(Date.now() - 1000 * 60 * 60 * 24 * 90); // 90 days
 				await (channel as TextChannel).threads.fetchActive();
-				await (channel as TextChannel).threads.fetchArchived({ before: archiveCuttoff });
+				await (channel as TextChannel).threads.fetchArchived();
 				for (const thread of channel.threads.cache.values()) await cacheMessages(client, thread);
 			}
 		}

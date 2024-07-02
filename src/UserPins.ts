@@ -1,4 +1,5 @@
 import { ApplicationCommandType, Client, Message, ContextMenuCommandBuilder } from "discord.js";
+import PocketBase, { RecordModel } from "pocketbase";
 
 export const data = [new ContextMenuCommandBuilder().setType(ApplicationCommandType.Message).setName("Pin Message")];
 
@@ -7,19 +8,8 @@ const allowedGuilds = [
 	"898925497508048896", // TTT
 ];
 
-const allowedChannels = [
-	// allowed in channel and all sub threads (forum posts)
-	"1249536990253154356", // Wiki Discussions
-	"1178083753801830482", // LoM Discussions
-	"1187395188293894154", // LoM Screenshots
-	"1078757609621962782", // DvZ Discussions
-	"1127728447360348311", // DvZ Screenshots
-	"893307440551067648", // Sneakymouse Recipes
-	"928544850691891221", // Wordle Bragging
-];
-
-export default function ThreadPins(client: Client) {
-	client.on("interactionCreate", (interaction) => {
+export default function ThreadPins(client: Client, db: PocketBase) {
+	client.on("interactionCreate", async (interaction) => {
 		if (!interaction.isMessageContextMenuCommand()) return;
 		if (interaction.commandName !== "Pin Message") return;
 
@@ -32,6 +22,9 @@ export default function ThreadPins(client: Client) {
 		}
 
 		let allowed = false;
+		const allowedChannels = await db
+			.collection("settings")
+			.getFirstListItem<RecordModel & { value: string[] }>('key="discord_channels_user_pins"');
 		if (allowedGuilds.includes(interaction.guildId)) allowed = true;
 		if (allowedChannels.includes(interaction.channelId)) allowed = true;
 		if (interaction.channel?.isThread() && allowedChannels.includes(interaction.channel.parentId || "")) allowed = true;

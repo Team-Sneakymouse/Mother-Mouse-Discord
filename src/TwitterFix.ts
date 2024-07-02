@@ -19,7 +19,7 @@ export default function ThreadPins(client: Client) {
 		}
 
 		await interaction.reply({
-			content: links.map((l) => l.replace(/(?:twitter.com|x.com)/, "vxtwitter.com")).join("\n"),
+			content: links.map((l) => l.replace(/(?:twitter.com|x.com)/, "fxtwitter.com")).join("\n"),
 			ephemeral: true,
 		});
 	});
