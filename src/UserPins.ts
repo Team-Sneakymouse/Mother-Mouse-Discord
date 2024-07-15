@@ -25,9 +25,16 @@ export default function ThreadPins(client: Client, db: PocketBase) {
 		const allowedChannels = await db
 			.collection("settings")
 			.getFirstListItem<RecordModel & { value: string[] }>('key="discord_channels_user_pins"');
+		if (!allowedChannels) {
+			interaction.reply({
+				content: "Failed looking up `discord_channels_user_pins`. Please tell Dani.",
+				ephemeral: true,
+			});
+			return;
+		}
 		if (allowedGuilds.includes(interaction.guildId)) allowed = true;
-		if (allowedChannels.includes(interaction.channelId)) allowed = true;
-		if (interaction.channel?.isThread() && allowedChannels.includes(interaction.channel.parentId || "")) allowed = true;
+		if (allowedChannels.value.includes(interaction.channelId)) allowed = true;
+		if (interaction.channel?.isThread() && allowedChannels.value.includes(interaction.channel.parentId || "")) allowed = true;
 
 		if (!allowed) {
 			interaction.reply({
