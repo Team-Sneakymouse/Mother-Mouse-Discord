@@ -36,7 +36,7 @@ const hardCodedThreads = [
 
 export default function UnarchiveThreads(client: Client, db: PocketBase, gitlab: InstanceType<typeof Gitlab>) {
 	client.on("threadUpdate", async (_, thread) => {
-		if (thread.archived === false) return;
+		if (thread.archived === false && thread.locked === false) return;
 
 		if (hardCodedThreads.includes(thread.id)) {
 			console.log(`unarchiving thread ${thread.guild.name}/${thread.name}`);
@@ -87,6 +87,7 @@ export default function UnarchiveThreads(client: Client, db: PocketBase, gitlab:
 		if (thread.locked && thread.parentId && forums.includes(thread.parentId)) {
 			if (thread.autoArchiveDuration && thread.autoArchiveDuration <= ThreadAutoArchiveDuration.OneHour) return;
 			console.log(`unlocking thread ${thread.guild.name}/${thread.name}`);
+			if (thread.archived) await thread.setArchived(false);
 			thread.setLocked(false);
 			return;
 		}
