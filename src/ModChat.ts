@@ -55,7 +55,9 @@ export default function ModChat(client: Client) {
 			invitable: false,
 			reason: "User requested mod chat",
 		});
-		const msg = await thread.send(`<@&1253134360740102244> new mod chat for ${interaction.user.username}`);
+		const tags = ["<@&1253134360740102244>"]; // Admins
+		if (option === "technical") tags.push("<@138345057072840704>"); // Dani
+		const msg = await thread.send(`${tags.join(",")} new mod chat for ${interaction.user.username}`);
 		await msg.delete();
 		await thread.send(
 			`Hi <@${interaction.user.id}>, thanks for reaching out! This is a private chat between you and the mods. Please tell us what's on your mind.`
