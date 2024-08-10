@@ -17,20 +17,20 @@ export default async function PostAnnouncements(client: Client, rss: Parser, db:
 	// https://github.com/zedeus/nitter/wiki/Instances
 	const nitterHost = "https://nitter.poast.org";
 	const feedUrl = `${nitterHost}/ms_dvil/rss`;
-	let lastTweetId: string | null = null;
-	let lastTweetRecord: (RecordModel & { value: [string] }) | null = null;
+	let lastTweetTimestamp: number | null = null;
+	let lastTweetRecord: (RecordModel & { value: number }) | null = null;
 	let feedChannel: TextChannel | null = null;
 
 	client.once("ready", async () => {
 		lastTweetRecord = await db
 			.collection("settings")
-			.getFirstListItem<RecordModel & { value: [string] }>('key="rss_msdvil_last_tweet"')
+			.getFirstListItem<RecordModel & { value: number }>('key="rss_msdvil_last_tweet_timestamp"')
 			.catch((e) => {
 				if (e.status === 404) return null;
 				throw e;
 			});
-		lastTweetId = lastTweetRecord?.value[0] ?? null;
-		console.log("Last tweet ID:", lastTweetId);
+		lastTweetTimestamp = lastTweetRecord?.value ?? null;
+		console.log("Last tweet date:", new Date(lastTweetTimestamp ?? 0).toISOString());
 
 		feedChannel = (client.channels.cache.get("1222124483700068362") as TextChannel) ?? null;
 		// feedChannel = (client.channels.cache.get("155020885521203200") as TextChannel) ?? null;
@@ -52,29 +52,31 @@ export default async function PostAnnouncements(client: Client, rss: Parser, db:
 			return null;
 		});
 		if (!feed) return;
-		if (!lastTweetId) {
+		if (!lastTweetTimestamp) {
 			console.log("No last tweet ID found, setting to latest tweet");
 			const url = new URL(feed.items[0].link);
-			lastTweetId = url.pathname.split("/").pop()!;
-			lastTweetRecord = await db.collection("settings").create({ key: "rss_msdvil_last_tweet", value: [lastTweetId] });
+			const lastTweetId = url.pathname.split("/").pop()!;
+			lastTweetTimestamp = Number(BigInt(lastTweetId) >> 22n) + 1288834974657;
+			lastTweetRecord = await db.collection("settings").create({ key: "rss_msdvil_last_tweet_timestamp", value: lastTweetTimestamp });
 		}
 
 		const unseenPosts: TwitterPost[] = [];
-		let tweetId = "";
-		let currentTweetId = lastTweetId;
+		let tweetTimestamp = 0;
+		let currentTweetTimestamp = lastTweetTimestamp;
 		for (let i = 0; i < feed.items.length; i++) {
 			const post = feed.items[i];
 			const url = new URL(post.link);
-			tweetId = url.pathname.split("/").pop()!;
-			if (i === 0) currentTweetId = tweetId;
-			if (tweetId === lastTweetId) break;
+			const tweetId = url.pathname.split("/").pop()!;
+			tweetTimestamp = Number(BigInt(tweetId) >> 22n) + 1288834974657;
+			if (i == 0) currentTweetTimestamp = tweetTimestamp;
+			if (tweetTimestamp <= lastTweetTimestamp) break;
 			unseenPosts.push(post);
 		}
 		if (unseenPosts.length === 0) return;
 		console.log(`Found ${unseenPosts.length}/${feed.items.length} new tweets`);
-		await db.collection("settings").update(lastTweetRecord!.id, { value: [currentTweetId] });
-		lastTweetId = currentTweetId;
-		console.log("Updated last tweet ID to", currentTweetId);
+		await db.collection("settings").update(lastTweetRecord!.id, { value: currentTweetTimestamp });
+		lastTweetTimestamp = currentTweetTimestamp;
+		console.log("Updated last tweet ID to", currentTweetTimestamp);
 
 		for (const post of unseenPosts) {
 			const isReply = post.title.startsWith(`R to @${feed.title?.split(" / ")[1]}: `);
