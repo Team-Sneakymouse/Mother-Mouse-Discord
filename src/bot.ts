@@ -188,6 +188,9 @@ import EditBotMessages from "./EditBotMessages.js";
 // FillCache
 import FillCache from "./FillCache.js";
 
+// Blockbench downloader
+import BlockbenchDownloader from "./BlockbenchDownloader.js";
+
 if (process.env.PRODUCTION == "TRUE") {
 	client.setMaxListeners(31);
 	console.log("Registering production plugins");
@@ -238,6 +241,7 @@ if (process.env.PRODUCTION == "TRUE") {
 	ModChat(client);
 	EditBotMessages(client);
 	FillCache(client);
+	BlockbenchDownloader(client);
 } else {
 	console.log("Registering development plugins");
 }
