@@ -30,7 +30,7 @@ export default async function PostAnnouncements(client: Client, rss: Parser, db:
 				throw e;
 			});
 		lastTweetTimestamp = lastTweetRecord?.value ?? null;
-		console.log("Last tweet date:", new Date(lastTweetTimestamp ?? 0).toISOString());
+		console.log("Last tweet date:", lastTweetTimestamp);
 
 		feedChannel = (client.channels.cache.get("1222124483700068362") as TextChannel) ?? null;
 		// feedChannel = (client.channels.cache.get("155020885521203200") as TextChannel) ?? null;

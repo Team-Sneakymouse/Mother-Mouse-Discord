@@ -236,7 +236,7 @@ if (process.env.PRODUCTION == "TRUE") {
 	MinecraftWhitelist(client, multicraft);
 	LinkedRole(client, server, pocketbase);
 	TextCommands(client, pocketbase);
-	PostAnnouncements(client, rss, pocketbase);
+	// PostAnnouncements(client, rss, pocketbase);
 	DeleteLog(client);
 	ModChat(client);
 	EditBotMessages(client);
