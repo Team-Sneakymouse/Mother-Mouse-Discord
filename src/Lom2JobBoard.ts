@@ -69,8 +69,11 @@ export default function Lom2JobBoard(client: Client, pocketBase: PocketBase) {
 			var url = "";
 			if (match) {
 				const [, world, x, y, z] = match;
+				// Determine the map name based on the Y value
+				const mapName = parseFloat(y) < 215 ? "surface2" : "surface";
+
 				// Construct the URL
-				url = `https://lords.rawb.tv/map/#?worldname=${world}&mapname=surface&zoom=4&x=${Math.round(parseFloat(x))}&y=${Math.round(
+				url = `https://lords.rawb.tv/map/#?worldname=${world}&mapname=${mapName}&zoom=4&x=${Math.round(parseFloat(x))}&y=${Math.round(
 					parseFloat(y)
 				)}&z=${Math.round(parseFloat(z))}`;
 			}
