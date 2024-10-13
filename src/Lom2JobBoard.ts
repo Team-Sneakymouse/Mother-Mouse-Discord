@@ -19,6 +19,7 @@ type JobData = {
 	discordEmbedIcon: string;
 	discordMessageId: string;
 	endTime: number;
+	endReason: string;
 };
 
 function decodeBase64Image(base64String: string, fileName: string) {
@@ -114,6 +115,7 @@ export default function Lom2JobBoard(client: Client, pocketBase: PocketBase) {
 			discordEmbedIcon,
 			discordMessageId,
 			endTime,
+			endReason
 		} = record as unknown as JobData;
 
 		if (!discordMessageId || endTime <= 0) return;
@@ -126,23 +128,31 @@ export default function Lom2JobBoard(client: Client, pocketBase: PocketBase) {
 		}
 
 		const textChannel = jobChannel as TextChannel;
-		textChannel.messages
-			.fetch(discordMessageId)
-			.then((message) => {
-				const oldEmbed = message.embeds[0];
-				if (!oldEmbed) return;
+		if (endReason == "unlisted") {
+			textChannel.messages
+				.fetch(discordMessageId)
+				.then((message) => {
+					message.delete()
+				});
+		} else {
+			textChannel.messages
+				.fetch(discordMessageId)
+				.then((message) => {
+					const oldEmbed = message.embeds[0];
+					if (!oldEmbed) return;
 
-				const embedBuilder = new EmbedBuilder()
-					.setTitle(oldEmbed.title)
-					.addFields({ name: posterDisplayString, value: description })
-					.setColor(0x808080)
-					.setTimestamp(startTime)
-					.setThumbnail("attachment://posterIcon.png")
-					.setAuthor({ iconURL: discordEmbedIcon, name: `${category} (Expired)` })
-					.setFooter({ text: locationDisplayString });
+					const embedBuilder = new EmbedBuilder()
+						.setTitle(oldEmbed.title)
+						.addFields({ name: posterDisplayString, value: description })
+						.setColor(0x808080)
+						.setTimestamp(startTime)
+						.setThumbnail("attachment://posterIcon.png")
+						.setAuthor({ iconURL: discordEmbedIcon, name: `${category} (Expired)` })
+						.setFooter({ text: locationDisplayString });
 
-				message.edit({ embeds: [embedBuilder] }).catch((error) => console.error("Error editing message:", error));
-			})
-			.catch((error) => console.error("Error fetching message:", error));
+					message.edit({ embeds: [embedBuilder] }).catch((error) => console.error("Error editing message:", error));
+				})
+				.catch((error) => console.error("Error fetching message:", error));
+		}
 	}
 }
