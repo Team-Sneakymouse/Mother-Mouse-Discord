@@ -128,7 +128,7 @@ export default function Lom2JobBoard(client: Client, pocketBase: PocketBase) {
 		}
 
 		const textChannel = jobChannel as TextChannel;
-		if (endReason == "unlisted") {
+		if (endReason == "deleted") {
 			textChannel.messages
 				.fetch(discordMessageId)
 				.then((message) => {
