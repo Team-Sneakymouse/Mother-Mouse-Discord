@@ -5,6 +5,8 @@ import { Client, GatewayIntentBits, Partials } from "discord.js";
 import { Gitlab } from "@gitbeaker/node";
 import RssParser from "rss-parser";
 import { config } from "dotenv";
+import { createLogger, transports } from "winston";
+import LokiTransport from "winston-loki";
 config();
 import { Tick } from "./utils/unixtime.js";
 import MulticraftAPI from "./utils/multicraft.js";
@@ -34,6 +36,21 @@ if (!process.env["POCKETBASE_HOST"] || !process.env["POCKETBASE_USERNAME"] || !p
 const pocketbase = new PocketBase(process.env["POCKETBASE_HOST"]);
 pocketbase.admins.authWithPassword(process.env["POCKETBASE_USERNAME"], process.env["POCKETBASE_PASSWORD"]);
 pocketbase.autoCancellation(false);
+
+if (!process.env["LOKI_HOST"] || !process.env["LOKI_USER"] || !process.env["LOKI_PASSWORD"]) throw new Error("Missing Loki credentials");
+const vcLogger = createLogger({
+	defaultMeta: { service_name: "mothermouse", type: "vc-connections" },
+	transports: [
+		new LokiTransport({
+			host: process.env["LOKI_HOST"],
+			basicAuth: `${process.env["LOKI_USER"]}:${process.env["LOKI_PASSWORD"]}`,
+			batching: false,
+			useWinstonMetaAsLabels: true,
+			ignoredMeta: ["level", "detected_level"],
+			onConnectionError: (err) => console.error(err),
+		}),
+	],
+});
 
 const client = new Client({
 	intents: [
@@ -184,12 +201,14 @@ import ModChat from "./ModChat.js";
 // EditBotMessages
 import EditBotMessages from "./EditBotMessages.js";
 
-
 // FillCache
 import FillCache from "./FillCache.js";
 
 // Blockbench downloader
 import BlockbenchDownloader from "./BlockbenchDownloader.js";
+
+// VC Monitor
+import VCMonitor from "./VCMonitor.js";
 
 if (process.env.PRODUCTION == "TRUE") {
 	client.setMaxListeners(31);
@@ -242,6 +261,7 @@ if (process.env.PRODUCTION == "TRUE") {
 	EditBotMessages(client);
 	FillCache(client);
 	BlockbenchDownloader(client);
+	VCMonitor(client, vcLogger);
 } else {
 	console.log("Registering development plugins");
 }
