@@ -210,6 +210,9 @@ import BlockbenchDownloader from "./BlockbenchDownloader.js";
 // VC Monitor
 import VCMonitor from "./VCMonitor.js";
 
+// MinecraftLink
+import MinecraftLink from "./MinecraftLink.js";
+
 if (process.env.PRODUCTION == "TRUE") {
 	client.setMaxListeners(31);
 	console.log("Registering production plugins");
@@ -262,6 +265,7 @@ if (process.env.PRODUCTION == "TRUE") {
 	FillCache(client);
 	BlockbenchDownloader(client);
 	VCMonitor(client, vcLogger);
+	MinecraftLink(client, pocketbase);
 } else {
 	console.log("Registering development plugins");
 }
