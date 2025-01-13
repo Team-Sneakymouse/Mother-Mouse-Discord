@@ -21,7 +21,7 @@
 		"ioredis": "^4.28.5",
 		"mathjs": "^11.5.0",
 		"mime-types": "^2.1.35",
-		"pocketbase": "^0.21.2",
+		"pocketbase": "^0.25.0",
 		"rss-parser": "^3.13.0",
 		"winston": "^3.17.0",
 		"winston-loki": "^6.1.3"

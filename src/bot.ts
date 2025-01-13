@@ -34,7 +34,7 @@ const redis = new Redis({
 if (!process.env["POCKETBASE_HOST"] || !process.env["POCKETBASE_USERNAME"] || !process.env["POCKETBASE_PASSWORD"])
 	throw new Error("Missing PocketBase credentials");
 const pocketbase = new PocketBase(process.env["POCKETBASE_HOST"]);
-pocketbase.admins.authWithPassword(process.env["POCKETBASE_USERNAME"], process.env["POCKETBASE_PASSWORD"]);
+pocketbase.collection("_superusers").authWithPassword(process.env["POCKETBASE_USERNAME"], process.env["POCKETBASE_PASSWORD"]);
 pocketbase.autoCancellation(false);
 
 if (!process.env["LOKI_HOST"] || !process.env["LOKI_USER"] || !process.env["LOKI_PASSWORD"]) throw new Error("Missing Loki credentials");
