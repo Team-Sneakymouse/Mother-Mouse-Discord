@@ -19,7 +19,7 @@ export default function Starboard(client: Client) {
 		for (const r of reaction.message.reactions.cache.values()) {
 			if (!isStar(r.emoji)) continue;
 			if (r.users.cache.has(reaction.client.user.id)) return; // Already starred this message
-			if (validEmojis.includes(r.emoji.identifier)) count += r.count;
+			count += r.count;
 		}
 		if (count < 5) return; // Not enough stars
 		await reaction.message.react("1102685154272628736");
