@@ -213,6 +213,9 @@ import VCMonitor from "./VCMonitor.js";
 // MinecraftLink
 import MinecraftLink from "./MinecraftLink.js";
 
+// TimeToLive
+import TimeToLive from "./TimeToLive.js";
+
 if (process.env.PRODUCTION == "TRUE") {
 	client.setMaxListeners(31);
 	console.log("Registering production plugins");
@@ -258,7 +261,7 @@ if (process.env.PRODUCTION == "TRUE") {
 	MinecraftWhitelist(client, multicraft);
 	LinkedRole(client, server, pocketbase);
 	TextCommands(client, pocketbase);
-	// PostAnnouncements(client, rss, pocketbase);
+	// PostAnnouncements(client, server, pocketbase);
 	DeleteLog(client);
 	ModChat(client);
 	EditBotMessages(client);
@@ -266,6 +269,7 @@ if (process.env.PRODUCTION == "TRUE") {
 	BlockbenchDownloader(client);
 	VCMonitor(client, vcLogger);
 	MinecraftLink(client, pocketbase);
+	TimeToLive(client);
 } else {
 	console.log("Registering development plugins");
 }
