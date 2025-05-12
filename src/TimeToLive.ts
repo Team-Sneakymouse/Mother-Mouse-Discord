@@ -2,8 +2,18 @@ import { CronJob } from "cron";
 import { Client, Collection, Message } from "discord.js";
 
 export default function TimeToLive(client: Client) {
-	const cronJob = new CronJob("0 */15 * * * *", cleanup);
 	let running = false;
+	const cronJob = new CronJob("0 */15 * * * *", async () => {
+		if (running) return;
+		running = true;
+		try {
+			await cleanup();
+		} catch (err) {
+			console.error("Failed to delete messages", err);
+		} finally {
+			running = false;
+		}
+	});
 	client.on("ready", () => {
 		cronJob.start();
 		console.log("TimeToLive job started");
@@ -11,8 +21,6 @@ export default function TimeToLive(client: Client) {
 
 	// delete messages older than 24 hours
 	async function cleanup() {
-		if (running) return;
-		running = true;
 		const channel = await client.channels.fetch("800844976526590053");
 		if (!channel || !channel.isTextBased() || channel.isDMBased()) return console.error("Channel not found or not a text channel");
 		const toDelete = new Set<Message>();
@@ -73,6 +81,5 @@ export default function TimeToLive(client: Client) {
 		} else {
 			console.log("No messages deleted");
 		}
-		running = false;
 	}
 }
