@@ -4,6 +4,7 @@ import { Redis } from "ioredis";
 export default function MediaEmbeds(client: Client, redis: Redis) {
 	client.on("typingStart", async (typing) => {
 		if (typing.inGuild()) return;
+		if (!typing.channel.isSendable()) return;
 		if (await redis.get(`mm-discord-tooslow:${typing.user.id}`)) return;
 
 		await Promise.all([

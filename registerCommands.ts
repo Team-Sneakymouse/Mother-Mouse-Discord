@@ -20,7 +20,6 @@ import { data as Roll } from "./src/Roll.js";
 import { data as PalsRoles } from "./src/PalsRoles.js";
 import { data as PronounRoles } from "./src/PronounRoles.js";
 //import { data as Todo } from "./src/Todo.js";
-//import { data as MoneyMilestone } from "./src/MoneyMilestone.js";
 import { data as Trivia } from "./src/Trivia.js";
 import { data as UserPins } from "./src/UserPins.js";
 import { data as GitlabIssues } from "./src/GitlabIssues/index.js";

@@ -93,9 +93,6 @@ import PalsRoles from "./PalsRoles.js";
 // Self-assignable pronoun roles
 import PronounRoles from "./PronounRoles.js";
 
-// Manage crossing out milestone messages for money stream
-// import MoneyMilestone from "./MoneyMilestone.js";
-
 // Manage trivia answers
 import Trivia from "./Trivia.js";
 
@@ -226,7 +223,6 @@ if (process.env.PRODUCTION == "TRUE") {
 	Roll(client);
 	PalsRoles(client, redis);
 	PronounRoles(client, redis);
-	// MoneyMilestone(client);
 	Trivia(client, redis);
 	MediaEmbed(client);
 	VoiceChannelVisibility(client);

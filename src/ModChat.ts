@@ -1,4 +1,4 @@
-import { ChannelType, Client, ComponentType, StringSelectMenuBuilder, TextBasedChannel, ThreadAutoArchiveDuration } from "discord.js";
+import { ChannelType, Client, ComponentType, GuildTextBasedChannel, StringSelectMenuBuilder, ThreadAutoArchiveDuration } from "discord.js";
 
 export const SelectMenu = new StringSelectMenuBuilder()
 	.setCustomId("modchat")
@@ -36,7 +36,7 @@ export default function ModChat(client: Client) {
 		await interaction.deferReply({ ephemeral: true });
 
 		if (!interaction.channel.permissionsFor(interaction.user)?.has("UseApplicationCommands")) {
-			await (client.channels.cache.get("1159792578619768882") as TextBasedChannel)?.send(
+			await (client.channels.cache.get("1159792578619768882") as GuildTextBasedChannel)?.send(
 				`${interaction.user.username} (<@${interaction.user.id}>) tried to use the mod chat but doesn't have permissions.`
 			);
 			await new Promise((resolve) => setTimeout(resolve, 20000));

@@ -37,7 +37,7 @@ const REPLIES = {
 				color: 0xa01a04,
 			},
 		],
-		...raw,
+		...(raw as any),
 	}),
 	info: (message: string, raw: Partial<InteractionReplyOptions> = {}) => ({
 		content: "",
@@ -48,7 +48,7 @@ const REPLIES = {
 				color: 0x247db9,
 			},
 		],
-		...raw,
+		...(raw as any),
 	}),
 	registered: (username: string, uuid: string) => {
 		const attachment = new AttachmentBuilder(`https://crafatar.com/renders/body/${uuid}?overlay`, {
