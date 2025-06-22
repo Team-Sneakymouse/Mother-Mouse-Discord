@@ -34,9 +34,10 @@ import { metadata as RoleConnectionMetadata } from "./src/LinkedRole.js";
 import { data as YouTube } from "./src/YouTube.js";
 import { data as EditBotMessages } from "./src/EditBotMessages.js";
 import { data as MinecraftLink } from "./src/MinecraftLink.js";
+import { data as ClearChannelVoting } from "./src/ChannelClearVoting.js";
 
 const commands = {
-	global: [...Vibecheck, ...Roll, ...TwitterFix, ...Uuid, ...EditBotMessages],
+	global: [...Vibecheck, ...Roll, ...TwitterFix, ...Uuid, ...EditBotMessages, ...ClearChannelVoting],
 	[GuildIds.TEST]: [],
 	[GuildIds.RAWBTV]: [...PalsRoles, ...PronounRoles, ...Trivia, ...UserPins, ...MinecraftDvzRegistrations, ...Faq, ...MinecraftLink],
 	[GuildIds.TILII]: [...GitlabIssues],

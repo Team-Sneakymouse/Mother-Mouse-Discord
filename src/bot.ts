@@ -213,6 +213,9 @@ import MinecraftLink from "./MinecraftLink.js";
 // TimeToLive
 import TimeToLive from "./TimeToLive.js";
 
+// Clear Channel Voting
+import ChannelClearVoting from "./ChannelClearVoting.js";
+
 if (process.env.PRODUCTION == "TRUE") {
 	client.setMaxListeners(31);
 	console.log("Registering production plugins");
@@ -266,6 +269,7 @@ if (process.env.PRODUCTION == "TRUE") {
 	VCMonitor(client, vcLogger);
 	MinecraftLink(client, pocketbase);
 	TimeToLive(client);
+	ChannelClearVoting(client, pocketbase);
 } else {
 	console.log("Registering development plugins");
 }
