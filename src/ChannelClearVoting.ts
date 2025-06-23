@@ -8,6 +8,7 @@ import {
 	ChannelType,
 	Client,
 	ContainerBuilder,
+	DiscordAPIError,
 	Guild,
 	GuildTextBasedChannel,
 	MessageActionRowComponentBuilder,
@@ -36,12 +37,14 @@ const DAY = 24 * HOUR;
 
 export default function ChannelClearVoting(client: Client, pb: PocketBase) {
 	let running = false;
-	const cronJob = new CronJob("0 */2 * * * *", async () => {
+	const cronJob = new CronJob("0 * * * * *", async () => {
 		if (running) return;
 		running = true;
 		try {
+			const now = new Date().getTime() + MINUTE / 2;
+			const formattedNow = new Date(now).toISOString().replace("T", " ");
 			const targetRecords = await pb.collection("mmd_channel_clear_voting").getFullList<ChannelClearVotingRecord>(200, {
-				filter: `next_run != "" && next_run <= "${new Date().toISOString()}" && enabled = true`,
+				filter: `next_run != "" && next_run <= "${formattedNow}" && enabled = true`,
 			});
 			if (targetRecords.length === 0) {
 				console.log("No channel clear voting records to process");
@@ -49,6 +52,7 @@ export default function ChannelClearVoting(client: Client, pb: PocketBase) {
 			}
 			console.log(`Processing ${targetRecords.length} channel clear voting records`);
 			for (let record of targetRecords) {
+				console.log(`Processing record ${record.id}`);
 				await workRecord(record);
 			}
 		} catch (err) {
@@ -60,7 +64,11 @@ export default function ChannelClearVoting(client: Client, pb: PocketBase) {
 
 	async function workRecord(record: ChannelClearVotingRecord) {
 		if (!configurationIsValid(record)) {
-			console.log(`Skipping channel ${record.id} in server ${record.server_id} due to invalid configuration`);
+			console.log(`Configuration of record ${record.id} is invalid`);
+			record.enabled = false; // Disable the voting configuration
+			record.votes = null; // Reset votes
+			record.next_run = null; // Clear next_run
+			record = await pbUpsert<ChannelClearVotingRecord>(pb, "mmd_channel_clear_voting", record);
 			return;
 		}
 		const channel = client.channels.cache.get(record.id) as TextChannel | undefined;
@@ -84,19 +92,12 @@ export default function ChannelClearVoting(client: Client, pb: PocketBase) {
 			console.log(`Starting voting for channel ${record.id} in server ${record.server_id}`);
 			record.votes = {};
 			record = await scheduleNext(record);
-
-			console.log(record);
-
-			const voteEnd = new Date(record.next_run ?? "");
-			const voteRetry = new Date(voteEnd.getTime() + (record.retry_delay > 0 ? record.retry_delay : record.schedule));
-			channel.send({
-				content: `**It'll be time to clear this channel in ${millisToString(
-					record.duration
-				)}.**\nYou may vote to postpone this until <t:${Math.floor(
-					voteRetry.getTime() / 1000
-				)}:R> if this is a problem.\n-# The channel will be cleared unless there are ${record.vote_target}% ${
-					record.vote_target < 100 ? "or more" : ""
-				} "Postpone" votes.`,
+			await channel.send({
+				content: `**It'll be time to clear this channel <t:${Math.floor(
+					new Date(record.next_run ?? "").getTime() / 1000
+				)}:R>.**\nYou may vote to postpone the vote if this is a problem.\n-# The channel will be cleared unless there are ${
+					record.vote_target
+				}% ${record.vote_target < 100 ? "or more" : ""} "Postpone" votes.`,
 				components: [
 					new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
 						new ButtonBuilder().setLabel("Clear it!").setCustomId(`ccv_vote_clear:${record.id}`).setStyle(ButtonStyle.Primary),
@@ -114,6 +115,12 @@ export default function ChannelClearVoting(client: Client, pb: PocketBase) {
 				console.log(`Channel ${record.id} not found in server ${record.server_id}`);
 				return;
 			}
+			const messages = await channel.messages.fetch({ limit: 100 });
+			const voteMessage = messages.find(
+				(m) =>
+					m.author.id === client.user?.id &&
+					m.components.some((c) => findKeyValue(c, "custom_id", `ccv_vote_postpone:${record.id}`))
+			);
 
 			let totalVotes = Object.keys(record.votes).length;
 			let totalPostponeVotes = Object.values(record.votes).filter((vote) => vote).length;
@@ -124,11 +131,11 @@ export default function ChannelClearVoting(client: Client, pb: PocketBase) {
 				record = await scheduleNext(record, record.retry_delay);
 
 				console.log(`Postponing channel clearing for ${record.id} in server ${record.server_id}`);
-				await channel.send({
-					content: `The vote to clear this channel has been postponed until <t:${Math.floor(
-						new Date(record.next_run ?? "").getTime() / 1000
-					)}:R>.`,
-				});
+				const content = `The vote to clear this channel has been postponed until <t:${Math.floor(
+					new Date(record.next_run ?? "").getTime() / 1000
+				)}:f>.`;
+				if (voteMessage) await voteMessage.edit({ content, components: [] });
+				else await channel.send({ content, components: [] });
 				return;
 			}
 
@@ -184,6 +191,11 @@ export default function ChannelClearVoting(client: Client, pb: PocketBase) {
 				try {
 					await message.delete();
 				} catch (error) {
+					if (error instanceof DiscordAPIError && error.code === 10008) {
+						// Message not found, likely already deleted
+						console.warn(`Message ${message.id} not found in channel ${channel.id}, skipping deletion.`);
+						continue;
+					}
 					console.error(`Failed to delete message ${message.id} in channel ${channel.id}:`, error);
 				}
 			}
@@ -197,17 +209,24 @@ export default function ChannelClearVoting(client: Client, pb: PocketBase) {
 		}
 
 		const delay =
-			retryDelay ?? record.votes == null
+			retryDelay ??
+			(record.votes == null
 				? record.schedule // Next run is for the vote start
-				: record.duration; // Next run is for the vote end
+				: record.duration); // Next run is for the vote end
 
-		const nextRun = new Date();
-		nextRun.setSeconds(0);
-		nextRun.setMilliseconds(0);
-		nextRun.setTime(nextRun.getTime() + delay);
+		const now = new Date();
+		now.setSeconds(0);
+		now.setMilliseconds(0);
+		const nextRun = new Date(now.getTime() + delay);
 		record.next_run = nextRun.toISOString();
 		record = await pbUpsert<ChannelClearVotingRecord>(pb, "mmd_channel_clear_voting", record);
 		console.log(`Scheduled next vote start for channel ${record.id} in server ${record.server_id} at ${nextRun.toISOString()}`);
+		console.log(`Current time: ${new Date().toISOString()}`);
+		console.log(
+			`now: ${now.toISOString()}, nextRun: ${nextRun.toISOString()}, delay: ${delay}ms, retryDelay: ${retryDelay}ms, schedule: ${
+				record.schedule
+			}ms, duration: ${record.duration}ms`
+		);
 		return record;
 	}
 
@@ -696,18 +715,10 @@ function configurationIsValid(record: ChannelClearVotingRecord) {
 	return record.schedule > 0 && record.duration > 0 && record.vote_target > 0 && record.vote_target <= 100 && record.retry_delay >= 0;
 }
 
-function millisToString(milliseconds: number) {
-	const seconds = Math.floor(milliseconds / 1000);
-	const minutes = Math.floor(seconds / 60);
-	const hours = Math.floor(minutes / 60);
-	const days = Math.floor(hours / 24);
-
-	let result = [];
-	if (days > 0) result.push(`${days} day${days > 1 ? "s" : ""}`);
-	if (hours % 24 > 0) result.push(`${hours % 24} hour${hours % 24 > 1 ? "s" : ""}`);
-	if (minutes % 60 > 0) result.push(`${minutes % 60} minute${minutes % 60 > 1 ? "s" : ""}`);
-	if (seconds % 60 > 0 || result.length === 0) result.push(`${seconds % 60} second${seconds % 60 > 1 ? "s" : ""}`);
-	return result.join(", ");
+function findKeyValue(obj: any, key: string | number, value: any): boolean {
+	if (typeof obj !== "object" || obj === null) return false;
+	if (obj[key] === value) return true;
+	return Object.values(obj).some((v) => findKeyValue(v, key, value));
 }
 
 async function pbUpsert<T>(pb: PocketBase, collection: string, record: { id: string } & Record<string, any>) {

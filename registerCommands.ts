@@ -11,6 +11,7 @@ enum GuildIds {
 	OOC = "971479608664924202",
 	TURTLES = "898925497508048896",
 	MSD = "787222656926744586",
+	OLIVIA = "1101882417431728129",
 }
 
 import { data as Vibecheck } from "./src/Vibecheck.js";
@@ -34,11 +35,12 @@ import { metadata as RoleConnectionMetadata } from "./src/LinkedRole.js";
 import { data as YouTube } from "./src/YouTube.js";
 import { data as EditBotMessages } from "./src/EditBotMessages.js";
 import { data as MinecraftLink } from "./src/MinecraftLink.js";
-import { data as ClearChannelVoting } from "./src/ChannelClearVoting.js";
+import { data as ChannelClearVoting } from "./src/ChannelClearVoting.js";
 
 const commands = {
-	global: [...Vibecheck, ...Roll, ...TwitterFix, ...Uuid, ...EditBotMessages, ...ClearChannelVoting],
-	[GuildIds.TEST]: [],
+	global: [...Vibecheck, ...Roll, ...TwitterFix, ...Uuid, ...EditBotMessages],
+	[GuildIds.OLIVIA]: [...Vibecheck, ...ChannelClearVoting],
+	[GuildIds.TEST]: [...Vibecheck, ...ChannelClearVoting],
 	[GuildIds.RAWBTV]: [...PalsRoles, ...PronounRoles, ...Trivia, ...UserPins, ...MinecraftDvzRegistrations, ...Faq, ...MinecraftLink],
 	[GuildIds.TILII]: [...GitlabIssues],
 	[GuildIds.SNEAKYRP]: [...SneakyrpPlayerlist],
