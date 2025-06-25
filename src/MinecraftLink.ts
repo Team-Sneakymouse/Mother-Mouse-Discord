@@ -85,36 +85,6 @@ export default function DvzRegistrations(client: Client, db: PocketBase, server:
 			await linkMinecraft(interaction, token);
 			return;
 		}
-
-		if (interaction.isChatInputCommand() && interaction.commandName === "accounts") {
-			// Fetch user's accounts
-			const linkRecords = await db
-				.collection("lom2_accounts")
-				.getFullList<AccountRecord>({ filter: `owner.discord_id = "${interaction.user.id}"` })
-				.catch(() => null);
-			if (!linkRecords) {
-				await interaction.reply({
-					content: "Failed to check link records. Please tell Dani.",
-					ephemeral: true,
-				});
-				return;
-			}
-
-			if (linkRecords.length === 0) {
-				await interaction.reply({
-					content: "You don't have any linked accounts. Use </link:1322849683239866378> to get started.",
-					ephemeral: true,
-				});
-				return;
-			}
-
-			await interaction.reply({
-				content: `Your linked accounts:\n${linkRecords
-					.map((record) => `• ${record.name}${record.main ? " (main)" : ""}`)
-					.join("\n")}`,
-				ephemeral: true,
-			});
-		}
 	});
 
 	async function linkMinecraft(interaction: ChatInputCommandInteraction, token: string | null) {

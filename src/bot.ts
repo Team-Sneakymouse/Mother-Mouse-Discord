@@ -216,6 +216,9 @@ import TimeToLive from "./TimeToLive.js";
 // Clear Channel Voting
 import ChannelClearVoting from "./ChannelClearVoting.js";
 
+// Account Management
+import AccountManagement from "./AccountManagement/index.js";
+
 if (process.env.PRODUCTION == "TRUE") {
 	client.setMaxListeners(31);
 	console.log("Registering production plugins");
@@ -270,6 +273,7 @@ if (process.env.PRODUCTION == "TRUE") {
 	MinecraftLink(client, pocketbase, server);
 	TimeToLive(client);
 	ChannelClearVoting(client, pocketbase);
+	AccountManagement(client, pocketbase, server);
 } else {
 	console.log("Registering development plugins");
 }
