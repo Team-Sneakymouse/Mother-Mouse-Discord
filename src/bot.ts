@@ -267,7 +267,7 @@ if (process.env.PRODUCTION == "TRUE") {
 	FillCache(client);
 	BlockbenchDownloader(client);
 	VCMonitor(client, vcLogger);
-	MinecraftLink(client, pocketbase);
+	MinecraftLink(client, pocketbase, server);
 	TimeToLive(client);
 	ChannelClearVoting(client, pocketbase);
 } else {

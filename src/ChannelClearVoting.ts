@@ -46,10 +46,7 @@ export default function ChannelClearVoting(client: Client, pb: PocketBase) {
 			const targetRecords = await pb.collection("mmd_channel_clear_voting").getFullList<ChannelClearVotingRecord>(200, {
 				filter: `next_run != "" && next_run <= "${formattedNow}" && enabled = true`,
 			});
-			if (targetRecords.length === 0) {
-				console.log("No channel clear voting records to process");
-				return;
-			}
+			if (targetRecords.length === 0) return;
 			console.log(`Processing ${targetRecords.length} channel clear voting records`);
 			for (let record of targetRecords) {
 				console.log(`Processing record ${record.id}`);
@@ -214,7 +211,7 @@ export default function ChannelClearVoting(client: Client, pb: PocketBase) {
 				? record.schedule // Next run is for the vote start
 				: record.duration); // Next run is for the vote end
 
-		const now = new Date();
+		const now = new Date(new Date().getTime() + 500);
 		now.setSeconds(0);
 		now.setMilliseconds(0);
 		const nextRun = new Date(now.getTime() + delay);
@@ -431,7 +428,7 @@ export default function ChannelClearVoting(client: Client, pb: PocketBase) {
 			await interaction.update({
 				components: buildInterface(interaction.guild, channelRecords, channelId),
 			});
-		} else {
+		} else if ("customId" in interaction && interaction.customId.startsWith("ccv_")) {
 			console.error("Unknown interaction", interaction);
 		}
 	});
