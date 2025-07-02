@@ -8,8 +8,8 @@ const JOIN_LEAVE_THREAD_ID = "1252000364971163801";
 export default function MediaEmbeds(client: Client) {
 	client.on("messageUpdate", async (oldMessage, newMessage) => {
 		if (oldMessage.guildId !== RAWBTV_SERVER_ID) return;
-		if (oldMessage.content === newMessage.content) return console.log("same content", newMessage.url);
 		if (oldMessage.author?.bot) return;
+		if (oldMessage.content === newMessage.content) return console.log("same content", newMessage.url);
 
 		const channel = client.channels.cache.get(MOD_CHANNEL_ID) as TextChannel;
 		if (!channel) return console.log("deletelog - unknown channel");

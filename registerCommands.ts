@@ -34,14 +34,14 @@ import { data as MinecraftWhitelist } from "./src/MinecraftWhitelist.js";
 import { metadata as RoleConnectionMetadata } from "./src/LinkedRole.js";
 import { data as YouTube } from "./src/YouTube.js";
 import { data as EditBotMessages } from "./src/EditBotMessages.js";
-import { data as MinecraftLink } from "./src/MinecraftLink.js";
 import { data as ChannelClearVoting } from "./src/ChannelClearVoting.js";
+import { data as AccountManagement } from "./src/AccountManagement/index.js";
 
 const commands = {
 	global: [...Vibecheck, ...Roll, ...TwitterFix, ...Uuid, ...EditBotMessages],
 	[GuildIds.OLIVIA]: [...Vibecheck, ...ChannelClearVoting],
 	[GuildIds.TEST]: [...Vibecheck, ...ChannelClearVoting],
-	[GuildIds.RAWBTV]: [...PalsRoles, ...PronounRoles, ...Trivia, ...UserPins, ...MinecraftDvzRegistrations, ...Faq, ...MinecraftLink],
+	[GuildIds.RAWBTV]: [...PalsRoles, ...PronounRoles, ...Trivia, ...UserPins, ...MinecraftDvzRegistrations, ...Faq, ...AccountManagement],
 	[GuildIds.TILII]: [...GitlabIssues],
 	[GuildIds.SNEAKYRP]: [...SneakyrpPlayerlist],
 	[GuildIds.OOC]: [...OocTools, ...YouTube],

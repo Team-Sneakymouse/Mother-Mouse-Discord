@@ -207,9 +207,6 @@ import BlockbenchDownloader from "./BlockbenchDownloader.js";
 // VC Monitor
 import VCMonitor from "./VCMonitor.js";
 
-// MinecraftLink
-import MinecraftLink from "./MinecraftLink.js";
-
 // TimeToLive
 import TimeToLive from "./TimeToLive.js";
 
@@ -270,7 +267,6 @@ if (process.env.PRODUCTION == "TRUE") {
 	FillCache(client);
 	BlockbenchDownloader(client);
 	VCMonitor(client, vcLogger);
-	MinecraftLink(client, pocketbase, server);
 	TimeToLive(client);
 	ChannelClearVoting(client, pocketbase);
 	AccountManagement(client, pocketbase, server);
