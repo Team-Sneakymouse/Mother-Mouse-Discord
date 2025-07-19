@@ -18,10 +18,13 @@ import TwitchLink from "./twitchLink.js";
 import { ButtonIds } from "./types.js";
 import MinecraftLink from "./minecraftLink.js";
 
+const accountsAliases = ["account", "accounts", "authenticate", "howtoauthenticate"];
 export const data = [
-	new SlashCommandBuilder()
-		.setName("accounts") //
-		.setDescription("Manage your linked accounts"),
+	...accountsAliases.map((alias) =>
+		new SlashCommandBuilder()
+			.setName(alias) //
+			.setDescription("Manage your linked accounts")
+	),
 	new SlashCommandBuilder()
 		.setName("link")
 		.setDescription("Link your Minecraft account to your Discord account")
@@ -47,24 +50,21 @@ export default function AccountManagement(client: Client, db: PocketBase, server
 	client.on("interactionCreate", async (interaction) => {
 		if (interaction.isChatInputCommand()) {
 			switch (interaction.commandName) {
-				case "accounts": {
+				case "link": {
+					await minecraftLink.HandleCommand(interaction);
+					return;
+				}
+				default: {
+					if (!accountsAliases.includes(interaction.commandName)) return;
 					await interaction.reply({
 						flags: MessageFlagsBitField.Flags.Ephemeral | MessageFlagsBitField.Flags.IsComponentsV2,
 						components: await accountManagement.buildInterface(interaction),
 					});
 					return;
 				}
-				case "link": {
-					await minecraftLink.HandleCommand(interaction);
-					return;
-				}
 			}
 		} else if (interaction.isButton()) {
-			await Promise.all([
-				accountManagement.HandleButton(interaction),
-				twitchLink.HandleButton(interaction),
-				minecraftLink.HandleButton(interaction),
-			]);
+			await Promise.all([accountManagement.HandleButton(interaction), twitchLink.HandleButton(interaction), minecraftLink.HandleButton(interaction)]);
 		} else if (interaction.isModalSubmit()) {
 			await minecraftLink.HandleModal(interaction);
 		} else if (interaction.isStringSelectMenu()) {
