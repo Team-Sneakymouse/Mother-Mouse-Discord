@@ -216,6 +216,9 @@ import ChannelClearVoting from "./ChannelClearVoting.js";
 // Account Management
 import AccountManagement from "./AccountManagement/index.js";
 
+// SE Promo
+import SEPromo from "./SEPromo.js";
+
 if (process.env.PRODUCTION == "TRUE") {
 	client.setMaxListeners(31);
 	console.log("Registering production plugins");
@@ -270,6 +273,7 @@ if (process.env.PRODUCTION == "TRUE") {
 	TimeToLive(client);
 	ChannelClearVoting(client, pocketbase);
 	AccountManagement(client, pocketbase, server);
+	SEPromo(client, pocketbase);
 } else {
 	console.log("Registering development plugins");
 }
