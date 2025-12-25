@@ -273,7 +273,7 @@ if (process.env.PRODUCTION == "TRUE") {
 	TimeToLive(client);
 	ChannelClearVoting(client, pocketbase);
 	AccountManagement(client, pocketbase, server);
-	SEPromo(client, pocketbase);
+	// SEPromo(client, pocketbase);
 } else {
 	console.log("Registering development plugins");
 }
