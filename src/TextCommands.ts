@@ -6,10 +6,14 @@ type CommandRecord = { server: string; command: string; response: string };
 export default function TextCommands(client: Client, pocketbase: PocketBase) {
 	client.on("messageCreate", async (message): Promise<any> => {
 		if (!message.guild) return;
-		if (!message.content.startsWith("!")) return;
-
+		
 		const args = message.content.split(" ");
-		const command = args[0].toLowerCase();
+		const command = args
+			.find((arg) => arg.startsWith("!"))
+			?.toLowerCase()
+			.replaceAll(/"/g, "")
+			.replaceAll("'", "");
+		if (!command) return;
 
 		const record = await pocketbase
 			.collection("commands")
