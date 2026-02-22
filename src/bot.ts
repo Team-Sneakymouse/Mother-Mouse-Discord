@@ -219,6 +219,9 @@ import AccountManagement from "./AccountManagement/index.js";
 // SE Promo
 import SEPromo from "./SEPromo.js";
 
+// Leaderboard Rewards
+import LeaderboardRewards from "./LeaderboardRewards.js";
+
 if (process.env.PRODUCTION == "TRUE") {
 	client.setMaxListeners(31);
 	console.log("Registering production plugins");
@@ -245,7 +248,7 @@ if (process.env.PRODUCTION == "TRUE") {
 	// SneakyrpPlayercount(client, multicraft);
 	RaidProtection(client, redis);
 	YouTube(client, ytdl);
-	RoleIconRandomization(client, redis);
+	// RoleIconRandomization(client, redis);
 	NicknameRandomization(client, redis);
 	MarisKobold(client);
 	ClearSupportChannel(client, redis);
@@ -274,6 +277,7 @@ if (process.env.PRODUCTION == "TRUE") {
 	ChannelClearVoting(client, pocketbase);
 	AccountManagement(client, pocketbase, server);
 	// SEPromo(client, pocketbase);
+	LeaderboardRewards(client, pocketbase);
 } else {
 	console.log("Registering development plugins");
 }
