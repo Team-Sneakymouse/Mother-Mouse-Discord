@@ -1,6 +1,9 @@
-import { APIEmbedImage, Client, ContainerBuilder, MediaGalleryBuilder, MediaGalleryItemBuilder, MessageFlags, TextChannel, TextDisplayBuilder, TextDisplayComponent } from "discord.js";
+import { APIEmbedImage, Client, ContainerBuilder, MediaGalleryBuilder, MediaGalleryItemBuilder, MessageCreateOptions, MessageEditOptions, MessageFlags, SlashCommandBuilder, TextChannel, TextDisplayBuilder, TextDisplayComponent } from "discord.js";
 import PocketBase, { RecordModel } from "pocketbase";
 import { CronJob } from "cron";
+
+export const data = [new SlashCommandBuilder().setName("leaderboard").setDescription("Display the current leaderboard")];
+
 
 type LeaderboardId = string;
 type RangeString = string;
@@ -54,6 +57,20 @@ export class LeaderboardRewardsManager {
 			if (!this.lomChannel) {
 				console.error("Failed to find rawb.tv lom channel");
 				return;
+			}
+		});
+
+		this.client.on("interactionCreate", async (interaction) => {
+			if (interaction.isChatInputCommand() && interaction.commandName === "leaderboard") {
+				await interaction.deferReply({ ephemeral: true });
+				const date = new Date(new Date().getTime() - 7 * 60 * 60 * 1000);
+				if (!this.getBranding(date.toLocaleString("en-US", { weekday: "long" }))) {
+					await interaction.editReply("No leaderboard available today");
+					return;
+				}
+				const leaderboardData = await this.fetchLeaderboardScores(["leaderboard"], date);
+				const data = await this.getLeaderboardRewardsMessageData("leaderboard", leaderboardData["leaderboard"] || [], date);
+				if (this.lomChannel && data) await interaction.editReply(data);
 			}
 		});
 		
@@ -175,7 +192,7 @@ export class LeaderboardRewardsManager {
 		console.log(`Sent reward mail to ${score.account} for leaderboard ${leaderboard} with rank ${rank} and score ${score.value}`);
 	}
 
-	async postLeaderboardMessage(leaderboard: LeaderboardId, scores: LeaderboardRecord[], date: Date): Promise<void> {
+	private async getLeaderboardRewardsMessageData(leaderboard: LeaderboardId, scores: LeaderboardRecord[], date: Date): Promise<MessageCreateOptions & MessageEditOptions | void> {
 		if (leaderboard !== "leaderboard" || scores.length === 0) return console.error("No scores to post for leaderboard message");
 		if (!this.lomChannel) return console.error("Lom channel not found, cannot post leaderboard message");
 
@@ -190,7 +207,7 @@ export class LeaderboardRewardsManager {
 		const imageName = `leaderboard_${dateStr}.png`;
 		const mediaItemUrl = attachmentBuffer ? `attachment://${imageName}` : branding.image;
 
-		await this.lomChannel.send({
+		return {
 			flags: MessageFlags.IsComponentsV2,
 			components: [
 				new TextDisplayBuilder().setContent(`# Leaderboard ${dateStr}`),
@@ -204,7 +221,12 @@ export class LeaderboardRewardsManager {
 					)
 			],
 			files: attachmentBuffer ? [{ attachment: attachmentBuffer, name: imageName }] : []
-		});
+		};
+	}
+
+	async postLeaderboardMessage(leaderboard: LeaderboardId, scores: LeaderboardRecord[], date: Date): Promise<void> {
+		const data = await this.getLeaderboardRewardsMessageData(leaderboard, scores, date);
+		if (this.lomChannel && data) await this.lomChannel.send(data);
 	}
 
 	getBranding(weekday: string): { title: string; color: number; image: string } | null {

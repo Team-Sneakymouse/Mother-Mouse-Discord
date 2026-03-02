@@ -36,12 +36,13 @@ import { data as YouTube } from "./src/YouTube.js";
 import { data as EditBotMessages } from "./src/EditBotMessages.js";
 import { data as ChannelClearVoting } from "./src/ChannelClearVoting.js";
 import { data as AccountManagement } from "./src/AccountManagement/index.js";
+import { data as Leaderboard } from "./src/LeaderboardRewards.js";
 
 const commands = {
 	global: [...Vibecheck, ...Roll, ...TwitterFix, ...Uuid, ...EditBotMessages],
 	[GuildIds.OLIVIA]: [...Vibecheck, ...ChannelClearVoting],
 	[GuildIds.TEST]: [...Vibecheck, ...ChannelClearVoting],
-	[GuildIds.RAWBTV]: [...PalsRoles, ...PronounRoles, ...Trivia, ...UserPins, ...MinecraftDvzRegistrations, ...Faq, ...AccountManagement],
+	[GuildIds.RAWBTV]: [...PalsRoles, ...PronounRoles, ...Trivia, ...UserPins, ...MinecraftDvzRegistrations, ...Faq, ...AccountManagement, ...Leaderboard],
 	[GuildIds.TILII]: [...GitlabIssues],
 	[GuildIds.SNEAKYRP]: [...SneakyrpPlayerlist],
 	[GuildIds.OOC]: [...OocTools, ...YouTube],
