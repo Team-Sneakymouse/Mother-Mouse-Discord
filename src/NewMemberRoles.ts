@@ -21,12 +21,12 @@ export default function NewMemberRoles(client: Client) {
 			member.roles.cache.map((r) => r.name)
 		);
 
-		if (member.guild.id === GuildIds.RAWBTV) {
-			if (member.roles.highest.name === "@everyone") {
-				console.log("Adding RATS role");
-				return await member.roles.add(RoleIds.RATS);
-			}
-		}
+		// if (member.guild.id === GuildIds.RAWBTV) {
+		// 	if (member.roles.highest.name === "@everyone") {
+		// 		console.log("Adding RATS role");
+		// 		return await member.roles.add(RoleIds.RATS);
+		// 	}
+		// }
 
 		if (member.guild.id === GuildIds.TILII) {
 			if (member.roles.highest.name === "@everyone") {
@@ -34,8 +34,19 @@ export default function NewMemberRoles(client: Client) {
 				return await member.roles.add(RoleIds.COMMUNITY_MEMBER);
 			}
 		}
+	});
 
-		//if (member.guild.id === GuildIds.SNEAKYRP) {
-		//}
+	client.on('guildMemberUpdate', (oldMember, newMember) => {
+		if (!newMember.roles.cache.some(r => [
+			"586309003441733648", //vip
+			"413104808334196757", //angel
+			"444327585103478794", //dragon
+			"413104736636502026", //boss
+			"444770697106030602", //sneaky
+			"1011423880562348172", //yt
+			"642410419549372418", //Twitch
+			"585547861291171853", //nitro
+			"631608275883917332", //rats
+		])) newMember.roles.add("631608275883917332");
 	});
 }
