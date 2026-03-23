@@ -222,6 +222,9 @@ import SEPromo from "./SEPromo.js";
 // Leaderboard Rewards
 import LeaderboardRewards from "./LeaderboardRewards.js";
 
+// Reaction Rewards
+import ReactionRewards from "./ReactionRewards.js";
+
 if (process.env.PRODUCTION == "TRUE") {
 	client.setMaxListeners(31);
 	console.log("Registering production plugins");
@@ -278,6 +281,7 @@ if (process.env.PRODUCTION == "TRUE") {
 	AccountManagement(client, pocketbase, server);
 	// SEPromo(client, pocketbase);
 	LeaderboardRewards(client, pocketbase);
+	ReactionRewards(client, pocketbase);
 } else {
 	console.log("Registering development plugins");
 }
