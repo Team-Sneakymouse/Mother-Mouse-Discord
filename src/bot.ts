@@ -225,6 +225,9 @@ import LeaderboardRewards from "./LeaderboardRewards.js";
 // Reaction Rewards
 import ReactionRewards from "./ReactionRewards.js";
 
+// PatchnoteForwarding
+import PatchnoteForwarding from "./PatchnoteForwarding.js";
+
 if (process.env.PRODUCTION == "TRUE") {
 	client.setMaxListeners(31);
 	console.log("Registering production plugins");
@@ -282,6 +285,7 @@ if (process.env.PRODUCTION == "TRUE") {
 	// SEPromo(client, pocketbase);
 	LeaderboardRewards(client, pocketbase);
 	ReactionRewards(client, pocketbase);
+	PatchnoteForwarding(client);
 } else {
 	console.log("Registering development plugins");
 }

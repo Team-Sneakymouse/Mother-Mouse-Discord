@@ -1,4 +1,4 @@
-import { Client, ComponentType, ModalBuilder, SlashCommandBuilder, SlashCommandStringOption, TextInputStyle } from "discord.js";
+import { Client, CommandInteraction, ComponentType, ModalBuilder, SlashCommandBuilder, SlashCommandStringOption, TextInputStyle } from "discord.js";
 import type YouTubeDL from "./utils/youtube-dl.js";
 
 export const data = [
@@ -10,7 +10,7 @@ export const data = [
 
 export default function YouTube(client: Client, ytdl: YouTubeDL) {
 	client.on("interactionCreate", async (interaction) => {
-		if (!interaction.isCommand() || interaction.commandName !== "youtube-dl") return;
+		if (!interaction.isChatInputCommand() || interaction.commandName !== "youtube-dl") return;
 		let url = interaction.options.get("url")?.value as string | undefined;
 		await interaction.showModal(
 			new ModalBuilder({
