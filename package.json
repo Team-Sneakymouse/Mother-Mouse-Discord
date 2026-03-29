@@ -1,12 +1,15 @@
 {
 	"type": "module",
+	"engines": {
+		"node": ">=24"
+	},
 	"scripts": {
 		"start": "node --enable-source-maps dist/bot.js",
 		"build": "tsc",
-		"dev": "docker run --rm -v \"${PWD}:/app\" -w /app -p 80:80 --network db -t --entrypoint sh node:16-alpine -c 'apk add youtube-dl ffmpeg && npm run watch'",
+		"dev": "docker run --rm -v \"${PWD}:/app\" -w /app -p 80:80 --network db -t --entrypoint sh node:24-alpine -c 'apk add youtube-dl ffmpeg && npm run watch'",
 		"watch": "concurrently -n TS,JS -c blue,yellow 'npm run watch-ts' 'npm run watch-js'",
 		"watch-ts": "tsc --watch --preserveWatchOutput",
-		"watch-js": "nodemon --watch ./dist --enable-source-maps --delay 2 dist/server.js"
+		"watch-js": "nodemon --watch ./dist --enable-source-maps --delay 2 dist/bot.js"
 	},
 	"dependencies": {
 		"@gitbeaker/node": "^35.6.0",
@@ -34,12 +37,12 @@
 		"@types/express": "^4.17.13",
 		"@types/ioredis": "^4.28.10",
 		"@types/mime-types": "^2.1.1",
-		"@types/node": "^16.11.26",
+		"@types/node": "^24.12.0",
 		"concurrently": "^6.5.1",
 		"discord-api-types": "^0.30.0",
 		"nodemon": "^3.0.1",
-		"ts-node": "^10.9.1",
-		"tsx": "^4.7.1",
-		"typescript": "^5.8.3"
+		"ts-node": "^10.9.2",
+		"tsx": "^4.21.0",
+		"typescript": "^5.9.3"
 	}
 }

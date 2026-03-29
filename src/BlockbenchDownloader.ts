@@ -1,5 +1,9 @@
 import { Client, AttachmentBuilder, MessageFlags, MediaGalleryBuilder, MediaGalleryItemBuilder, FileBuilder } from "discord.js";
 
+type BlockbenchModelResponse = {
+	name?: string;
+};
+
 export default function BlockbenchDownloader(client: Client) {
 	client.on("messageCreate", async (message) => {
 		if (!message.guild) return;
@@ -14,9 +18,9 @@ export default function BlockbenchDownloader(client: Client) {
 			const codes = links.map((link) => link.replace(/\/$/, "").split("/").pop());
 			const attachments: AttachmentBuilder[] = [];
 			for (const code of codes) {
-				let json;
+				let json: BlockbenchModelResponse;
 				try {
-					json = await fetch(`https://blckbn.ch/api/models/${code}`).then((res) => res.json());
+					json = await fetch(`https://blckbn.ch/api/models/${code}`).then((res) => res.json() as Promise<BlockbenchModelResponse>);
 				} catch (e) {
 					console.error("Failed to fetch blockbench model", code);
 					console.error(e);

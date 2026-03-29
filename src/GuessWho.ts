@@ -49,7 +49,7 @@ export default function GuessWho(client: Client, redis: Redis) {
 		const file = createWriteStream(`./share/guesswho/${time}${String(i)}.${extension}`);
 		(res.data as Stream).pipe(file);
 
-		await new Promise((resolve) => {
+		await new Promise<void>((resolve) => {
 			file.on("finish", resolve);
 		});
 

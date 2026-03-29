@@ -12,8 +12,7 @@ import { Tick } from "./utils/unixtime.js";
 import MulticraftAPI from "./utils/multicraft.js";
 import YouTubeDL from "./utils/youtube-dl.js";
 
-if (!process.env["MULTICRAFT_HOST"] || !process.env["MULTICRAFT_USER"] || !process.env["MULTICRAFT_KEY"])
-	throw new Error("Missing Multicraft credentials");
+if (!process.env["MULTICRAFT_HOST"] || !process.env["MULTICRAFT_USER"] || !process.env["MULTICRAFT_KEY"]) throw new Error("Missing Multicraft credentials");
 const multicraft = new MulticraftAPI(process.env["MULTICRAFT_HOST"], process.env["MULTICRAFT_USER"], process.env["MULTICRAFT_KEY"]);
 
 const gitlab = new Gitlab({
@@ -31,8 +30,7 @@ const redis = new Redis({
 	host: process.env.REDIS_HOST || "redis",
 });
 
-if (!process.env["POCKETBASE_HOST"] || !process.env["POCKETBASE_USERNAME"] || !process.env["POCKETBASE_PASSWORD"])
-	throw new Error("Missing PocketBase credentials");
+if (!process.env["POCKETBASE_HOST"] || !process.env["POCKETBASE_USERNAME"] || !process.env["POCKETBASE_PASSWORD"]) throw new Error("Missing PocketBase credentials");
 const pocketbase = new PocketBase(process.env["POCKETBASE_HOST"]);
 pocketbase.collection("_superusers").authWithPassword(process.env["POCKETBASE_USERNAME"], process.env["POCKETBASE_PASSWORD"]);
 pocketbase.autoCancellation(false);
@@ -215,9 +213,6 @@ import ChannelClearVoting from "./ChannelClearVoting.js";
 
 // Account Management
 import AccountManagement from "./AccountManagement/index.js";
-
-// SE Promo
-import SEPromo from "./SEPromo.js";
 
 // Leaderboard Rewards
 import LeaderboardRewards from "./LeaderboardRewards.js";

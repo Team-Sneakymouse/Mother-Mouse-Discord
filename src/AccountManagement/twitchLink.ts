@@ -13,6 +13,21 @@ import PocketBase, { ClientResponseError } from "pocketbase";
 import type { Express, Request as ExpressRequest, Response as ExpressResponse } from "express";
 import { ButtonIds, UserRecord } from "./types.js";
 
+type TwitchTokenResponse = {
+	access_token?: string;
+	refresh_token?: string;
+	expires_in?: number;
+	scope?: string | string[];
+};
+
+type TwitchUserResponse = {
+	data?: Array<{
+		id: string;
+		display_name: string;
+		profile_image_url: string;
+	}>;
+};
+
 export default class TwitchLink {
 	constructor(public buttonIds: ButtonIds, public db: PocketBase, public server: Express) {
 		server.get("/link/twitch", (req, res) => this.handleAuthCallback(req, res));
@@ -111,7 +126,7 @@ export default class TwitchLink {
 				console.error("Twitch token request failed:", errorText);
 				return res.status(500).send("Failed to obtain access token from Twitch.");
 			}
-			const tokenData = await tokenResponse.json();
+			const tokenData = await tokenResponse.json() as TwitchTokenResponse;
 			if (!tokenData.access_token) {
 				console.error("Twitch token response did not contain access_token:", tokenData);
 				return res.status(500).send("Failed to obtain access token from Twitch.");
@@ -123,7 +138,7 @@ export default class TwitchLink {
 					Authorization: `Bearer ${tokenData.access_token}`,
 				},
 			});
-			const userData = await userResponse.json();
+			const userData = await userResponse.json() as TwitchUserResponse;
 
 			if (!userData.data || userData.data.length === 0) {
 				return res.status(500).send("Failed to obtain user data from Twitch.");
@@ -137,8 +152,8 @@ export default class TwitchLink {
 					display_name: userData.data[0].display_name,
 					profile_image_url: userData.data[0].profile_image_url,
 					token: {
-						access_token: tokenData.access_token ?? null,
-						refresh_token: tokenData.refresh_token ?? null,
+						access_token: tokenData.access_token,
+						refresh_token: tokenData.refresh_token ?? "",
 						expires_at: Date.now() + (tokenData.expires_in ?? 0) * 1000,
 						scope: tokenData.scope ? (typeof tokenData.scope === "string" ? tokenData.scope.split(" ") : tokenData.scope) : [],
 					},
