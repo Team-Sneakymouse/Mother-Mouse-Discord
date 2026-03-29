@@ -7,12 +7,15 @@
 		"start": "node --enable-source-maps dist/bot.js",
 		"build": "tsc",
 		"dev": "docker run --rm -v \"${PWD}:/app\" -w /app -p 80:80 --network db -t --entrypoint sh node:24-alpine -c 'apk add youtube-dl ffmpeg && npm run watch'",
+		"test-dono:animated": "tsx animated-test-dono.ts",
+		"test-dono": "tsx test-dono.ts",
 		"watch": "concurrently -n TS,JS -c blue,yellow 'npm run watch-ts' 'npm run watch-js'",
 		"watch-ts": "tsc --watch --preserveWatchOutput",
 		"watch-js": "nodemon --watch ./dist --enable-source-maps --delay 2 dist/bot.js"
 	},
 	"dependencies": {
 		"@gitbeaker/node": "^35.6.0",
+		"@resvg/resvg-js": "^2.6.2",
 		"axios": "^1.2.2",
 		"cookie-parser": "^1.4.6",
 		"cron": "^3.1.6",
@@ -26,6 +29,7 @@
 		"mime-types": "^2.1.35",
 		"pocketbase": "^0.25.0",
 		"rss-parser": "^3.13.0",
+		"satori": "^0.26.0",
 		"socket.io-client": "^4.7.2",
 		"winston": "^3.17.0",
 		"winston-loki": "^6.1.3"

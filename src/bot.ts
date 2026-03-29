@@ -1,7 +1,9 @@
+// @ts-ignore: no types for ioredis
 import Redis from "ioredis";
 import express from "express";
 import PocketBase from "pocketbase";
 import { Client, GatewayIntentBits, Partials } from "discord.js";
+// @ts-ignore: no types for gitbeaker/node
 import { Gitlab } from "@gitbeaker/node";
 import RssParser from "rss-parser";
 import { config } from "dotenv";
@@ -223,6 +225,9 @@ import ReactionRewards from "./ReactionRewards.js";
 // PatchnoteForwarding
 import PatchnoteForwarding from "./PatchnoteForwarding.js";
 
+// DonationBarPosting
+import DonationBarPosting from "./DonationBarPosting.js";
+
 if (process.env.PRODUCTION == "TRUE") {
 	client.setMaxListeners(31);
 	console.log("Registering production plugins");
@@ -281,6 +286,7 @@ if (process.env.PRODUCTION == "TRUE") {
 	LeaderboardRewards(client, pocketbase);
 	ReactionRewards(client, pocketbase);
 	PatchnoteForwarding(client);
+	DonationBarPosting(client, pocketbase);
 } else {
 	console.log("Registering development plugins");
 }
