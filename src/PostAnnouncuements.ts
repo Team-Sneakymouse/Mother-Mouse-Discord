@@ -21,7 +21,7 @@ export default async function PostAnnouncements(client: Client, rss: Parser, db:
 	let lastTweetRecord: (RecordModel & { value: number }) | null = null;
 	let feedChannel: TextChannel | null = null;
 
-	client.once("ready", async () => {
+	client.once("clientReady", async () => {
 		lastTweetRecord = await db
 			.collection("settings")
 			.getFirstListItem<RecordModel & { value: number }>('key="rss_msdvil_last_tweet_timestamp"')
@@ -107,8 +107,7 @@ export default async function PostAnnouncements(client: Client, rss: Parser, db:
 					image,
 					color: 0x08a0e9,
 					footer: {
-						icon_url:
-							"https://upload.wikimedia.org/wikipedia/commons/thumb/6/6f/Logo_of_Twitter.svg/292px-Logo_of_Twitter.svg.png",
+						icon_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6f/Logo_of_Twitter.svg/292px-Logo_of_Twitter.svg.png",
 						text: "The Platform Formerly Known As Twitter",
 					},
 					timestamp: new Date(post.isoDate).toISOString(),

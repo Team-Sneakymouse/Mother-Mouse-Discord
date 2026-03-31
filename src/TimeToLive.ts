@@ -14,7 +14,7 @@ export default function TimeToLive(client: Client) {
 			running = false;
 		}
 	});
-	client.on("ready", () => {
+	client.on("clientReady", () => {
 		cronJob.start();
 		console.log("TimeToLive job started");
 	});
@@ -32,13 +32,7 @@ export default function TimeToLive(client: Client) {
 			});
 			if (messages.size === 0) break;
 			for (const message of messages.values()) {
-				if (
-					message.createdTimestamp < Date.now() - 24 * 60 * 60 * 1000 &&
-					!message.pinned &&
-					!message.system &&
-					!message.hasThread &&
-					message.deletable
-				) {
+				if (message.createdTimestamp < Date.now() - 24 * 60 * 60 * 1000 && !message.pinned && !message.system && !message.hasThread && message.deletable) {
 					toDelete.add(message);
 					latest = message;
 				} else {

@@ -1,9 +1,21 @@
-import { APIEmbedImage, Client, ContainerBuilder, MediaGalleryBuilder, MediaGalleryItemBuilder, MessageCreateOptions, MessageEditOptions, MessageFlags, SlashCommandBuilder, TextChannel, TextDisplayBuilder, TextDisplayComponent } from "discord.js";
+import {
+	APIEmbedImage,
+	Client,
+	ContainerBuilder,
+	MediaGalleryBuilder,
+	MediaGalleryItemBuilder,
+	MessageCreateOptions,
+	MessageEditOptions,
+	MessageFlags,
+	SlashCommandBuilder,
+	TextChannel,
+	TextDisplayBuilder,
+	TextDisplayComponent,
+} from "discord.js";
 import PocketBase, { RecordModel } from "pocketbase";
 import { CronJob } from "cron";
 
 export const data = [new SlashCommandBuilder().setName("leaderboard").setDescription("Display the current leaderboard")];
-
 
 type LeaderboardId = string;
 type RangeString = string;
@@ -29,7 +41,7 @@ type MailRecord = RecordModel & {
 	recipient_name?: string;
 	note: string;
 	available: true;
-	rewards: { type: "command", command: string }[];
+	rewards: { type: "command"; command: string }[];
 };
 type RewardRule = { start: number; end: number; spell: string };
 
@@ -52,7 +64,7 @@ export class LeaderboardRewardsManager {
 	}
 
 	initialize(): void {
-		this.client.once("ready", async () => {
+		this.client.once("clientReady", async () => {
 			this.lomChannel = (this.client.channels.cache.get(this.lomChannelId) as TextChannel) ?? null;
 			if (!this.lomChannel) {
 				console.error("Failed to find rawb.tv lom channel");
@@ -73,7 +85,7 @@ export class LeaderboardRewardsManager {
 				if (this.lomChannel && data) await interaction.editReply(data);
 			}
 		});
-		
+
 		// Encounters get disabled and Leaderboard is locked at 5:30 UTC, 1.5 hours before restart
 		this.cronJob = new CronJob("0 31 5 * * *", () => this.runRewards(), undefined, false, "Etc/UTC");
 		this.cronJob.start();
@@ -91,17 +103,20 @@ export class LeaderboardRewardsManager {
 		const leaderboards = Object.keys(rewardRules);
 
 		const leaderboardsData = await this.fetchLeaderboardScores(leaderboards, date);
-		
+
 		await this.distributeRewards(leaderboardSettings, leaderboardsData, date);
 		await this.postLeaderboardMessage("leaderboard", leaderboardsData["leaderboard"], date);
 	}
 
 	async fetchSettings(): Promise<SettingsRecord | null> {
 		try {
-			const settings = await this.db.collection("settings").getFirstListItem<SettingsRecord>('key = "leaderboard_rewards"').catch((e: any) => {
-				if (e.status === 404) return null;
-				throw e;
-			});
+			const settings = await this.db
+				.collection("settings")
+				.getFirstListItem<SettingsRecord>('key = "leaderboard_rewards"')
+				.catch((e: any) => {
+					if (e.status === 404) return null;
+					throw e;
+				});
 			return settings;
 		} catch (error) {
 			console.error("Failed to fetch leaderboard rewards settings", error);
@@ -124,32 +139,41 @@ export class LeaderboardRewardsManager {
 	}
 
 	async fetchLeaderboardScores(leaderboards: LeaderboardId[], date: Date): Promise<Record<LeaderboardId, LeaderboardRecord[]>> {
-		const leaderboardsFilter = leaderboards.map(lb => `leaderboard="${lb}"`).join(" || ");
-		const dateStr = date.toISOString().split('T')[0];
+		const leaderboardsFilter = leaderboards.map((lb) => `leaderboard="${lb}"`).join(" || ");
+		const dateStr = date.toISOString().split("T")[0];
 		const dateFilter = `date ~ "${dateStr}"`;
 
-		return await this.db.collection("lom2_leaderboards").getFullList<LeaderboardRecord>({
-			filter: `${leaderboardsFilter} && ${dateFilter} && value > 0`
-		}).catch((e: any) => {
-			console.error("Failed to fetch leaderboard scores", e);
-			return [];
-		}).then((records: LeaderboardRecord[]) => records.reduce((acc: Record<LeaderboardId, LeaderboardRecord[]>, record: LeaderboardRecord) => {
-			if (!acc[record.leaderboard]) acc[record.leaderboard] = [];
-			acc[record.leaderboard].push(record);
-			return acc;
-		}, {} as Record<LeaderboardId, LeaderboardRecord[]>));
+		return await this.db
+			.collection("lom2_leaderboards")
+			.getFullList<LeaderboardRecord>({
+				filter: `${leaderboardsFilter} && ${dateFilter} && value > 0`,
+			})
+			.catch((e: any) => {
+				console.error("Failed to fetch leaderboard scores", e);
+				return [];
+			})
+			.then((records: LeaderboardRecord[]) =>
+				records.reduce(
+					(acc: Record<LeaderboardId, LeaderboardRecord[]>, record: LeaderboardRecord) => {
+						if (!acc[record.leaderboard]) acc[record.leaderboard] = [];
+						acc[record.leaderboard].push(record);
+						return acc;
+					},
+					{} as Record<LeaderboardId, LeaderboardRecord[]>,
+				),
+			);
 	}
 
 	async distributeRewards(leaderboardSettings: SettingsRecord, leaderboardsData: Record<LeaderboardId, LeaderboardRecord[]>, date: Date): Promise<void> {
 		const rewardRules = this.parseRules(leaderboardSettings.value.rewards);
 		const leaderboards = Object.keys(rewardRules);
-		let mailsSent = Object.fromEntries(leaderboards.map(lb => [lb, 0]));
-		
+		let mailsSent = Object.fromEntries(leaderboards.map((lb) => [lb, 0]));
+
 		const weekday = date.toLocaleString("en-US", { weekday: "long" });
 		for (const [leaderboard, scores] of Object.entries(leaderboardsData)) {
 			const rules = rewardRules[leaderboard];
 			if (!rules || rules.size === 0) continue;
-			
+
 			scores.sort((a, b) => b.value - a.value);
 			for (let i = 0; i < scores.length; i++) {
 				const rank = i + 1;
@@ -174,25 +198,40 @@ export class LeaderboardRewardsManager {
 		return commands;
 	}
 
-	async sendRewardMail(score: LeaderboardRecord, leaderboard: LeaderboardId, rank: number, weekday: string, rewardsCommands: string[], mailsSent: Record<LeaderboardId, number>): Promise<void> {
-		const result = await this.db.collection("lom2_mail").create<MailRecord>({
-			sender_name: "<gold>Grand Paladin Order</gold>",
-			sender_uuid: "",
-			recipient_name: "",
-			recipient_uuid: score.account,
-			available: true,
-			note: `<gold>Congratulations!</gold>\nYou placed <yellow>${this.getOrdinal(rank)}</yellow> on ${weekday}'s leaderboard\nwith your score of <white>${Intl.NumberFormat('en-US').format(score.value)}</white>.`,
-			rewards: rewardsCommands.map(command => ({ type: "command", command })),
-		}).catch((e: any) => {
-			console.error(`Failed to send reward mail to ${score.account} for leaderboard ${leaderboard} with rank ${rank} and score ${score.value}`, e);
-			return null;
-		});
-		if (!result) return console.error(`Failed to send reward mail to ${score.account} for leaderboard ${leaderboard} with rank ${rank} and score ${score.value}`);
+	async sendRewardMail(
+		score: LeaderboardRecord,
+		leaderboard: LeaderboardId,
+		rank: number,
+		weekday: string,
+		rewardsCommands: string[],
+		mailsSent: Record<LeaderboardId, number>,
+	): Promise<void> {
+		const result = await this.db
+			.collection("lom2_mail")
+			.create<MailRecord>({
+				sender_name: "<gold>Grand Paladin Order</gold>",
+				sender_uuid: "",
+				recipient_name: "",
+				recipient_uuid: score.account,
+				available: true,
+				note: `<gold>Congratulations!</gold>\nYou placed <yellow>${this.getOrdinal(rank)}</yellow> on ${weekday}'s leaderboard\nwith your score of <white>${Intl.NumberFormat("en-US").format(score.value)}</white>.`,
+				rewards: rewardsCommands.map((command) => ({ type: "command", command })),
+			})
+			.catch((e: any) => {
+				console.error(`Failed to send reward mail to ${score.account} for leaderboard ${leaderboard} with rank ${rank} and score ${score.value}`, e);
+				return null;
+			});
+		if (!result)
+			return console.error(`Failed to send reward mail to ${score.account} for leaderboard ${leaderboard} with rank ${rank} and score ${score.value}`);
 		mailsSent[leaderboard]++;
 		console.log(`Sent reward mail to ${score.account} for leaderboard ${leaderboard} with rank ${rank} and score ${score.value}`);
 	}
 
-	private async getLeaderboardRewardsMessageData(leaderboard: LeaderboardId, scores: LeaderboardRecord[], date: Date): Promise<MessageCreateOptions & MessageEditOptions | void> {
+	private async getLeaderboardRewardsMessageData(
+		leaderboard: LeaderboardId,
+		scores: LeaderboardRecord[],
+		date: Date,
+	): Promise<(MessageCreateOptions & MessageEditOptions) | void> {
 		if (leaderboard !== "leaderboard" || scores.length === 0) return console.error("No scores to post for leaderboard message");
 		if (!this.lomChannel) return console.error("Lom channel not found, cannot post leaderboard message");
 
@@ -203,7 +242,7 @@ export class LeaderboardRewardsManager {
 		const content = this.formatLeaderboardContent(scores);
 		const attachmentBuffer = await this.fetchBrandingImage(branding.image);
 
-		const dateStr = date.toISOString().split('T')[0];
+		const dateStr = date.toISOString().split("T")[0];
 		const imageName = `leaderboard_${dateStr}.png`;
 		const mediaItemUrl = attachmentBuffer ? `attachment://${imageName}` : branding.image;
 
@@ -213,14 +252,10 @@ export class LeaderboardRewardsManager {
 				new TextDisplayBuilder().setContent(`# Leaderboard ${dateStr}`),
 				new ContainerBuilder()
 					.setAccentColor(branding.color)
-					.addMediaGalleryComponents(new MediaGalleryBuilder().addItems(
-						new MediaGalleryItemBuilder().setURL(mediaItemUrl).setDescription(branding.title)
-					))
-					.addTextDisplayComponents(
-						new TextDisplayBuilder().setContent(content)
-					)
+					.addMediaGalleryComponents(new MediaGalleryBuilder().addItems(new MediaGalleryItemBuilder().setURL(mediaItemUrl).setDescription(branding.title)))
+					.addTextDisplayComponents(new TextDisplayBuilder().setContent(content)),
 			],
-			files: attachmentBuffer ? [{ attachment: attachmentBuffer, name: imageName }] : []
+			files: attachmentBuffer ? [{ attachment: attachmentBuffer, name: imageName }] : [],
 		};
 	}
 
@@ -231,10 +266,30 @@ export class LeaderboardRewardsManager {
 
 	getBranding(weekday: string): { title: string; color: number; image: string } | null {
 		const branding: Record<string, { title: string; color: number; image: string }> = {
-			"Monday": { title: "Mining Monday", color: 0x727679, image: "https://github.com/Team-Sneakymouse/resourcepacks/blob/split/entities/assets/lom/textures/item/entities/leaderboards/leaderboard_monday.png?raw=true" },
-			"Tuesday": { title: "Turbo Tuesday", color: 0x3498DB, image: "https://github.com/Team-Sneakymouse/resourcepacks/blob/split/entities/assets/lom/textures/item/entities/leaderboards/leaderboard_tuesday.png?raw=true" },
-			"Wednesday": { title: "Wizardry Wednesday", color: 0xA161BC, image: "https://github.com/Team-Sneakymouse/resourcepacks/blob/split/entities/assets/lom/textures/item/entities/leaderboards/leaderboard_wednesday.png?raw=true" },
-			"Friday": { title: "Fishing Friday", color: 0x91C5F2, image: "https://github.com/Team-Sneakymouse/resourcepacks/blob/split/entities/assets/lom/textures/item/entities/leaderboards/leaderboard_friday.png?raw=true" },
+			Monday: {
+				title: "Mining Monday",
+				color: 0x727679,
+				image:
+					"https://github.com/Team-Sneakymouse/resourcepacks/blob/split/entities/assets/lom/textures/item/entities/leaderboards/leaderboard_monday.png?raw=true",
+			},
+			Tuesday: {
+				title: "Turbo Tuesday",
+				color: 0x3498db,
+				image:
+					"https://github.com/Team-Sneakymouse/resourcepacks/blob/split/entities/assets/lom/textures/item/entities/leaderboards/leaderboard_tuesday.png?raw=true",
+			},
+			Wednesday: {
+				title: "Wizardry Wednesday",
+				color: 0xa161bc,
+				image:
+					"https://github.com/Team-Sneakymouse/resourcepacks/blob/split/entities/assets/lom/textures/item/entities/leaderboards/leaderboard_wednesday.png?raw=true",
+			},
+			Friday: {
+				title: "Fishing Friday",
+				color: 0x91c5f2,
+				image:
+					"https://github.com/Team-Sneakymouse/resourcepacks/blob/split/entities/assets/lom/textures/item/entities/leaderboards/leaderboard_friday.png?raw=true",
+			},
 		};
 		return branding[weekday] ?? null;
 	}
@@ -243,9 +298,10 @@ export class LeaderboardRewardsManager {
 		return scores
 			.sort((a, b) => b.value - a.value)
 			.slice(0, 16)
-			.map((score, i) => i === 0 
-				? `${i}. **${score.name}: ${Intl.NumberFormat('en-US').format(score.value)}**` 
-				: `${i}. ${score.name}: **${Intl.NumberFormat('en-US').format(score.value)}**`
+			.map((score, i) =>
+				i === 0
+					? `${i}. **${score.name}: ${Intl.NumberFormat("en-US").format(score.value)}**`
+					: `${i}. ${score.name}: **${Intl.NumberFormat("en-US").format(score.value)}**`,
 			)
 			.join("\n");
 	}
@@ -266,10 +322,11 @@ export class LeaderboardRewardsManager {
 		const rules: Record<LeaderboardId, Set<RewardRule>> = {};
 		for (const leaderboard in config) {
 			for (const [range, spell] of Object.entries(config[leaderboard] || {})) {
-				let start = 0, end = 0;
+				let start = 0,
+					end = 0;
 				try {
 					if (range.includes("-")) {
-						[start, end] = range.split("-").map(s => parseInt(s.trim()));
+						[start, end] = range.split("-").map((s) => parseInt(s.trim()));
 					} else if (range.endsWith("+")) {
 						start = parseInt(range.slice(0, -1).trim());
 						end = Number.MAX_SAFE_INTEGER;

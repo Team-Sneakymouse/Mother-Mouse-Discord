@@ -32,7 +32,8 @@ const redis = new Redis({
 	host: process.env.REDIS_HOST || "redis",
 });
 
-if (!process.env["POCKETBASE_HOST"] || !process.env["POCKETBASE_USERNAME"] || !process.env["POCKETBASE_PASSWORD"]) throw new Error("Missing PocketBase credentials");
+if (!process.env["POCKETBASE_HOST"] || !process.env["POCKETBASE_USERNAME"] || !process.env["POCKETBASE_PASSWORD"])
+	throw new Error("Missing PocketBase credentials");
 const pocketbase = new PocketBase(process.env["POCKETBASE_HOST"]);
 pocketbase.collection("_superusers").authWithPassword(process.env["POCKETBASE_USERNAME"], process.env["POCKETBASE_PASSWORD"]);
 pocketbase.autoCancellation(false);
@@ -68,7 +69,7 @@ const client = new Client({
 	partials: [Partials.Channel, Partials.Message, Partials.Reaction],
 });
 
-client.once("ready", () => {
+client.once("clientReady", () => {
 	console.log("Ready!", client.user?.tag);
 });
 
@@ -298,7 +299,7 @@ const token = process.env.DISCORD_TOKEN;
 if (!token) throw new Error("No token found!");
 client.login(token);
 
-client.once("ready", async () => {
+client.once("clientReady", async () => {
 	//manage events queued off of unix time
 	while (true) {
 		let t = Tick(redis);

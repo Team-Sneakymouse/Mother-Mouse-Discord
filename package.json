@@ -1,17 +1,15 @@
 {
 	"type": "module",
+	"packageManager": "bun@1.3.8",
 	"engines": {
+		"bun": ">=1.3.8",
 		"node": ">=24"
 	},
 	"scripts": {
-		"start": "node --enable-source-maps dist/bot.js",
-		"build": "tsc",
-		"dev": "docker run --rm -v \"${PWD}:/app\" -w /app -p 80:80 --network db -t --entrypoint sh node:24-alpine -c 'apk add youtube-dl ffmpeg && npm run watch'",
-		"test-dono:animated": "tsx animated-test-dono.ts",
-		"test-dono": "tsx test-dono.ts",
-		"watch": "concurrently -n TS,JS -c blue,yellow 'npm run watch-ts' 'npm run watch-js'",
-		"watch-ts": "tsc --watch --preserveWatchOutput",
-		"watch-js": "nodemon --watch ./dist --enable-source-maps --delay 2 dist/bot.js"
+		"start": "bun src/bot.ts",
+		"dev": "docker run --rm -v \"${PWD}:/app\" -w /app -p 80:80 --network db -t --entrypoint sh oven/bun:1.3.8-alpine -c 'apk add youtube-dl ffmpeg && bun install --frozen-lockfile && bun --watch src/bot.ts'",
+		"watch": "bun --watch src/bot.ts",
+		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
 		"@gitbeaker/node": "^35.6.0",
@@ -42,11 +40,7 @@
 		"@types/ioredis": "^4.28.10",
 		"@types/mime-types": "^2.1.1",
 		"@types/node": "^24.12.0",
-		"concurrently": "^6.5.1",
 		"discord-api-types": "^0.30.0",
-		"nodemon": "^3.0.1",
-		"ts-node": "^10.9.2",
-		"tsx": "^4.21.0",
 		"typescript": "^5.9.3"
 	}
 }

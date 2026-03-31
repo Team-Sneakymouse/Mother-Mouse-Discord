@@ -7,7 +7,7 @@ import { type DonationBarRecord, renderDonationBarWebp } from "./utils/DonationB
 (global as any).EventSource = EventSource;
 
 const donationBarRecordId = "0nnibthhphxr46q";
-const donationBarChannelId = "167695190591537152";
+const donationBarChannelId = "806994887773519913";
 const donationBarAttachmentName = "donation-bar.webp";
 
 function normalizeContent(content: string): string {
@@ -30,10 +30,10 @@ function isImageOnlyMessage(message: Message, botUserId?: string): boolean {
 }
 
 export default function DonationBarPosting(client: Client, pocketbase: PocketBase) {
-	const readyPromise = client.isReady() ? Promise.resolve() : new Promise<void>((resolve) => client.once("ready", () => resolve()));
+	const readyPromise = client.isReady() ? Promise.resolve() : new Promise<void>((resolve) => client.once("clientReady", () => resolve()));
 	let syncQueue = Promise.resolve();
 
-	client.once("ready", () => {
+	client.once("clientReady", () => {
 		syncQueue = syncQueue
 			.catch((error) => console.error("DonationBarPosting queue error:", error))
 			.then(() => syncDonationBar())

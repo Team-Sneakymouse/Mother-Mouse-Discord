@@ -1,16 +1,7 @@
-import {
-	ChannelType,
-	Client,
-	ForumChannel,
-	GuildBasedChannel,
-	NewsChannel,
-	TextBasedChannel,
-	TextChannel,
-	ThreadChannel,
-} from "discord.js";
+import { ChannelType, Client, ForumChannel, GuildBasedChannel, NewsChannel, TextBasedChannel, TextChannel, ThreadChannel } from "discord.js";
 
 export default function FillCache(client: Client) {
-	client.on("ready", async () => {
+	client.on("clientReady", async () => {
 		const rawbtvGuild = client.guilds.cache.get("391355330241757205");
 		if (!rawbtvGuild) return console.log("fillcache - unknown guild");
 		for (const channel of rawbtvGuild.channels.cache.values()) {

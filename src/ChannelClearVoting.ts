@@ -70,12 +70,7 @@ export default function ChannelClearVoting(client: Client, pb: PocketBase) {
 		}
 		const channel = client.channels.cache.get(record.id) as TextChannel | undefined;
 		const permissions = channel?.guild.members.me?.permissionsIn(channel.id);
-		if (
-			!channel ||
-			!permissions ||
-			!permissions.has(PermissionFlagsBits.ViewChannel) ||
-			!permissions.has(PermissionFlagsBits.SendMessages)
-		) {
+		if (!channel || !permissions || !permissions.has(PermissionFlagsBits.ViewChannel) || !permissions.has(PermissionFlagsBits.SendMessages)) {
 			console.log(`Channel ${record.id} not found or missing permissions in server ${record.server_id}`);
 			record.enabled = false; // Disable the voting configuration
 			record.votes = null; // Reset votes
@@ -91,17 +86,14 @@ export default function ChannelClearVoting(client: Client, pb: PocketBase) {
 			record = await scheduleNext(record);
 			await channel.send({
 				content: `**It'll be time to clear this channel <t:${Math.floor(
-					new Date(record.next_run ?? "").getTime() / 1000
+					new Date(record.next_run ?? "").getTime() / 1000,
 				)}:R>.**\nYou may vote to postpone the vote if this is a problem.\n-# The channel will be cleared unless there are ${
 					record.vote_target
 				}% ${record.vote_target < 100 ? "or more" : ""} "Postpone" votes.`,
 				components: [
 					new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
 						new ButtonBuilder().setLabel("Clear it!").setCustomId(`ccv_vote_clear:${record.id}`).setStyle(ButtonStyle.Primary),
-						new ButtonBuilder()
-							.setLabel("Postpone")
-							.setCustomId(`ccv_vote_postpone:${record.id}`)
-							.setStyle(ButtonStyle.Secondary)
+						new ButtonBuilder().setLabel("Postpone").setCustomId(`ccv_vote_postpone:${record.id}`).setStyle(ButtonStyle.Secondary),
 					),
 				],
 			});
@@ -114,9 +106,7 @@ export default function ChannelClearVoting(client: Client, pb: PocketBase) {
 			}
 			const messages = await channel.messages.fetch({ limit: 100 });
 			const voteMessage = messages.find(
-				(m) =>
-					m.author.id === client.user?.id &&
-					m.components.some((c) => findKeyValue(c, "custom_id", `ccv_vote_postpone:${record.id}`))
+				(m) => m.author.id === client.user?.id && m.components.some((c) => findKeyValue(c, "custom_id", `ccv_vote_postpone:${record.id}`)),
 			);
 
 			let totalVotes = Object.keys(record.votes).length;
@@ -128,9 +118,7 @@ export default function ChannelClearVoting(client: Client, pb: PocketBase) {
 				record = await scheduleNext(record, record.retry_delay);
 
 				console.log(`Postponing channel clearing for ${record.id} in server ${record.server_id}`);
-				const content = `The vote to clear this channel has been postponed until <t:${Math.floor(
-					new Date(record.next_run ?? "").getTime() / 1000
-				)}:f>.`;
+				const content = `The vote to clear this channel has been postponed until <t:${Math.floor(new Date(record.next_run ?? "").getTime() / 1000)}:f>.`;
 				if (voteMessage) await voteMessage.edit({ content, components: [] });
 				else await channel.send({ content, components: [] });
 				return;
@@ -151,7 +139,7 @@ export default function ChannelClearVoting(client: Client, pb: PocketBase) {
 			const deleteMessage = await channel.send(
 				`The vote did not result in ${
 					record.vote_target < 100 ? `at least ${record.vote_target}%` : "unanimity"
-				} in favor of postponing.\n**Clearing Channel - Please do not resist** <:DANGER:975520924512157717>`
+				} in favor of postponing.\n**Clearing Channel - Please do not resist** <:DANGER:975520924512157717>`,
 			);
 			await clearChannel(channel, deleteMessage.id);
 
@@ -168,7 +156,7 @@ export default function ChannelClearVoting(client: Client, pb: PocketBase) {
 	async function clearChannel(channel: GuildTextBasedChannel, beforeMessageId?: string) {
 		while (true) {
 			const messages = (await channel.messages.fetch({ limit: 100, before: beforeMessageId })).filter(
-				(m) => !m.pinned && !m.system && !m.hasThread && m.deletable
+				(m) => !m.pinned && !m.system && !m.hasThread && m.deletable,
 			);
 			if (messages.size <= 0) break; // No more messages to delete
 
@@ -222,12 +210,12 @@ export default function ChannelClearVoting(client: Client, pb: PocketBase) {
 		console.log(
 			`now: ${now.toISOString()}, nextRun: ${nextRun.toISOString()}, delay: ${delay}ms, retryDelay: ${retryDelay}ms, schedule: ${
 				record.schedule
-			}ms, duration: ${record.duration}ms`
+			}ms, duration: ${record.duration}ms`,
 		);
 		return record;
 	}
 
-	client.on("ready", () => {
+	client.on("clientReady", () => {
 		cronJob.start();
 		cronJob.fireOnTick();
 		console.log("ChannelClearVoting job started");
@@ -283,9 +271,7 @@ export default function ChannelClearVoting(client: Client, pb: PocketBase) {
 			});
 		} else if (
 			interaction.isButton() &&
-			["ccv_delete_configuration", "ccv_enable_configuration", "ccv_disable_configuration"].some((id) =>
-				interaction.customId.startsWith(id)
-			)
+			["ccv_delete_configuration", "ccv_enable_configuration", "ccv_disable_configuration"].some((id) => interaction.customId.startsWith(id))
 		) {
 			if (!interaction.guild) {
 				await interaction.reply({ content: "This command can only be used in a server.", ephemeral: true });
@@ -459,12 +445,10 @@ export default function ChannelClearVoting(client: Client, pb: PocketBase) {
 					.map(
 						(record) =>
 							`\n- ${record.enabled ? "✅" : "⭕"} <#${record.id}> ${
-								record.next_run
-									? `scheduled <t:${Math.floor(new Date(selectedChannelRecord.next_run ?? "").getTime() / 1000)}:R>`
-									: "not scheduled"
-							}`
+								record.next_run ? `scheduled <t:${Math.floor(new Date(selectedChannelRecord.next_run ?? "").getTime() / 1000)}:R>` : "not scheduled"
+							}`,
 					)
-					.join("")}`
+					.join("")}`,
 			),
 			new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
 				guildTextChannels.size <= 25
@@ -481,64 +465,50 @@ export default function ChannelClearVoting(client: Client, pb: PocketBase) {
 											? "✅ Voting enabled"
 											: "⭕ Voting disabled"
 										: "No configuration",
-								}))
+								})),
 							)
 					: // If there are more than 25 channels, use a channel select menu
-					  new ChannelSelectMenuBuilder()
+						new ChannelSelectMenuBuilder()
 							.setCustomId("ccv_channel_select")
 							.setChannelTypes(ChannelType.GuildText)
 							.setPlaceholder("Select a channel to manage voting settings")
-							.addDefaultChannels(selected ? [selected] : [])
+							.addDefaultChannels(selected ? [selected] : []),
 			),
 			...(selected == null
 				? []
 				: [
 						new ContainerBuilder()
 							.addSectionComponents(
-								new SectionBuilder()
-									.addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <#${selectedChannelRecord.id}>`))
-									.setButtonAccessory(
-										new ButtonBuilder()
-											.setCustomId(`ccv_delete_configuration:${selectedChannelRecord.id}`)
-											.setStyle(ButtonStyle.Danger)
-											.setLabel("Delete Configuration")
-											.setEmoji({ name: "🗑️" })
-											.setDisabled(channelRecords.some((record) => record.id === selectedChannelRecord.id) === false)
-									)
+								new SectionBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent(`# <#${selectedChannelRecord.id}>`)).setButtonAccessory(
+									new ButtonBuilder()
+										.setCustomId(`ccv_delete_configuration:${selectedChannelRecord.id}`)
+										.setStyle(ButtonStyle.Danger)
+										.setLabel("Delete Configuration")
+										.setEmoji({ name: "🗑️" })
+										.setDisabled(channelRecords.some((record) => record.id === selectedChannelRecord.id) === false),
+								),
 							)
 							.addSectionComponents(
 								new SectionBuilder()
 									.addTextDisplayComponents(
 										new TextDisplayBuilder().setContent(
 											`This configuration is currently **${
-												!configurationIsValid(selectedChannelRecord)
-													? "incomplete"
-													: selectedChannelRecord.enabled
-													? "enabled"
-													: "disabled"
+												!configurationIsValid(selectedChannelRecord) ? "incomplete" : selectedChannelRecord.enabled ? "enabled" : "disabled"
 											}**.${
-												configurationIsValid(selectedChannelRecord) &&
-												selectedChannelRecord.enabled &&
-												selectedChannelRecord.next_run
-													? `\nNext vote will run <t:${Math.floor(
-															new Date(selectedChannelRecord.next_run ?? "").getTime() / 1000
-													  )}:R>.`
+												configurationIsValid(selectedChannelRecord) && selectedChannelRecord.enabled && selectedChannelRecord.next_run
+													? `\nNext vote will run <t:${Math.floor(new Date(selectedChannelRecord.next_run ?? "").getTime() / 1000)}:R>.`
 													: ""
-											}`
-										)
+											}`,
+										),
 									)
 									.setButtonAccessory(
 										new ButtonBuilder()
-											.setCustomId(
-												`${
-													selectedChannelRecord.enabled ? "ccv_disable_configuration" : "ccv_enable_configuration"
-												}:${selectedChannelRecord.id}`
-											)
+											.setCustomId(`${selectedChannelRecord.enabled ? "ccv_disable_configuration" : "ccv_enable_configuration"}:${selectedChannelRecord.id}`)
 											.setStyle(selectedChannelRecord.enabled ? ButtonStyle.Secondary : ButtonStyle.Success)
 											.setLabel(selectedChannelRecord.enabled ? "Disable Voting" : "Enable Voting")
 											.setEmoji({ name: selectedChannelRecord.enabled ? "❌" : "✅" })
-											.setDisabled(configurationIsValid(selectedChannelRecord) === false)
-									)
+											.setDisabled(configurationIsValid(selectedChannelRecord) === false),
+									),
 							)
 							.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
 							.addTextDisplayComponents(new TextDisplayBuilder().setContent("When should a vote happen?"))
@@ -575,9 +545,9 @@ export default function ChannelClearVoting(client: Client, pb: PocketBase) {
 											new StringSelectMenuOptionBuilder()
 												.setLabel("Every 30 Days")
 												.setValue((30 * DAY).toString())
-												.setDefault(selectedChannelRecord.schedule === 30 * DAY)
-										)
-								)
+												.setDefault(selectedChannelRecord.schedule === 30 * DAY),
+										),
+								),
 							)
 							.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
 							.addTextDisplayComponents(new TextDisplayBuilder().setContent("How long should the vote collect responses?"))
@@ -606,16 +576,12 @@ export default function ChannelClearVoting(client: Client, pb: PocketBase) {
 											new StringSelectMenuOptionBuilder()
 												.setLabel("120 Minutes")
 												.setValue((2 * HOUR).toString())
-												.setDefault(selectedChannelRecord.duration === 2 * HOUR)
-										)
-								)
+												.setDefault(selectedChannelRecord.duration === 2 * HOUR),
+										),
+								),
 							)
 							.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
-							.addTextDisplayComponents(
-								new TextDisplayBuilder().setContent(
-									'How many "Postpone"-votes should be required to postpone the channel clearing?'
-								)
-							)
+							.addTextDisplayComponents(new TextDisplayBuilder().setContent('How many "Postpone"-votes should be required to postpone the channel clearing?'))
 							.addActionRowComponents(
 								new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
 									new StringSelectMenuBuilder()
@@ -651,16 +617,12 @@ export default function ChannelClearVoting(client: Client, pb: PocketBase) {
 												.setLabel("100%")
 												.setValue("100")
 												.setDescription("Only postpone on unanimity")
-												.setDefault(selectedChannelRecord.vote_target === 100)
-										)
-								)
+												.setDefault(selectedChannelRecord.vote_target === 100),
+										),
+								),
 							)
 							.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
-							.addTextDisplayComponents(
-								new TextDisplayBuilder().setContent(
-									"If the results in postponing, after what delay should the vote be retried?"
-								)
-							)
+							.addTextDisplayComponents(new TextDisplayBuilder().setContent("If the results in postponing, after what delay should the vote be retried?"))
 							.addActionRowComponents(
 								new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
 									new StringSelectMenuBuilder()
@@ -699,11 +661,11 @@ export default function ChannelClearVoting(client: Client, pb: PocketBase) {
 											new StringSelectMenuOptionBuilder()
 												.setLabel("7 Days")
 												.setValue((7 * DAY).toString())
-												.setDefault(selectedChannelRecord.retry_delay === 7 * DAY)
-										)
-								)
+												.setDefault(selectedChannelRecord.retry_delay === 7 * DAY),
+										),
+								),
 							),
-				  ]),
+					]),
 		];
 	}
 }

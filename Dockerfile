@@ -1,24 +1,12 @@
-FROM node:24-alpine AS builder
+FROM oven/bun:1.3.8-alpine
 WORKDIR /app
-COPY package*.json ./
-RUN npm ci
-COPY ./src/ ./src/
-COPY tsconfig.json ./
-RUN npm run build
-
-
-FROM node:24-alpine AS production
+COPY package.json bun.lock ./
+RUN bun install --frozen-lockfile
 RUN apk add youtube-dl ffmpeg
-
-WORKDIR /app
 
 VOLUME /app/share
 
-COPY package*.json ./
-
-RUN npm ci --only-production
-
-COPY --from=builder /app/dist/ ./dist/
+COPY ./src/ ./src/
 COPY ./static/ ./static/
 
-CMD ["npm", "run", "start"]
+CMD ["bun", "src/bot.ts"]
