@@ -229,7 +229,10 @@ import PatchnoteForwarding from "./PatchnoteForwarding.js";
 // DonationBarPosting
 import DonationBarPosting from "./DonationBarPosting.js";
 
-if (process.env.PRODUCTION == "TRUE") {
+// Stream Manager
+import StreamManager from "./StreamManager.js";
+
+if (process.env.PRODUCTION === "TRUE") {
 	client.setMaxListeners(31);
 	console.log("Registering production plugins");
 
@@ -288,6 +291,7 @@ if (process.env.PRODUCTION == "TRUE") {
 	ReactionRewards(client, pocketbase);
 	PatchnoteForwarding(client);
 	DonationBarPosting(client, pocketbase);
+	StreamManager(client, pocketbase);
 } else {
 	console.log("Registering development plugins");
 }
