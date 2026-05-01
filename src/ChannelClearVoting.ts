@@ -115,7 +115,7 @@ export default function ChannelClearVoting(client: Client, pb: PocketBase) {
 			if (totalVotes > 0 && totalPostponeVotes * 100 >= totalVotes * record.vote_target) {
 				// Enough votes to postpone
 				record.votes = null; // Reset votes
-				record = await scheduleNext(record, record.retry_delay);
+				record = await scheduleNext(record, record.retry_delay > 0 ? record.retry_delay : undefined); // Schedule next vote with retry delay if set
 
 				console.log(`Postponing channel clearing for ${record.id} in server ${record.server_id}`);
 				const content = `The vote to clear this channel has been postponed until <t:${Math.floor(new Date(record.next_run ?? "").getTime() / 1000)}:f>.`;
@@ -154,9 +154,10 @@ export default function ChannelClearVoting(client: Client, pb: PocketBase) {
 	}
 
 	async function clearChannel(channel: GuildTextBasedChannel, beforeMessageId?: string) {
+		const failedMessageIds: string[] = [];
 		while (true) {
 			const messages = (await channel.messages.fetch({ limit: 100, before: beforeMessageId })).filter(
-				(m) => !m.pinned && !m.system && !m.hasThread && m.deletable,
+				(m) => !m.pinned && !m.system && !m.hasThread && m.deletable && m.id !== beforeMessageId && !failedMessageIds.includes(m.id),
 			);
 			if (messages.size <= 0) break; // No more messages to delete
 
@@ -179,9 +180,11 @@ export default function ChannelClearVoting(client: Client, pb: PocketBase) {
 					if (error instanceof DiscordAPIError && error.code === 10008) {
 						// Message not found, likely already deleted
 						console.warn(`Message ${message.id} not found in channel ${channel.id}, skipping deletion.`);
+						failedMessageIds.push(message.id);
 						continue;
 					}
 					console.error(`Failed to delete message ${message.id} in channel ${channel.id}:`, error);
+					failedMessageIds.push(message.id);
 				}
 			}
 		}
@@ -445,7 +448,7 @@ export default function ChannelClearVoting(client: Client, pb: PocketBase) {
 					.map(
 						(record) =>
 							`\n- ${record.enabled ? "✅" : "⭕"} <#${record.id}> ${
-								record.next_run ? `scheduled <t:${Math.floor(new Date(selectedChannelRecord.next_run ?? "").getTime() / 1000)}:R>` : "not scheduled"
+								record.next_run ? `scheduled <t:${Math.floor(new Date(record.next_run ?? "").getTime() / 1000)}:R>` : "not scheduled"
 							}`,
 					)
 					.join("")}`,

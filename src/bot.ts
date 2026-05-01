@@ -10,7 +10,6 @@ import { config } from "dotenv";
 import { createLogger, transports } from "winston";
 import LokiTransport from "winston-loki";
 config();
-import { Tick } from "./utils/unixtime.js";
 import MulticraftAPI from "./utils/multicraft.js";
 import YouTubeDL from "./utils/youtube-dl.js";
 
@@ -141,8 +140,6 @@ import RoleIconRandomization from "./RoleIconRandomization.js";
 // Reply kobold to maris
 import MarisKobold from "./MarisKobold.js";
 
-import ClearSupportChannel from "./ClearSupportChannel.js";
-
 import NicknameRandomization from "./NicknameRandomization.js";
 
 import RenameVC from "./RenameVC.js";
@@ -258,10 +255,9 @@ if (process.env.PRODUCTION === "TRUE") {
 	// SneakyrpPlayercount(client, multicraft);
 	RaidProtection(client, redis);
 	YouTube(client, ytdl);
-	// RoleIconRandomization(client, redis);
-	NicknameRandomization(client, redis);
+	// RoleIconRandomization(client);
+	NicknameRandomization(client);
 	MarisKobold(client);
-	ClearSupportChannel(client, redis);
 	HotlinePosting(client);
 	RenameVC(client);
 	DeleteHate(client);
@@ -302,11 +298,3 @@ server.listen(process.env.HTTP_PORT || 80, () => console.log("Listening on port 
 const token = process.env.DISCORD_TOKEN;
 if (!token) throw new Error("No token found!");
 client.login(token);
-
-client.once("clientReady", async () => {
-	//manage events queued off of unix time
-	while (true) {
-		let t = Tick(redis);
-		await new Promise((resolve) => setTimeout(resolve, t * 1000));
-	}
-});

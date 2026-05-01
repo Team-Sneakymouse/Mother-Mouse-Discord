@@ -1,6 +1,5 @@
 import { Client } from "discord.js";
-import { Redis } from "ioredis";
-import { ScheduleRepeating, SECS_IN_DAY } from "./utils/unixtime.js";
+import { CronJob } from "cron";
 
 const primaryName = "Mother Mouse";
 const names = [
@@ -31,13 +30,10 @@ const names = [
 const turtleFriendsId = "898925497508048896";// turtle friends discord id
 const mmId = "713723936231129089";
 
-export default function NicknameRandomization(client: Client, redis: Redis) {
-	ScheduleRepeating(
-		redis,
-		"NicknameRandomization-mm",//eventId
-		1655424000,//eventEpoch
-		SECS_IN_DAY,//secsBetweenEvents
-		async (time) => {//executor
+export default function NicknameRandomization(client: Client) {
+	const cronJob = new CronJob(
+		"0 0 0 * * *",
+		async () => {
 			let guild = await client.guilds.fetch(turtleFriendsId);
 			let mm = guild.members.resolve(mmId);
 			if (!mm) return console.log("NicknameRandomization: Mother Mouse is missing from the turtle server?");
@@ -48,7 +44,15 @@ export default function NicknameRandomization(client: Client, redis: Redis) {
 				chosenName = names[index];
 			}
 			mm.setNickname(chosenName);
-		}
+		},
+		undefined,
+		false,
+		"Etc/UTC",
 	);
+
+	client.on("clientReady", () => {
+		cronJob.start();
+		console.log("NicknameRandomization job started");
+	});
 }
 

@@ -1,6 +1,5 @@
 import { Client } from "discord.js";
-import { Redis } from "ioredis";
-import { ScheduleRepeating } from "./utils/unixtime.js";
+import { CronJob } from "cron";
 
 
 const icons = [
@@ -33,16 +32,11 @@ const icons = [
 
 const turtleFriendsId = "898925497508048896";// turtle friends discord id
 const mamisRoleId = "976218563922759690";
-const timeout_unix = 60*60*6;
 
-
-export default function RoleIconRandomization(client: Client, redis: Redis) {
-	ScheduleRepeating(
-		redis,
-		"RoleIconRandomization-mami",//eventId
-		0,//eventEpoch
-		timeout_unix,//secsBetweenEvents
-		async (time) => {//executor
+export default function RoleIconRandomization(client: Client) {
+	const cronJob = new CronJob(
+		"0 0 */6 * * *",
+		async () => {
 			let guild = await client.guilds.fetch(turtleFriendsId);
 			const mamisRole = guild.roles.resolve(mamisRoleId);
 			if (!mamisRole) return console.log("Mami's role is missing!");
@@ -62,6 +56,14 @@ export default function RoleIconRandomization(client: Client, redis: Redis) {
 					console.log("RoleIconRandomization whitelist has a broken emoji: " + chosenIcon);
 				}
 			}
-		}
+		},
+		undefined,
+		false,
+		"Etc/UTC",
 	);
+
+	client.on("clientReady", () => {
+		cronJob.start();
+		console.log("RoleIconRandomization job started");
+	});
 }
