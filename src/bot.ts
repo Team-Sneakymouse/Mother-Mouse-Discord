@@ -237,7 +237,7 @@ if (process.env.PRODUCTION === "TRUE") {
 	RawbColor(client);
 	Vibecheck(client);
 	Roll(client);
-	PalsRoles(client, redis);
+	PalsRoles(client, pocketbase);
 	PronounRoles(client, redis);
 	Trivia(client, redis);
 	MediaEmbed(client);
