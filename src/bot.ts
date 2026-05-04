@@ -5,8 +5,6 @@ import { Client, GatewayIntentBits, Partials } from "discord.js";
 import { Gitlab } from "@gitbeaker/node";
 import RssParser from "rss-parser";
 import { config } from "dotenv";
-import { createLogger, transports } from "winston";
-import LokiTransport from "winston-loki";
 config();
 import MulticraftAPI from "./utils/multicraft.js";
 import YouTubeDL from "./utils/youtube-dl.js";
@@ -30,21 +28,6 @@ if (!process.env["POCKETBASE_HOST"] || !process.env["POCKETBASE_USERNAME"] || !p
 const pocketbase = new PocketBase(process.env["POCKETBASE_HOST"]);
 pocketbase.collection("_superusers").authWithPassword(process.env["POCKETBASE_USERNAME"], process.env["POCKETBASE_PASSWORD"]);
 pocketbase.autoCancellation(false);
-
-if (!process.env["LOKI_HOST"] || !process.env["LOKI_USER"] || !process.env["LOKI_PASSWORD"]) throw new Error("Missing Loki credentials");
-const vcLogger = createLogger({
-	defaultMeta: { service_name: "mothermouse", type: "vc-connections" },
-	transports: [
-		new LokiTransport({
-			host: process.env["LOKI_HOST"],
-			basicAuth: `${process.env["LOKI_USER"]}:${process.env["LOKI_PASSWORD"]}`,
-			batching: false,
-			useWinstonMetaAsLabels: true,
-			ignoredMeta: ["level", "detected_level"],
-			onConnectionError: (err) => console.error(err),
-		}),
-	],
-});
 
 const client = new Client({
 	intents: [
@@ -186,9 +169,6 @@ import FillCache from "./FillCache.js";
 // Blockbench downloader
 import BlockbenchDownloader from "./BlockbenchDownloader.js";
 
-// VC Monitor
-import VCMonitor from "./VCMonitor.js";
-
 // TimeToLive
 import TimeToLive from "./TimeToLive.js";
 
@@ -258,7 +238,6 @@ if (process.env.PRODUCTION === "TRUE") {
 	EditBotMessages(client);
 	FillCache(client);
 	BlockbenchDownloader(client);
-	VCMonitor(client, vcLogger);
 	TimeToLive(client);
 	ChannelClearVoting(client, pocketbase);
 	AccountManagement(client, pocketbase, server);
