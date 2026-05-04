@@ -238,7 +238,7 @@ if (process.env.PRODUCTION === "TRUE") {
 	Vibecheck(client);
 	Roll(client);
 	PalsRoles(client, pocketbase);
-	PronounRoles(client, redis);
+	PronounRoles(client, pocketbase);
 	Trivia(client, redis);
 	MediaEmbed(client);
 	VoiceChannelVisibility(client);

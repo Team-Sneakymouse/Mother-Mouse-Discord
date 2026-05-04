@@ -1,17 +1,17 @@
 import {
-	AutocompleteInteraction,
-	ChatInputCommandInteraction,
-	Client,
+	type AutocompleteInteraction,
+	type ChatInputCommandInteraction,
+	type Client,
 	ComponentType,
 	GuildMember,
 	ModalBuilder,
-	ModalSubmitInteraction,
+	type ModalSubmitInteraction,
 	SlashCommandBuilder,
 	SlashCommandStringOption,
 	SlashCommandSubcommandBuilder,
 	TextInputStyle,
 } from "discord.js";
-import { Redis } from "ioredis";
+import PocketBase, { RecordModel } from "pocketbase";
 
 export const data = [
 	new SlashCommandBuilder()
@@ -22,28 +22,25 @@ export const data = [
 				.setName("add")
 				.setDescription("Assign a pronoun role to yourself")
 				.addStringOption(
-					new SlashCommandStringOption()
-						.setName("pronoun")
-						.setRequired(true)
-						.setDescription("The pronoun role to assign")
-						.setAutocomplete(true)
-				)
+					new SlashCommandStringOption().setName("pronoun").setRequired(true).setDescription("The pronoun role to assign").setAutocomplete(true),
+				),
 		)
 		.addSubcommand(
 			new SlashCommandSubcommandBuilder()
 				.setName("remove")
 				.setDescription("Remove a pronoun role from yourself")
 				.addStringOption(
-					new SlashCommandStringOption()
-						.setName("pronoun")
-						.setRequired(true)
-						.setDescription("The pronoun role to remove")
-						.setAutocomplete(true)
-				)
+					new SlashCommandStringOption().setName("pronoun").setRequired(true).setDescription("The pronoun role to remove").setAutocomplete(true),
+				),
 		),
 ];
 
-export default function PronounRoles(client: Client, redis: Redis) {
+type PronounRoleRecord = RecordModel & {
+	// id: string // role id
+	server_id: string;
+};
+
+export default function PronounRoles(client: Client, db: PocketBase) {
 	client.on("interactionCreate", async (interaction) => {
 		if (interaction.isAutocomplete() && interaction.commandName === "pronouns") return await handleAutocomplete(interaction);
 		if (interaction.isChatInputCommand() && interaction.commandName === "pronouns") return await handleCommand(interaction);
@@ -51,26 +48,19 @@ export default function PronounRoles(client: Client, redis: Redis) {
 	});
 
 	async function handleAutocomplete(interaction: AutocompleteInteraction) {
-		if (!interaction.guild)
+		if (!interaction.guild || !interaction.guildId)
 			return interaction.respond([
 				{
 					name: "Error: Can't retrieve guild info. Please tell Dani",
 					value: "error",
 				},
 			]);
-		if (!(interaction.member instanceof GuildMember))
-			return interaction.respond([
-				{
-					name: "Error: Can't retrieve member info. Please tell Dani",
-					value: "error",
-				},
-			]);
-		const member = interaction.member;
+		const member = interaction.member instanceof GuildMember ? interaction.member : await interaction.guild.members.fetch(interaction.user.id);
 
 		const subcommand = interaction.options.getSubcommand();
 		const autocomplete = interaction.options.getFocused() as string;
 
-		const allRoleIds = await redis.smembers(`DiscordPronounRoles:${interaction.guildId}`);
+		const allRoleIds = await getPronounRoleIds(interaction.guildId);
 		if (subcommand === "add") {
 			const roles = interaction.guild.roles.cache.filter((role) => allRoleIds.includes(role.id) && !member.roles.cache.has(role.id));
 			const filteredRoles = roles.filter((role) => role.name.toLowerCase().includes(autocomplete.toLowerCase()));
@@ -87,20 +77,14 @@ export default function PronounRoles(client: Client, redis: Redis) {
 	}
 
 	async function handleCommand(interaction: ChatInputCommandInteraction) {
-		if (!interaction.guild) {
+		if (!interaction.guild || !interaction.guildId) {
 			interaction.reply({
 				content: "Couldn't create pronoun role because the guild is invalid.",
 				ephemeral: true,
 			});
 			return;
 		}
-		if (!(interaction.member instanceof GuildMember)) {
-			interaction.reply({
-				content: "Couldn't assign pronoun role because I can't access the member object.",
-				ephemeral: true,
-			});
-			return;
-		}
+		const member = interaction.member instanceof GuildMember ? interaction.member : await interaction.guild.members.fetch(interaction.user.id);
 
 		const subCommand = interaction.options.getSubcommand();
 		if (subCommand === "add") {
@@ -121,13 +105,13 @@ export default function PronounRoles(client: Client, redis: Redis) {
 				interaction.showModal(createPronounModal(optionValue.replace("create_role", "")));
 				return;
 			}
-			await interaction.member.roles.add(role);
+			await member.roles.add(role);
 			interaction.reply({
 				content: `Assigned the pronoun role **${role.name}** to you.`,
 				ephemeral: true,
 			});
 		} else if (subCommand === "remove") {
-			const allRoles = await redis.smembers(`DiscordPronounRoles:${interaction.guildId}`);
+			const allRoles = await getPronounRoleIds(interaction.guildId);
 			const optionValue = interaction.options.getString("pronoun");
 			if (!optionValue) {
 				interaction.reply({
@@ -151,7 +135,7 @@ export default function PronounRoles(client: Client, redis: Redis) {
 				});
 				return;
 			}
-			await interaction.member.roles.remove(role);
+			await member.roles.remove(role);
 			interaction.reply({
 				content: `Removed **${role.name}** from your pronouns`,
 				ephemeral: true,
@@ -161,28 +145,21 @@ export default function PronounRoles(client: Client, redis: Redis) {
 	}
 
 	async function handleModal(interaction: ModalSubmitInteraction) {
-		if (!interaction.guild) {
+		if (!interaction.guild || !interaction.guildId) {
 			interaction.reply({
 				content: "Couldn't create pronoun role because the guild is invalid.",
 				ephemeral: true,
 			});
 			return;
 		}
-		if (!(interaction.member instanceof GuildMember)) {
-			interaction.reply({
-				content: "Couldn't assign pronoun role because I can't access the member object.",
-				ephemeral: true,
-			});
-			return;
-		}
+		const member = interaction.member instanceof GuildMember ? interaction.member : await interaction.guild.members.fetch(interaction.user.id);
 
 		const subjectPronoun = interaction.fields.getTextInputValue("pronoun_role_create_subject").toLowerCase();
 		const objectPronoun = interaction.fields.getTextInputValue("pronoun_role_create_object")?.toLowerCase();
 		const possessivePronoun = interaction.fields.getTextInputValue("pronoun_role_create_possessive")?.toLowerCase();
 		if ((subjectPronoun + objectPronoun + possessivePronoun).includes("/")) {
 			interaction.reply({
-				content:
-					"Couldn't parse pronouns because there are slashes in them. If this doesn't make sense to you, please tell Dani to make it more clear.",
+				content: "Couldn't parse pronouns because there are slashes in them. If this doesn't make sense to you, please tell Dani to make it more clear.",
 				ephemeral: true,
 			});
 			return;
@@ -193,7 +170,8 @@ export default function PronounRoles(client: Client, redis: Redis) {
 
 		const role = interaction.guild.roles.cache.find((r) => r.name === roleName);
 		if (role) {
-			await interaction.member.roles.add(role);
+			await addPronounRole(interaction.guildId, role.id);
+			await member.roles.add(role);
 			interaction.reply({
 				content: `There already is a role with the pronouns **${roleName}**, so I assigned that one to you.`,
 				ephemeral: true,
@@ -203,14 +181,37 @@ export default function PronounRoles(client: Client, redis: Redis) {
 		const newRole = await interaction.guild.roles.create({
 			name: roleName,
 			permissions: BigInt(0),
-			reason: `Pronoun role created by ${interaction.member.displayName}`,
+			reason: `Pronoun role created by ${member.displayName}`,
 		});
-		await redis.sadd(`DiscordPronounRoles:${interaction.guildId}`, newRole.id);
-		await interaction.member.roles.add(newRole);
+		await addPronounRole(interaction.guildId, newRole.id);
+		await member.roles.add(newRole);
 		interaction.reply({
 			content: `The pronoun role **${newRole.name}** has been created and I assigned it to you.`,
 			ephemeral: true,
 		});
+	}
+
+	async function getPronounRoleIds(serverId: string) {
+		const records = await db.collection("mmd_pronoun_roles").getFullList<PronounRoleRecord>(200, {
+			filter: `server_id = "${serverId}"`,
+		});
+		return records.map((record) => record.id);
+	}
+
+	async function addPronounRole(serverId: string, roleId: string) {
+		try {
+			return await db.collection("mmd_pronoun_roles").update<PronounRoleRecord>(roleId, {
+				server_id: serverId,
+			});
+		} catch (error) {
+			if ((error as any).status === 404) {
+				return db.collection("mmd_pronoun_roles").create<PronounRoleRecord>({
+					id: roleId,
+					server_id: serverId,
+				});
+			}
+			throw error;
+		}
 	}
 }
 
