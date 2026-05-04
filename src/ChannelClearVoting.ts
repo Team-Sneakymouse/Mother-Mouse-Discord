@@ -6,12 +6,12 @@ import {
 	ButtonStyle,
 	ChannelSelectMenuBuilder,
 	ChannelType,
-	Client,
+	type Client,
 	ContainerBuilder,
 	DiscordAPIError,
-	Guild,
-	GuildTextBasedChannel,
-	MessageActionRowComponentBuilder,
+	type Guild,
+	type GuildTextBasedChannel,
+	type MessageActionRowComponentBuilder,
 	MessageFlags,
 	PermissionFlagsBits,
 	SectionBuilder,
@@ -20,7 +20,7 @@ import {
 	SlashCommandBuilder,
 	StringSelectMenuBuilder,
 	StringSelectMenuOptionBuilder,
-	TextChannel,
+	type TextChannel,
 	TextDisplayBuilder,
 } from "discord.js";
 
@@ -285,14 +285,15 @@ export default function ChannelClearVoting(client: Client, pb: PocketBase) {
 			console.log("ChannelClearVoting interaction", command, channelId);
 			let channelRecords: ChannelClearVotingRecord[];
 			switch (command) {
-				case "ccv_delete_configuration":
+				case "ccv_delete_configuration": {
 					await pb.collection("mmd_channel_clear_voting").delete(channelId);
 					channelRecords = await pb.collection("mmd_channel_clear_voting").getFullList<ChannelClearVotingRecord>(200, {
 						filter: `server_id = "${interaction.guildId}"`,
 					});
 					channelId = null; // Reset selected channel after deletion
 					break;
-				case "ccv_enable_configuration":
+				}
+				case "ccv_enable_configuration": {
 					const botPermissions = interaction.guild.members.me?.permissionsIn(channelId);
 					if (!botPermissions || !botPermissions.has(PermissionFlagsBits.ViewChannel)) {
 						await interaction.reply({
@@ -323,7 +324,8 @@ export default function ChannelClearVoting(client: Client, pb: PocketBase) {
 						filter: `server_id = "${interaction.guildId}"`,
 					});
 					break;
-				case "ccv_disable_configuration":
+				}
+				case "ccv_disable_configuration": {
 					await pbUpsert<ChannelClearVotingRecord>(pb, "mmd_channel_clear_voting", {
 						id: channelId,
 						server_id: interaction.guildId,
@@ -334,6 +336,7 @@ export default function ChannelClearVoting(client: Client, pb: PocketBase) {
 						filter: `server_id = "${interaction.guildId}"`,
 					});
 					break;
+				}
 				default: {
 					await interaction.reply({ content: "Unknown button: `" + command + "`", ephemeral: true });
 					return;
@@ -442,16 +445,17 @@ export default function ChannelClearVoting(client: Client, pb: PocketBase) {
 		return [
 			new TextDisplayBuilder().setContent("# Channel Clear Voting"),
 			new TextDisplayBuilder().setContent(
-				`${
-					channelRecords.length == 0 ? "No" : channelRecords.length
-				} channels are currently set up for clear voting. Use the dropdown to select a channel and manage its voting settings.${channelRecords
-					.map(
-						(record) =>
-							`\n- ${record.enabled ? "✅" : "⭕"} <#${record.id}> ${
-								record.next_run ? `scheduled <t:${Math.floor(new Date(record.next_run ?? "").getTime() / 1000)}:R>` : "not scheduled"
-							}`,
-					)
-					.join("")}`,
+				channelRecords.length === 0
+					? "No"
+					: channelRecords.length +
+							"channels are currently set up for clear voting. Use the dropdown to select a channel and manage its voting settings." +
+							channelRecords
+								.map((record) =>
+									`\n- ${record.enabled ? "✅" : "⭕"} <#${record.id}> ` + record.next_run
+										? `scheduled <t:${Math.floor(new Date(record.next_run ?? "").getTime() / 1000)}:R>`
+										: "not scheduled",
+								)
+								.join(""),
 			),
 			new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
 				guildTextChannels.size <= 25
@@ -462,7 +466,7 @@ export default function ChannelClearVoting(client: Client, pb: PocketBase) {
 								Array.from(guildTextChannels.values()).map((channel) => ({
 									value: channel.id,
 									default: selected === channel.id,
-									label: "#" + channel.name,
+									label: `#${channel.name}`,
 									description: channelRecords.find((record) => record.id === channel.id)
 										? channelRecords.find((record) => record.id === channel.id)?.enabled
 											? "✅ Voting enabled"
@@ -495,13 +499,13 @@ export default function ChannelClearVoting(client: Client, pb: PocketBase) {
 								new SectionBuilder()
 									.addTextDisplayComponents(
 										new TextDisplayBuilder().setContent(
-											`This configuration is currently **${
-												!configurationIsValid(selectedChannelRecord) ? "incomplete" : selectedChannelRecord.enabled ? "enabled" : "disabled"
-											}**.${
-												configurationIsValid(selectedChannelRecord) && selectedChannelRecord.enabled && selectedChannelRecord.next_run
-													? `\nNext vote will run <t:${Math.floor(new Date(selectedChannelRecord.next_run ?? "").getTime() / 1000)}:R>.`
-													: ""
-											}`,
+											"This configuration is currently " +
+												`**${!configurationIsValid(selectedChannelRecord) ? "incomplete" : selectedChannelRecord.enabled ? "enabled" : "disabled"}**.` +
+												configurationIsValid(selectedChannelRecord) &&
+												selectedChannelRecord.enabled &&
+												selectedChannelRecord.next_run
+												? `\nNext vote will run <t:${Math.floor(new Date(selectedChannelRecord.next_run ?? "").getTime() / 1000)}:R>.`
+												: "",
 										),
 									)
 									.setButtonAccessory(
