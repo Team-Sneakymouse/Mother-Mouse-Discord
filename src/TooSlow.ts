@@ -1,19 +1,28 @@
 import { Client } from "discord.js";
-import { Redis } from "ioredis";
 
-export default function MediaEmbeds(client: Client, redis: Redis) {
+const cooldownMs = 15 * 60 * 1000; // 15 minutes
+
+export default function MediaEmbeds(client: Client) {
+	const cooldownExpiresAtByUser = new Map<string, number>();
+
 	client.on("typingStart", async (typing) => {
 		if (typing.inGuild()) return;
 		if (!typing.channel.isSendable()) return;
-		if (await redis.get(`mm-discord-tooslow:${typing.user.id}`)) return;
+		if (isOnCooldown(typing.user.id)) return;
 
-		await Promise.all([
-			redis.set(`mm-discord-tooslow:${typing.user.id}`, "true", "EX", 900),
-			typing.channel.send(`TOO SLOW! <:1robMyMan:805582449022337024> `),
-		]);
+		cooldownExpiresAtByUser.set(typing.user.id, Date.now() + cooldownMs);
+		await typing.channel.send(`TOO SLOW! <:1robMyMan:805582449022337024> `);
 	});
 	client.on("messageCreate", async (message) => {
 		if (message.guildId) return;
-		await redis.set(`mm-discord-tooslow:${message.author.id}`, "true", "EX", 900);
+		cooldownExpiresAtByUser.set(message.author.id, Date.now() + cooldownMs);
 	});
+
+	function isOnCooldown(userId: string) {
+		const expiresAt = cooldownExpiresAtByUser.get(userId);
+		if (!expiresAt) return false;
+		if (expiresAt > Date.now()) return true;
+		cooldownExpiresAtByUser.delete(userId);
+		return false;
+	}
 }

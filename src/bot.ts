@@ -239,7 +239,7 @@ if (process.env.PRODUCTION === "TRUE") {
 	MediaEmbed(client);
 	VoiceChannelVisibility(client);
 	GuessWho(client, redis);
-	TooSlow(client, redis);
+	TooSlow(client);
 	Stats(client, redis);
 	UserPins(client, pocketbase);
 	MemeResponsibly(client);
