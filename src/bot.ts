@@ -117,8 +117,8 @@ import MemeResponsibly from "./MemeResponsibly.js";
 // Unarchive threads
 import UnarchiveThreads from "./UnarchiveThreads.js";
 
-// SneakyRP new application webhook
-import SneakyrpApplications from "./SneakyrpApplications.js";
+// SneakyRP new application webhook //TODO: implement persistence to remember each application's discord message
+// import SneakyrpApplications from "./SneakyrpApplications.js";
 
 // OOC Discord Dani Power Up
 import OocTools from "./OocTools.js";
@@ -245,7 +245,7 @@ if (process.env.PRODUCTION === "TRUE") {
 	MemeResponsibly(client);
 	// GitlabIssues(client, server, gitlab);
 	UnarchiveThreads(client, pocketbase, gitlab);
-	SneakyrpApplications(client, redis, server);
+	// SneakyrpApplications(client, server);
 	OocTools(client);
 	// SneakyrpPlayerlist(client, multicraft);
 	// SneakyrpPlayercount(client, multicraft);

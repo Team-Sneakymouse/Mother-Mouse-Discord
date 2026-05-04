@@ -14,7 +14,6 @@ import {
 	TextInputStyle,
 	AttachmentBuilder,
 } from "discord.js";
-import { Redis } from "ioredis";
 import type { Express, Request, Response } from "express";
 
 type ApplicationData = {
@@ -28,7 +27,7 @@ type ApplicationData = {
 	}[];
 };
 
-export default function SneakyrpApplications(client: Client, redis: Redis, server: Express) {
+export default function SneakyrpApplications(client: Client, server: Express) {
 	client.on("interactionCreate", async (interaction) => {
 		if (interaction.isButton() && interaction.customId == "sneakyrp-applications:accept") applicationAcceptHandler(interaction);
 		else if (interaction.isButton() && interaction.customId == "sneakyrp-applications:reject") applicationRejectHandler(interaction);
@@ -186,7 +185,8 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 		}).data;
 
 		// Send or edit root message with author info
-		const rootMessageId = await redis.get(`mm-discord-sneakyrp:application-${id}`);
+		// const rootMessageId = await redis.get(`mm-discord-sneakyrp:application-${id}`);
+		const rootMessageId: string = ""; // TODO: Fetch application's discord message from persistence
 		let rootMessage = rootMessageId ? await appChannel.messages.fetch(rootMessageId) : null;
 		if (!rootMessage) {
 			rootMessage = await appChannel.send({
@@ -216,7 +216,8 @@ export default function SneakyrpApplications(client: Client, redis: Redis, serve
 							},
 					  ],
 			});
-			await redis.set(`mm-discord-sneakyrp:application-${id}`, rootMessage.id);
+			// TODO: write application's discord message id to persistence
+			// await redis.set(`mm-discord-sneakyrp:application-${id}`, rootMessage.id);
 		} else {
 			if (rootMessage.embeds[0].url) previewEmbed.url = rootMessage.embeds[0].url;
 			await rootMessage.edit({
