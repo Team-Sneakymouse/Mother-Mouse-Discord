@@ -128,7 +128,6 @@ import SneakyrpPlayerlist from "./SneakyrpPlayerlist.js";
 
 // SneakyRP playercount
 import SneakyrpPlayercount from "./SneakyrpPlayercount.js";
-import RaidProtection from "./RaidProtection.js";
 
 // start of mami's script imports
 // Role Icon Randomization for mami's role
@@ -249,7 +248,6 @@ if (process.env.PRODUCTION === "TRUE") {
 	OocTools(client);
 	// SneakyrpPlayerlist(client, multicraft);
 	// SneakyrpPlayercount(client, multicraft);
-	RaidProtection(client, redis);
 	YouTube(client, ytdl);
 	// RoleIconRandomization(client);
 	NicknameRandomization(client);
