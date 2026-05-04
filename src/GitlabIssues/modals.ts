@@ -1,8 +1,7 @@
 import { Gitlab } from "@gitbeaker/node";
 import { Client, Interaction, ModalSubmitInteraction } from "discord.js";
-import { Redis } from "ioredis";
 
-export default function (client: Client, redis: Redis, gitlab: InstanceType<typeof Gitlab>) {
+export default function (client: Client, gitlab: InstanceType<typeof Gitlab>) {
 	return {
 		matcher: function (i: Interaction): i is ModalSubmitInteraction {
 			return i.isModalSubmit() && (i.customId.startsWith("issue-create_") || i.customId.startsWith("issue-edit_"));

@@ -9,20 +9,20 @@ import {
 	TextChannel,
 	ThreadAutoArchiveDuration,
 } from "discord.js";
-import { Redis } from "ioredis";
 import { Request, Response } from "express";
 import { channelIds, projectIds, Projects, webhooks } from "./utils.js";
 import { Gitlab } from "@gitbeaker/node";
 import axios from "axios";
 import { Stream } from "node:stream";
 
-export default function init(client: Client, redis: Redis, gitlab: InstanceType<typeof Gitlab>) {
+export default function init(client: Client, gitlab: InstanceType<typeof Gitlab>) {
 	return async function (req: Request, res: Response) {
 		if (req.body.event_type === "note" && !("issue" in req.body)) return res.status(200).send();
 		let issueMessage: Message | undefined = undefined;
 		let project: Projects | undefined = undefined;
 		const id = req.body.event_type === "issue" ? req.body.object_attributes.id : req.body.issue.id;
-		const messageIds = await redis.get(`mm-discord-gitlab:issue-${id}`);
+		// const messageIds = await redis.get(`mm-discord-gitlab:issue-${id}`);
+		const messageIds: string = ""; // TODO: Fetch existing discord message info from persistence
 		if (messageIds) {
 			const [guildId, channelId, messageId] = messageIds.split("-") as [Projects, string, string];
 			project = guildId;
@@ -122,7 +122,8 @@ export default function init(client: Client, redis: Redis, gitlab: InstanceType<
 					],
 					files: attachments,
 				});
-				await redis.set(`mm-discord-gitlab:issue-${id}`, `${project}-${channelId}-${issueMessage.id}`);
+				// TODO: persist discord message info
+				// await redis.set(`mm-discord-gitlab:issue-${id}`, `${project}-${channelId}-${issueMessage.id}`);
 				res.status(200).send();
 				await startThread(issueMessage, title, project_id, iid);
 			} else {

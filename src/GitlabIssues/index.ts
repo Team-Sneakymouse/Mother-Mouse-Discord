@@ -1,5 +1,4 @@
 import type { Client } from "discord.js";
-import type { Redis } from "ioredis";
 import type { Express } from "express";
 import type { Gitlab } from "@gitbeaker/node";
 import initWebhook from "./webhooks.js";
@@ -9,9 +8,9 @@ import initButtons from "./buttons.js";
 import initMessages from "./messages.js";
 
 export { data } from "./commands.js";
-export default function GitlabIssues(client: Client, redis: Redis, server: Express, gitlab: InstanceType<typeof Gitlab>) {
+export default function GitlabIssues(client: Client, server: Express, gitlab: InstanceType<typeof Gitlab>) {
 	const commands = initCommands(client, gitlab);
-	const modals = initModals(client, redis, gitlab);
+	const modals = initModals(client, gitlab);
 	const buttons = initButtons(client, gitlab);
 	const messages = initMessages(client, gitlab);
 
@@ -24,7 +23,7 @@ export default function GitlabIssues(client: Client, redis: Redis, server: Expre
 		if (messages.matcher(m)) messages.handler(m);
 	});
 
-	const webhookHandler = initWebhook(client, redis, gitlab);
+	const webhookHandler = initWebhook(client, gitlab);
 	server.post("/gitlab", webhookHandler);
 
 	return gitlab;

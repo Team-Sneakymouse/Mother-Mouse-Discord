@@ -111,8 +111,8 @@ import UserPins from "./UserPins.js";
 // Meme responsibly easteregg
 import MemeResponsibly from "./MemeResponsibly.js";
 
-// Gitlab issues integration
-import GitlabIssues from "./GitlabIssues/index.js";
+// Gitlab issues integration //TODO: implement persistence to remember each issues discord message
+// import GitlabIssues from "./GitlabIssues/index.js";
 
 // Unarchive threads
 import UnarchiveThreads from "./UnarchiveThreads.js";
@@ -243,7 +243,7 @@ if (process.env.PRODUCTION === "TRUE") {
 	Stats(client, redis);
 	UserPins(client, pocketbase);
 	MemeResponsibly(client);
-	GitlabIssues(client, redis, server, gitlab);
+	// GitlabIssues(client, server, gitlab);
 	UnarchiveThreads(client, pocketbase, gitlab);
 	SneakyrpApplications(client, redis, server);
 	OocTools(client);
