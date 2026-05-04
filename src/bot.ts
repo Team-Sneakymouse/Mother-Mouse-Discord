@@ -1,5 +1,3 @@
-// @ts-ignore: no types for ioredis
-import Redis from "ioredis";
 import express from "express";
 import PocketBase from "pocketbase";
 import { Client, GatewayIntentBits, Partials } from "discord.js";
@@ -26,10 +24,6 @@ const rss = new RssParser();
 
 const server = express();
 server.use(express.json());
-
-const redis = new Redis({
-	host: process.env.REDIS_HOST || "redis",
-});
 
 if (!process.env["POCKETBASE_HOST"] || !process.env["POCKETBASE_USERNAME"] || !process.env["POCKETBASE_PASSWORD"])
 	throw new Error("Missing PocketBase credentials");
