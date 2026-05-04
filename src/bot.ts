@@ -96,9 +96,6 @@ import PronounRoles from "./PronounRoles.js";
 // Manage permissions for the stage chat channel
 import VoiceChannelVisibility from "./VoiceChannelVisibility.js";
 
-// Picture submission for the guess who game
-import GuessWho from "./GuessWho.js";
-
 // Too Slow meme in DMs
 import TooSlow from "./TooSlow.js";
 
@@ -237,7 +234,6 @@ if (process.env.PRODUCTION === "TRUE") {
 	PronounRoles(client, pocketbase);
 	MediaEmbed(client);
 	VoiceChannelVisibility(client);
-	GuessWho(client, redis);
 	TooSlow(client);
 	Stats(client, redis);
 	UserPins(client, pocketbase);
