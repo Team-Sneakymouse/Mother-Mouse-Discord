@@ -99,9 +99,6 @@ import VoiceChannelVisibility from "./VoiceChannelVisibility.js";
 // Too Slow meme in DMs
 import TooSlow from "./TooSlow.js";
 
-// Discord stats
-import Stats from "./Stats.js";
-
 // Allow users to pin messages
 import UserPins from "./UserPins.js";
 
@@ -235,7 +232,6 @@ if (process.env.PRODUCTION === "TRUE") {
 	MediaEmbed(client);
 	VoiceChannelVisibility(client);
 	TooSlow(client);
-	Stats(client, redis);
 	UserPins(client, pocketbase);
 	MemeResponsibly(client);
 	// GitlabIssues(client, server, gitlab);
