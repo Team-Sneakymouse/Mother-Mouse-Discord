@@ -93,9 +93,6 @@ import PalsRoles from "./PalsRoles.js";
 // Self-assignable pronoun roles
 import PronounRoles from "./PronounRoles.js";
 
-// Manage trivia answers
-import Trivia from "./Trivia.js";
-
 // Manage permissions for the stage chat channel
 import VoiceChannelVisibility from "./VoiceChannelVisibility.js";
 
@@ -239,7 +236,6 @@ if (process.env.PRODUCTION === "TRUE") {
 	Roll(client);
 	PalsRoles(client, pocketbase);
 	PronounRoles(client, pocketbase);
-	Trivia(client, redis);
 	MediaEmbed(client);
 	VoiceChannelVisibility(client);
 	GuessWho(client, redis);
