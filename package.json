@@ -30,6 +30,7 @@
 		"socket.io-client": "^4.8.3"
 	},
 	"devDependencies": {
+		"@biomejs/biome": "2.4.14",
 		"@discordjs/rest": "^2.6.1",
 		"@types/cookie-parser": "^1.4.10",
 		"@types/eventsource": "^1.1.15",

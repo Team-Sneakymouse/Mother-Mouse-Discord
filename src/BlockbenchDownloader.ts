@@ -18,6 +18,7 @@ export default function BlockbenchDownloader(client: Client) {
 			const codes = links.map((link) => link.replace(/\/$/, "").split("/").pop());
 			const attachments: AttachmentBuilder[] = [];
 			for (const code of codes) {
+				if (!code) continue;
 				let json: BlockbenchModelResponse;
 				try {
 					json = await fetch(`https://blckbn.ch/api/models/${code}`).then((res) => res.json() as Promise<BlockbenchModelResponse>);
@@ -26,7 +27,7 @@ export default function BlockbenchDownloader(client: Client) {
 					console.error(e);
 					continue;
 				}
-				const name = json.name || code;
+				const name = encodeURIComponent(json.name || code);
 				attachments.push(
 					new AttachmentBuilder(`https://blckbn.ch/api/models/${code}`).setName(`${name}.bbmodel`),
 					new AttachmentBuilder(`https://blckbn.ch/thumb/${code}.png`).setName(`${name}.png`),
@@ -37,15 +38,12 @@ export default function BlockbenchDownloader(client: Client) {
 			await message.channel.send({
 				flags: MessageFlags.IsComponentsV2,
 				components: [
-					new MediaGalleryBuilder().addItems(...attachments
-						.filter(a => a.name?.endsWith(".png"))
-						.map(a => new MediaGalleryItemBuilder()
-							.setURL(`attachment://${a.name}`)
-							.setDescription(a.name || "unknown.png")
-						)
+					new MediaGalleryBuilder().addItems(
+						...attachments
+							.filter((a) => a.name?.endsWith(".png"))
+							.map((a) => new MediaGalleryItemBuilder().setURL(`attachment://${a.name}`).setDescription(a.name || "unknown.png")),
 					),
-					...attachments.filter(a => a.name?.endsWith(".bbmodel"))
-						.map(a => new FileBuilder().setURL(`attachment://${a.name}`))
+					...attachments.filter((a) => a.name?.endsWith(".bbmodel")).map((a) => new FileBuilder().setURL(`attachment://${a.name}`)),
 				],
 				files: attachments,
 				reply: { messageReference: message },
