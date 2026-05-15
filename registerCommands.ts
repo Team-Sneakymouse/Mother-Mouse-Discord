@@ -1,4 +1,4 @@
-#! node_modules/.bin/tsx
+#! /usr/bin/env bun
 import { REST, Routes } from "discord.js";
 import { config } from "dotenv";
 config();
@@ -21,7 +21,6 @@ import { data as Roll } from "./src/Roll.js";
 import { data as PalsRoles } from "./src/PalsRoles.js";
 import { data as PronounRoles } from "./src/PronounRoles.js";
 //import { data as Todo } from "./src/Todo.js";
-import { data as Trivia } from "./src/Trivia.js";
 import { data as UserPins } from "./src/UserPins.js";
 import { data as GitlabIssues } from "./src/GitlabIssues/index.js";
 import { data as OocTools } from "./src/OocTools.js";
@@ -43,7 +42,7 @@ const commands = {
 	global: [...Vibecheck, ...Roll, ...TwitterFix, ...Uuid, ...EditBotMessages],
 	[GuildIds.OLIVIA]: [...Vibecheck, ...ChannelClearVoting],
 	[GuildIds.TEST]: [...Vibecheck, ...ChannelClearVoting, ...StreamManager],
-	[GuildIds.RAWBTV]: [...PalsRoles, ...PronounRoles, ...Trivia, ...UserPins, ...MinecraftDvzRegistrations, ...Faq, ...AccountManagement, ...Leaderboard],
+	[GuildIds.RAWBTV]: [...PalsRoles, ...PronounRoles, ...UserPins, ...MinecraftDvzRegistrations, ...Faq, ...AccountManagement, ...Leaderboard],
 	[GuildIds.TILII]: [...GitlabIssues],
 	[GuildIds.SNEAKYRP]: [...SneakyrpPlayerlist],
 	[GuildIds.OOC]: [...OocTools, ...YouTube],
