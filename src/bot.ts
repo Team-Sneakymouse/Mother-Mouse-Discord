@@ -21,7 +21,6 @@ const ytdl = new YouTubeDL();
 const rss = new RssParser();
 
 const server = express();
-server.use(express.json());
 
 if (!process.env["POCKETBASE_HOST"] || !process.env["POCKETBASE_USERNAME"] || !process.env["POCKETBASE_PASSWORD"])
 	throw new Error("Missing PocketBase credentials");
@@ -48,6 +47,12 @@ const client = new Client({
 client.once("clientReady", () => {
 	console.log("Ready!", client.user?.tag);
 });
+
+// Twitch Shame webhook
+import TwitchShame from "./TwitchShame.js";
+TwitchShame(client, server);
+
+server.use(express.json());
 
 // Assing default roles to new members
 import NewMemberRoles from "./NewMemberRoles.js";
