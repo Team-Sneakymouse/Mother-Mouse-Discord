@@ -198,8 +198,11 @@ import DonationBarPosting from "./DonationBarPosting.js";
 // Stream Manager
 import StreamManager from "./StreamManager.js";
 
+// Build Team Management
+import BuildTeamManagement from "./BuildTeamManagement.js";
+
 if (process.env.PRODUCTION === "TRUE") {
-	client.setMaxListeners(31);
+	client.setMaxListeners(Infinity);
 	console.log("Registering production plugins");
 
 	NewMemberRoles(client);
@@ -252,6 +255,7 @@ if (process.env.PRODUCTION === "TRUE") {
 	PatchnoteForwarding(client);
 	DonationBarPosting(client, pocketbase);
 	StreamManager(client, pocketbase);
+	BuildTeamManagement(client);
 } else {
 	console.log("Registering development plugins");
 }
