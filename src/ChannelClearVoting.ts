@@ -227,7 +227,7 @@ export default function ChannelClearVoting(client: Client, pb: PocketBase) {
 	client.on("interactionCreate", async (interaction) => {
 		if (interaction.isChatInputCommand() && interaction.commandName === "channelclearvoting") {
 			if (!interaction.guild) {
-				await interaction.reply({ content: "This command can only be used in a server.", ephemeral: true });
+				await interaction.reply({ content: "This command can only be used in a server.", flags: MessageFlags.Ephemeral });
 				return;
 			}
 			const channelRecords = await pb.collection("mmd_channel_clear_voting").getFullList<ChannelClearVotingRecord>(200, {
@@ -235,13 +235,12 @@ export default function ChannelClearVoting(client: Client, pb: PocketBase) {
 			});
 			const components = buildInterface(interaction.guild, channelRecords, interaction.channelId);
 			await interaction.reply({
-				flags: MessageFlags.IsComponentsV2,
+				flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
 				components,
-				ephemeral: true,
 			});
 		} else if (interaction.isButton() && ["ccv_vote_postpone", "ccv_vote_clear"].some((id) => interaction.customId.startsWith(id))) {
 			if (!interaction.guild) {
-				await interaction.reply({ content: "This command can only be used in a server.", ephemeral: true });
+				await interaction.reply({ content: "This command can only be used in a server.", flags: MessageFlags.Ephemeral });
 				return;
 			}
 
@@ -249,11 +248,11 @@ export default function ChannelClearVoting(client: Client, pb: PocketBase) {
 			console.log("ChannelClearVoting interaction", command, channelId);
 			const record = await pb.collection("mmd_channel_clear_voting").getOne<ChannelClearVotingRecord>(channelId);
 			if (!record || !configurationIsValid(record)) {
-				await interaction.reply({ content: "No valid voting configuration found for this channel.", ephemeral: true });
+				await interaction.reply({ content: "No valid voting configuration found for this channel.", flags: MessageFlags.Ephemeral });
 				return;
 			}
 			if (record.votes == null) {
-				await interaction.reply({ content: "No voting is currently active for this channel.", ephemeral: true });
+				await interaction.reply({ content: "No voting is currently active for this channel.", flags: MessageFlags.Ephemeral });
 				return;
 			}
 
@@ -270,14 +269,14 @@ export default function ChannelClearVoting(client: Client, pb: PocketBase) {
 
 			await interaction.reply({
 				content: `Your vote has been ${existingVote ? "updated" : "counted"}.`,
-				ephemeral: true,
+				flags: MessageFlags.Ephemeral,
 			});
 		} else if (
 			interaction.isButton() &&
 			["ccv_delete_configuration", "ccv_enable_configuration", "ccv_disable_configuration"].some((id) => interaction.customId.startsWith(id))
 		) {
 			if (!interaction.guild) {
-				await interaction.reply({ content: "This command can only be used in a server.", ephemeral: true });
+				await interaction.reply({ content: "This command can only be used in a server.", flags: MessageFlags.Ephemeral });
 				return;
 			}
 
@@ -298,19 +297,19 @@ export default function ChannelClearVoting(client: Client, pb: PocketBase) {
 					if (!botPermissions || !botPermissions.has(PermissionFlagsBits.ViewChannel)) {
 						await interaction.reply({
 							content: `I need the \`View Channel\` permission in <#${channelId}> to enable channel clear voting.`,
-							ephemeral: true,
+							flags: MessageFlags.Ephemeral,
 						});
 						return;
 					} else if (!botPermissions.has(PermissionFlagsBits.SendMessages)) {
 						await interaction.reply({
 							content: `I need the \`Send Messages\` permission in <#${channelId}> to enable channel clear voting.`,
-							ephemeral: true,
+							flags: MessageFlags.Ephemeral,
 						});
 						return;
 					} else if (!botPermissions.has(PermissionFlagsBits.ManageMessages)) {
 						await interaction.reply({
 							content: `I need the \`Manage Messages\` permission in <#${channelId}> to enable channel clear voting.`,
-							ephemeral: true,
+							flags: MessageFlags.Ephemeral,
 						});
 						return;
 					}
@@ -338,7 +337,7 @@ export default function ChannelClearVoting(client: Client, pb: PocketBase) {
 					break;
 				}
 				default: {
-					await interaction.reply({ content: "Unknown button: `" + command + "`", ephemeral: true });
+					await interaction.reply({ content: "Unknown button: `" + command + "`", flags: MessageFlags.Ephemeral });
 					return;
 				}
 			}
@@ -347,7 +346,7 @@ export default function ChannelClearVoting(client: Client, pb: PocketBase) {
 			});
 		} else if (interaction.isAnySelectMenu() && interaction.customId.startsWith("ccv_")) {
 			if (!interaction.guild) {
-				await interaction.reply({ content: "This command can only be used in a server.", ephemeral: true });
+				await interaction.reply({ content: "This command can only be used in a server.", flags: MessageFlags.Ephemeral });
 				return;
 			}
 
@@ -413,7 +412,7 @@ export default function ChannelClearVoting(client: Client, pb: PocketBase) {
 					break;
 				}
 				default: {
-					await interaction.reply({ content: "Unknown command: `" + command + "`", ephemeral: true });
+					await interaction.reply({ content: "Unknown command: `" + command + "`", flags: MessageFlags.Ephemeral });
 					return;
 				}
 			}

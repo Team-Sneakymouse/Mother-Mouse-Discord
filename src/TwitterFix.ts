@@ -1,4 +1,4 @@
-import { ApplicationCommandType, Client, ContextMenuCommandBuilder } from "discord.js";
+import { ApplicationCommandType, Client, ContextMenuCommandBuilder, MessageFlags } from "discord.js";
 
 const type: number = ApplicationCommandType.Message;
 export const data = [new ContextMenuCommandBuilder().setType(type).setName("Translate Twitter Link")];
@@ -13,14 +13,14 @@ export default function ThreadPins(client: Client) {
 		if (links.length === 0) {
 			await interaction.reply({
 				content: "This message doesn't contain a Twitter link.",
-				ephemeral: true,
+				flags: MessageFlags.Ephemeral,
 			});
 			return;
 		}
 
 		await interaction.reply({
 			content: links.map((l) => l.replace(/(?:twitter.com|x.com)/, "fxtwitter.com")).join("\n"),
-			ephemeral: true,
+			flags: MessageFlags.Ephemeral,
 		});
 	});
 }

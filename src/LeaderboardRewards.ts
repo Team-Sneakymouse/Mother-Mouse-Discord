@@ -74,7 +74,7 @@ export class LeaderboardRewardsManager {
 
 		this.client.on("interactionCreate", async (interaction) => {
 			if (interaction.isChatInputCommand() && interaction.commandName === "leaderboard") {
-				await interaction.deferReply({ ephemeral: true });
+				await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 				const date = new Date(new Date().getTime() - 7 * 60 * 60 * 1000);
 				if (!this.getBranding(date.toLocaleString("en-US", { weekday: "long" }))) {
 					await interaction.editReply("No leaderboard available today");

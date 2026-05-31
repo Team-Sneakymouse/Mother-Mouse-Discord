@@ -1,4 +1,5 @@
 import {
+	MessageFlags,
 	ChatInputCommandInteraction,
 	Client,
 	GuildMember,
@@ -421,7 +422,7 @@ export default function tfcSolver(client: Client) {
 		} else if (subCommand == "help") {
 			interaction.reply({
 				content: MATERIAL_HELP,
-				ephemeral: true,
+				flags: MessageFlags.Ephemeral,
 			});
 			return;
 		} else {

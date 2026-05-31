@@ -1,4 +1,5 @@
 import {
+	MessageFlags,
 	ChatInputCommandInteraction,
 	Client,
 	GuildMember,
@@ -60,7 +61,7 @@ export default function RenameVC(client: Client) {
 		if (!interaction.guild) {
 			interaction.reply({
 				content: "Couldn't rename a voice channel because I can't find a valid discord server.",
-				ephemeral: true,
+				flags: MessageFlags.Ephemeral,
 			});
 			return;
 		}
@@ -68,7 +69,7 @@ export default function RenameVC(client: Client) {
 		if (!(commander instanceof GuildMember)) {
 			interaction.reply({
 				content: "Couldn't rename a voice channel because I can't seem to find your account.",
-				ephemeral: true,
+				flags: MessageFlags.Ephemeral,
 			});
 			return;
 		}
@@ -77,7 +78,7 @@ export default function RenameVC(client: Client) {
 		if (!name) {
 			interaction.reply({
 				content: "Please specify a channel name.",
-				ephemeral: true,
+				flags: MessageFlags.Ephemeral,
 			});
 			return;
 		}
@@ -87,7 +88,7 @@ export default function RenameVC(client: Client) {
 		if (!commanderChannel) {
 			interaction.reply({
 				content: "But you aren't in a voice channel.",
-				ephemeral: true,
+				flags: MessageFlags.Ephemeral,
 			});
 			return;
 		}
@@ -95,7 +96,7 @@ export default function RenameVC(client: Client) {
 		if (!validChannelsAndDefaultNames.has(commanderChannel.id)) {
 			interaction.reply({
 				content: "I'm sorry but you don't have permission to change this channel's name.",
-				ephemeral: true,
+				flags: MessageFlags.Ephemeral,
 			});
 			return;
 		}

@@ -1,4 +1,5 @@
 import {
+	MessageFlags,
 	type AutocompleteInteraction,
 	type ChatInputCommandInteraction,
 	type Client,
@@ -80,7 +81,7 @@ export default function PronounRoles(client: Client, db: PocketBase) {
 		if (!interaction.guild || !interaction.guildId) {
 			interaction.reply({
 				content: "Couldn't create pronoun role because the guild is invalid.",
-				ephemeral: true,
+				flags: MessageFlags.Ephemeral,
 			});
 			return;
 		}
@@ -92,7 +93,7 @@ export default function PronounRoles(client: Client, db: PocketBase) {
 			if (!optionValue) {
 				interaction.reply({
 					content: "Please specify a pronoun role.",
-					ephemeral: true,
+					flags: MessageFlags.Ephemeral,
 				});
 				return;
 			}
@@ -108,7 +109,7 @@ export default function PronounRoles(client: Client, db: PocketBase) {
 			await member.roles.add(role);
 			interaction.reply({
 				content: `Assigned the pronoun role **${role.name}** to you.`,
-				ephemeral: true,
+				flags: MessageFlags.Ephemeral,
 			});
 		} else if (subCommand === "remove") {
 			const allRoles = await getPronounRoleIds(interaction.guildId);
@@ -116,7 +117,7 @@ export default function PronounRoles(client: Client, db: PocketBase) {
 			if (!optionValue) {
 				interaction.reply({
 					content: "Please specify a pronoun role.",
-					ephemeral: true,
+					flags: MessageFlags.Ephemeral,
 				});
 				return;
 			}
@@ -124,21 +125,21 @@ export default function PronounRoles(client: Client, db: PocketBase) {
 			if (!role) {
 				interaction.reply({
 					content: `Couldn't find a pronoun role with the id \`${optionValue}\`. Please tell Dani.`,
-					ephemeral: true,
+					flags: MessageFlags.Ephemeral,
 				});
 				return;
 			}
 			if (!allRoles.includes(role.id)) {
 				interaction.reply({
 					content: `The role \`${role.name}\` is not a pronoun role. Please get a Helpful Turtle to remove it.`,
-					ephemeral: true,
+					flags: MessageFlags.Ephemeral,
 				});
 				return;
 			}
 			await member.roles.remove(role);
 			interaction.reply({
 				content: `Removed **${role.name}** from your pronouns`,
-				ephemeral: true,
+				flags: MessageFlags.Ephemeral,
 			});
 			return;
 		}
@@ -148,7 +149,7 @@ export default function PronounRoles(client: Client, db: PocketBase) {
 		if (!interaction.guild || !interaction.guildId) {
 			interaction.reply({
 				content: "Couldn't create pronoun role because the guild is invalid.",
-				ephemeral: true,
+				flags: MessageFlags.Ephemeral,
 			});
 			return;
 		}
@@ -160,7 +161,7 @@ export default function PronounRoles(client: Client, db: PocketBase) {
 		if ((subjectPronoun + objectPronoun + possessivePronoun).includes("/")) {
 			interaction.reply({
 				content: "Couldn't parse pronouns because there are slashes in them. If this doesn't make sense to you, please tell Dani to make it more clear.",
-				ephemeral: true,
+				flags: MessageFlags.Ephemeral,
 			});
 			return;
 		}
@@ -174,7 +175,7 @@ export default function PronounRoles(client: Client, db: PocketBase) {
 			await member.roles.add(role);
 			interaction.reply({
 				content: `There already is a role with the pronouns **${roleName}**, so I assigned that one to you.`,
-				ephemeral: true,
+				flags: MessageFlags.Ephemeral,
 			});
 			return;
 		}
@@ -187,7 +188,7 @@ export default function PronounRoles(client: Client, db: PocketBase) {
 		await member.roles.add(newRole);
 		interaction.reply({
 			content: `The pronoun role **${newRole.name}** has been created and I assigned it to you.`,
-			ephemeral: true,
+			flags: MessageFlags.Ephemeral,
 		});
 	}
 

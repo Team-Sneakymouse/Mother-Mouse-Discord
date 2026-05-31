@@ -1,5 +1,5 @@
 import { Gitlab } from "@gitbeaker/node";
-import { Client, Interaction, ModalSubmitInteraction } from "discord.js";
+import { Client, Interaction, ModalSubmitInteraction, MessageFlags } from "discord.js";
 
 export default function (client: Client, gitlab: InstanceType<typeof Gitlab>) {
 	return {
@@ -22,7 +22,7 @@ export default function (client: Client, gitlab: InstanceType<typeof Gitlab>) {
 				});
 				await interaction.reply({
 					content: `Issue **#${issue.iid}** has been created.`,
-					ephemeral: true,
+					flags: MessageFlags.Ephemeral,
 				});
 				return;
 			} else if (interaction.customId.startsWith("issue-edit_")) {
@@ -32,7 +32,7 @@ export default function (client: Client, gitlab: InstanceType<typeof Gitlab>) {
 				});
 				await interaction.reply({
 					content: `Issue **#${iid}** has been updated.`,
-					ephemeral: true,
+					flags: MessageFlags.Ephemeral,
 				});
 				return;
 			} else {

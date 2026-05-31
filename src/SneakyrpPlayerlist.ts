@@ -1,5 +1,5 @@
 import type MulticraftAPI from "./utils/multicraft.js";
-import { Client, SlashCommandBuilder } from "discord.js";
+import { Client, SlashCommandBuilder, MessageFlags } from "discord.js";
 import axios from "axios";
 export const data = [new SlashCommandBuilder().setName("playerlist").setDescription("Displays a list of players on SneakyRP")];
 
@@ -30,7 +30,7 @@ export default function SneakyrpPlayerlist(client: Client, multicraft: Multicraf
 
 			interaction.reply({
 				content: `${lobbyStatus} **Lobby** (${lobbyResult.players.length}):\n${lobbyList}\n\n${liveStatus} **RP Server** (${liveResult.players.length}):\n${liveList}`,
-				ephemeral: true,
+				flags: MessageFlags.Ephemeral,
 			});
 			return;
 		}

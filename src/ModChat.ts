@@ -1,4 +1,4 @@
-import { ChannelType, Client, ComponentType, GuildTextBasedChannel, StringSelectMenuBuilder, ThreadAutoArchiveDuration } from "discord.js";
+import { ChannelType, Client, ComponentType, GuildTextBasedChannel, StringSelectMenuBuilder, ThreadAutoArchiveDuration, MessageFlags } from "discord.js";
 
 export const SelectMenu = new StringSelectMenuBuilder()
 	.setCustomId("modchat")
@@ -33,7 +33,7 @@ export default function ModChat(client: Client) {
 		if (!interaction.channel) return;
 		if (interaction.channel.type !== ChannelType.GuildText) return;
 
-		await interaction.deferReply({ ephemeral: true });
+		await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
 		if (!interaction.channel.permissionsFor(interaction.user)?.has("UseApplicationCommands")) {
 			await (client.channels.cache.get("1159792578619768882") as GuildTextBasedChannel)?.send(

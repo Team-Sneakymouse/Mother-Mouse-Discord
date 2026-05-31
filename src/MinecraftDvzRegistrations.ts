@@ -1,4 +1,5 @@
 import {
+	MessageFlags,
 	AttachmentBuilder,
 	Client,
 	InteractionReplyOptions,
@@ -101,7 +102,7 @@ export default function DvzRegistrations(client: Client, db: PocketBase, multicr
 				.getFirstListItem<RecordModel & { value: boolean }>('key="dvz_registrations_open"');
 			if (typeof registrationOpen.value !== "boolean") throw new Error("setting 'dvz_registrations_open' is not a boolean");
 			if (registrationOpen.value === true) {
-				await interaction.reply(REPLIES.error("Registrations are already open", { ephemeral: true }));
+				await interaction.reply(REPLIES.error("Registrations are already open", { flags: MessageFlags.Ephemeral }));
 				return;
 			}
 			await db.collection("settings").update(registrationOpen.id, { value: true });
@@ -129,7 +130,7 @@ export default function DvzRegistrations(client: Client, db: PocketBase, multicr
 				.getFirstListItem<RecordModel & { value: boolean }>('key="dvz_registrations_open"');
 			if (typeof registrationOpen.value !== "boolean") throw new Error("setting 'dvz_registrations_open' is not a boolean");
 			if (registrationOpen.value === false) {
-				await interaction.reply(REPLIES.error("Registrations are already closed", { ephemeral: true }));
+				await interaction.reply(REPLIES.error("Registrations are already closed", { flags: MessageFlags.Ephemeral }));
 				return;
 			}
 			await db.collection("settings").update(registrationOpen.id, { value: false });
@@ -152,7 +153,7 @@ export default function DvzRegistrations(client: Client, db: PocketBase, multicr
 			const registrerUrl = pendingRegistrations.get(interaction.user.id);
 			if (registrerUrl) {
 				await interaction.reply(
-					REPLIES.error("Your registration is pending. Please wait for it to complete: " + registrerUrl, { ephemeral: true })
+					REPLIES.error("Your registration is pending. Please wait for it to complete: " + registrerUrl, { flags: MessageFlags.Ephemeral })
 				);
 				return;
 			}
@@ -182,7 +183,7 @@ export default function DvzRegistrations(client: Client, db: PocketBase, multicr
 			} catch (e) {
 				await interaction.editReply(
 					REPLIES.error(`Error: Username lookup failed. Please try again.\nIf this keeps happening, please ping Dani.`, {
-						ephemeral: true,
+						flags: MessageFlags.Ephemeral,
 					})
 				);
 				pendingRegistrations.delete(interaction.user.id);

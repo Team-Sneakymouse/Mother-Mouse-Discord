@@ -1,5 +1,6 @@
 import type { Gitlab } from "@gitbeaker/node";
 import {
+	MessageFlags,
 	ChatInputCommandInteraction,
 	Client,
 	ComponentType,
@@ -33,7 +34,7 @@ export default function (client: Client, gitlab: InstanceType<typeof Gitlab>) {
 			if (!projectId)
 				return interaction.reply({
 					content: "This server is not configured for Gitlab integration. Please contact Dani if you can see this message!",
-					ephemeral: true,
+					flags: MessageFlags.Ephemeral,
 				});
 
 			const id = title ? createHash("sha1").update(title).digest("hex").substring(0, 13) : Date.now().toString();

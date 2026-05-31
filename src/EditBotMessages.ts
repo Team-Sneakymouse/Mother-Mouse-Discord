@@ -1,4 +1,5 @@
 import {
+	MessageFlags,
 	ActionRowBuilder,
 	ApplicationCommandType,
 	Client,
@@ -28,7 +29,7 @@ export default function EditBotMessages(client: Client) {
 		if (interaction.targetMessage.author.id !== client.user?.id) {
 			await interaction.reply({
 				content: "You can't edit this message.",
-				ephemeral: true,
+				flags: MessageFlags.Ephemeral,
 			});
 			return;
 		}
@@ -36,7 +37,7 @@ export default function EditBotMessages(client: Client) {
 		if (!interaction.member?.permissions.has(PermissionFlagsBits.ManageMessages)) {
 			await interaction.reply({
 				content: "You don't have permission to edit this message.",
-				ephemeral: true,
+				flags: MessageFlags.Ephemeral,
 			});
 			return;
 		}
@@ -56,7 +57,7 @@ export default function EditBotMessages(client: Client) {
 		if (!message) {
 			await interaction.reply({
 				content: "Message not found.",
-				ephemeral: true,
+				flags: MessageFlags.Ephemeral,
 			});
 			return;
 		}
@@ -66,13 +67,13 @@ export default function EditBotMessages(client: Client) {
 			const error = e instanceof Error ? e : new Error((e as any).toString());
 			await interaction.reply({
 				content: "Failed to edit message:\n" + error.message,
-				ephemeral: true,
+				flags: MessageFlags.Ephemeral,
 			});
 			return;
 		}
 		await interaction.reply({
 			content: "Message edited.",
-			ephemeral: true,
+			flags: MessageFlags.Ephemeral,
 		});
 	});
 }

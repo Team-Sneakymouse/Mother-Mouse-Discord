@@ -1,4 +1,5 @@
 import {
+	MessageFlags,
 	Client,
 	Colors,
 	EmbedBuilder,
@@ -43,7 +44,7 @@ export default function SneakyrpApplications(client: Client, server: Express) {
 		if (!userId)
 			return interaction.reply({
 				content: `Could extract user id from footer \`${interaction.message.embeds[0]?.footer?.text}\``,
-				ephemeral: true,
+				flags: MessageFlags.Ephemeral,
 			});
 		let member: GuildMember | undefined;
 		try {
@@ -51,7 +52,7 @@ export default function SneakyrpApplications(client: Client, server: Express) {
 		} catch (err) {
 			return interaction.reply({
 				content: `Could not fetch member \`${userId}\``,
-				ephemeral: true,
+				flags: MessageFlags.Ephemeral,
 			});
 		}
 
@@ -74,7 +75,7 @@ export default function SneakyrpApplications(client: Client, server: Express) {
 		});
 		await interaction.reply({
 			content: "Success",
-			ephemeral: true,
+			flags: MessageFlags.Ephemeral,
 		});
 		await (interaction.message.thread as ThreadChannel).send(
 			`${(interaction.member as GuildMember).displayName} accepted the application of <@${userId}>`
@@ -108,7 +109,7 @@ export default function SneakyrpApplications(client: Client, server: Express) {
 	async function applicationRejectConfirmHandler(interaction: ModalSubmitInteraction) {
 		const msgId = interaction.customId.split("-").pop()!;
 		const msg = await interaction.channel?.messages.fetch(msgId);
-		if (!msg) return interaction.reply({ content: "Could not find message. Tell Dani pls!", ephemeral: true });
+		if (!msg) return interaction.reply({ content: "Could not find message. Tell Dani pls!", flags: MessageFlags.Ephemeral });
 
 		const userId = msg.embeds[0]?.footer?.text.match(/\d{15,}/)?.[0];
 
@@ -121,7 +122,7 @@ export default function SneakyrpApplications(client: Client, server: Express) {
 		});
 		await interaction.reply({
 			content: "Success",
-			ephemeral: true,
+			flags: MessageFlags.Ephemeral,
 		});
 		const reason = interaction.fields.getTextInputValue("sneakyrp-applications:rejectconfirm-reason");
 		await (msg.thread as ThreadChannel).send(

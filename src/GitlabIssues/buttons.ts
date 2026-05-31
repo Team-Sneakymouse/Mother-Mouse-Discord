@@ -1,5 +1,5 @@
 import { Gitlab } from "@gitbeaker/node";
-import { ButtonInteraction, Client, ComponentType, Interaction, ModalBuilder, TextInputStyle } from "discord.js";
+import { ButtonInteraction, Client, ComponentType, Interaction, ModalBuilder, TextInputStyle, MessageFlags } from "discord.js";
 import { projectIds, Projects } from "./utils.js";
 
 export default function (client: Client, gitlab: InstanceType<typeof Gitlab>) {
@@ -55,7 +55,7 @@ export default function (client: Client, gitlab: InstanceType<typeof Gitlab>) {
 				});
 				await interaction.reply({
 					content: `Issue **#${issue.iid}** has been reopened.`,
-					ephemeral: true,
+					flags: MessageFlags.Ephemeral,
 				});
 			} else if (action == "close") {
 				const issue = await gitlab.Issues.edit(project_id, parseInt(iid), {
@@ -63,7 +63,7 @@ export default function (client: Client, gitlab: InstanceType<typeof Gitlab>) {
 				});
 				await interaction.reply({
 					content: `Issue **#${issue.iid}** has been closed.`,
-					ephemeral: true,
+					flags: MessageFlags.Ephemeral,
 				});
 			}
 		},

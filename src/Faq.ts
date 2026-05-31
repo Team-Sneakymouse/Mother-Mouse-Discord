@@ -1,4 +1,4 @@
-import { Client, SlashCommandBuilder, SlashCommandStringOption } from "discord.js";
+import { Client, SlashCommandBuilder, SlashCommandStringOption, MessageFlags } from "discord.js";
 import PocketBase, { RecordModel } from "pocketbase";
 export const data = [
 	new SlashCommandBuilder()
@@ -66,7 +66,7 @@ export default function Vibecheck(client: Client, pocketbase: PocketBase) {
 			} catch (e) {
 				interaction.reply({
 					content: "I can't find that question. Please ask it normally.",
-					ephemeral: true,
+					flags: MessageFlags.Ephemeral,
 				});
 				return;
 			}

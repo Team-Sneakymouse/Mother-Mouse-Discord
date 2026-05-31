@@ -1,4 +1,5 @@
 import {
+	MessageFlags,
 	Client,
 	CommandInteraction,
 	ContextMenuCommandBuilder,
@@ -73,7 +74,7 @@ async function handlePowerCommand(interaction: CommandInteraction) {
 	if (!dani) {
 		interaction.reply({
 			content: "can't find dani",
-			ephemeral: true,
+			flags: MessageFlags.Ephemeral,
 		});
 		return;
 	}
@@ -82,13 +83,13 @@ async function handlePowerCommand(interaction: CommandInteraction) {
 		await dani.roles.remove("971480595232342036");
 		interaction.reply({
 			content: "Dani is no longer powered up",
-			ephemeral: true,
+			flags: MessageFlags.Ephemeral,
 		});
 	} else {
 		await dani.roles.add("971480595232342036");
 		interaction.reply({
 			content: "Powered up Dani",
-			ephemeral: true,
+			flags: MessageFlags.Ephemeral,
 		});
 	}
 }

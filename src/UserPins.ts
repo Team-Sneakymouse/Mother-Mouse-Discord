@@ -1,4 +1,4 @@
-import { ApplicationCommandType, Client, Message, ContextMenuCommandBuilder } from "discord.js";
+import { ApplicationCommandType, Client, Message, ContextMenuCommandBuilder, MessageFlags } from "discord.js";
 import PocketBase, { RecordModel } from "pocketbase";
 
 export const data = [new ContextMenuCommandBuilder().setType(ApplicationCommandType.Message).setName("Pin Message")];
@@ -16,7 +16,7 @@ export default function ThreadPins(client: Client, db: PocketBase) {
 		if (!interaction.guildId) {
 			interaction.reply({
 				content: "This command can only be used in a server.",
-				ephemeral: true,
+				flags: MessageFlags.Ephemeral,
 			});
 			return;
 		}
@@ -28,7 +28,7 @@ export default function ThreadPins(client: Client, db: PocketBase) {
 		if (!allowedChannels) {
 			interaction.reply({
 				content: "Failed looking up `discord_channels_user_pins`. Please tell Dani.",
-				ephemeral: true,
+				flags: MessageFlags.Ephemeral,
 			});
 			return;
 		}
@@ -39,7 +39,7 @@ export default function ThreadPins(client: Client, db: PocketBase) {
 		if (!allowed) {
 			interaction.reply({
 				content: "You don't have permission to use this command here. Please tell Dani if you would like to.",
-				ephemeral: true,
+				flags: MessageFlags.Ephemeral,
 			});
 			return;
 		}

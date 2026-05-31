@@ -1,4 +1,4 @@
-import { ApplicationCommandType, Client, ContextMenuCommandBuilder, PermissionFlagsBits } from "discord.js";
+import { ApplicationCommandType, Client, ContextMenuCommandBuilder, PermissionFlagsBits, MessageFlags } from "discord.js";
 
 const RAWBTV_GUILD_ID = "391355330241757205";
 const BUILD_TEAM_ROLE_ID = "1508599054735642654";
@@ -22,7 +22,7 @@ export default function BuildTeamManagement(client: Client) {
 		if (interaction.guildId !== RAWBTV_GUILD_ID || !interaction.guild) {
 			await interaction.reply({
 				content: "This command can only be used in the configured server.",
-				ephemeral: true,
+				flags: MessageFlags.Ephemeral,
 			});
 			return;
 		}
@@ -31,7 +31,7 @@ export default function BuildTeamManagement(client: Client) {
 		if (!member) {
 			await interaction.reply({
 				content: "Could not find that member in this server.",
-				ephemeral: true,
+				flags: MessageFlags.Ephemeral,
 			});
 			return;
 		}
@@ -47,14 +47,14 @@ export default function BuildTeamManagement(client: Client) {
 			const error = e instanceof Error ? e : new Error((e as any).toString());
 			await interaction.reply({
 				content: "Failed to update build team role:\n" + error.message,
-				ephemeral: true,
+				flags: MessageFlags.Ephemeral,
 			});
 			return;
 		}
 
 		await interaction.reply({
-			content: `${member.displayName} has been ${adding ? "added to" : "removed from"} the build team.`,
-			ephemeral: true,
+			content: `<@${member.id}> has been ${adding ? "added to" : "removed from"} the build team.`,
+			flags: MessageFlags.Ephemeral,
 		});
 	});
 }
