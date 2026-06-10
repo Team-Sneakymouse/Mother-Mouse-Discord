@@ -37,7 +37,7 @@ export default function ModChat(client: Client) {
 
 		if (!interaction.channel.permissionsFor(interaction.user)?.has("UseApplicationCommands")) {
 			await (client.channels.cache.get("1159792578619768882") as GuildTextBasedChannel)?.send(
-				`${interaction.user.username} (<@${interaction.user.id}>) tried to use the mod chat but doesn't have permissions.`
+				`${interaction.user.username} (<@${interaction.user.id}>) tried to use the mod chat but doesn't have permissions.`,
 			);
 			await new Promise((resolve) => setTimeout(resolve, 20000));
 			await interaction.editReply({
@@ -55,12 +55,12 @@ export default function ModChat(client: Client) {
 			invitable: false,
 			reason: "User requested mod chat",
 		});
-		const tags = ["<@&1253134360740102244>"]; // Admins
-		if (option === "technical") tags.push("<@138345057072840704>"); // Dani
+		const tags = ["<@&1253134360740102244>"]; // Moderators
+		if (option === "technical") tags.push("<@108296164599734272>"); // Momo
 		const msg = await thread.send(`${tags.join(",")} new mod chat for ${interaction.user.username}`);
 		await msg.delete();
 		await thread.send(
-			`Hi <@${interaction.user.id}>, thanks for reaching out! This is a private chat between you and the mods. Please tell us what's on your mind.`
+			`Hi <@${interaction.user.id}>, thanks for reaching out! This is a private chat between you and the mods. Please tell us what's on your mind.`,
 		);
 
 		await interaction.message.edit({
