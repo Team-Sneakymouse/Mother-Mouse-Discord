@@ -36,7 +36,7 @@ export default function RawbColor(client: Client) {
 			await digitalBardRole.setColors({ primaryColor: digitalBardRole.hexColor.toUpperCase() === "#0FB5E5" ? "#FF26A4" : "#0FB5E5" });
 
 			if (changeBackTimeout) clearTimeout(changeBackTimeout);
-			changeBackTimeout = setTimeout(() => digitalBardRole.setColor("#0FB5E5"), message.content.length * 100);
+			changeBackTimeout = setTimeout(() => digitalBardRole.setColors({ primaryColor: "#0FB5E5" }), message.content.length * 100);
 		} else if (message.guildId === "971479608664924202") {
 			// ooc
 			if (!Object.keys(colors).includes(message.author.id)) return;
@@ -46,7 +46,7 @@ export default function RawbColor(client: Client) {
 			await role.setColors({ primaryColor: role.hexColor.toUpperCase() === color.primary ? color.secondary : color.primary });
 
 			if (color.timeout) clearTimeout(color.timeout);
-			color.timeout = setTimeout(() => role.setColor(color.primary), 5000);
+			color.timeout = setTimeout(() => role.setColors({ primaryColor: color.primary }), 5000);
 		}
 	});
 }
