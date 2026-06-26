@@ -24,12 +24,9 @@ import { data as PronounRoles } from "./src/PronounRoles.js";
 import { data as UserPins } from "./src/UserPins.js";
 import { data as GitlabIssues } from "./src/GitlabIssues/index.js";
 import { data as OocTools } from "./src/OocTools.js";
-import { data as SneakyrpPlayerlist } from "./src/SneakyrpPlayerlist.js";
 import { data as TwitterFix } from "./src/TwitterFix.js";
-import { data as MinecraftDvzRegistrations } from "./src/MinecraftDvzRegistrations.js";
 import { data as Faq } from "./src/Faq.js";
 import { data as Uuid } from "./src/Uuid.js";
-import { data as MinecraftWhitelist } from "./src/MinecraftWhitelist.js";
 import { metadata as RoleConnectionMetadata } from "./src/LinkedRole.js";
 import { data as YouTube } from "./src/YouTube.js";
 import { data as EditBotMessages } from "./src/EditBotMessages.js";
@@ -47,17 +44,16 @@ const commands = {
 		...PalsRoles,
 		...PronounRoles,
 		...UserPins,
-		...MinecraftDvzRegistrations,
 		...Faq,
 		...AccountManagement,
 		...Leaderboard,
 		...BuildTeamManagement,
 	],
 	[GuildIds.TILII]: [...GitlabIssues],
-	[GuildIds.SNEAKYRP]: [...SneakyrpPlayerlist],
+	[GuildIds.SNEAKYRP]: [],
 	[GuildIds.OOC]: [...OocTools, ...YouTube],
-	[GuildIds.TURTLES]: [...PalsRoles, ...PronounRoles, ...SneakyrpPlayerlist, ...RenameVC, ...UserPins, ...tfcSolver],
-	[GuildIds.MSD]: [...MinecraftWhitelist, ...StreamManager],
+	[GuildIds.TURTLES]: [...PalsRoles, ...PronounRoles, ...RenameVC, ...UserPins, ...tfcSolver],
+	[GuildIds.MSD]: [...StreamManager],
 };
 
 const roleConnectionMetadata = RoleConnectionMetadata;

@@ -6,11 +6,7 @@ import { Gitlab } from "@gitbeaker/node";
 import RssParser from "rss-parser";
 import { config } from "dotenv";
 config();
-import MulticraftAPI from "./utils/multicraft.js";
 import YouTubeDL from "./utils/youtube-dl.js";
-
-if (!process.env["MULTICRAFT_HOST"] || !process.env["MULTICRAFT_USER"] || !process.env["MULTICRAFT_KEY"]) throw new Error("Missing Multicraft credentials");
-const multicraft = new MulticraftAPI(process.env["MULTICRAFT_HOST"], process.env["MULTICRAFT_USER"], process.env["MULTICRAFT_KEY"]);
 
 const gitlab = new Gitlab({
 	token: process.env["GITLAB_TOKEN"],
@@ -99,12 +95,6 @@ import UnarchiveThreads from "./UnarchiveThreads.js";
 // OOC Discord Dani Power Up
 import OocTools from "./OocTools.js";
 
-// SneakyRP playerlist
-import SneakyrpPlayerlist from "./SneakyrpPlayerlist.js";
-
-// SneakyRP playercount
-import SneakyrpPlayercount from "./SneakyrpPlayercount.js";
-
 // start of mami's script imports
 // Role Icon Randomization for mami's role
 import RoleIconRandomization from "./RoleIconRandomization.js";
@@ -129,9 +119,6 @@ import DeleteHate from "./DeleteHate.js";
 // Convert Twitter links to FxTwitter
 import TwitterFix from "./TwitterFix.js";
 
-// Manage Discord <-> Minecraft linking for whitelist
-import DvzRegistrations from "./MinecraftDvzRegistrations.js";
-
 // Manage pocketbase listeners for the LoM2 Job Board
 import Lom2JobBoard from "./Lom2JobBoard.js";
 
@@ -146,9 +133,6 @@ import ChannelFilters from "./ChannelFilters.js";
 
 // Starboard
 import Starboard from "./Starboard.js";
-
-// Minecraft whitelist
-import MinecraftWhitelist from "./MinecraftWhitelist.js";
 
 // Linked Role
 import LinkedRole from "./LinkedRole.js";
@@ -220,8 +204,6 @@ if (process.env.PRODUCTION === "TRUE") {
 	UnarchiveThreads(client, pocketbase, gitlab);
 	// SneakyrpApplications(client, server);
 	OocTools(client);
-	// SneakyrpPlayerlist(client, multicraft);
-	// SneakyrpPlayercount(client, multicraft);
 	YouTube(client, ytdl);
 	// RoleIconRandomization(client);
 	NicknameRandomization(client);
@@ -231,13 +213,11 @@ if (process.env.PRODUCTION === "TRUE") {
 	DeleteHate(client);
 	tfcSolver(client);
 	TwitterFix(client);
-	DvzRegistrations(client, pocketbase, multicraft);
 	Lom2JobBoard(client, pocketbase);
 	Faq(client, pocketbase);
 	Uuid(client);
 	ChannelFilters(client);
 	Starboard(client);
-	MinecraftWhitelist(client, multicraft);
 	LinkedRole(client, server, pocketbase);
 	TextCommands(client, pocketbase);
 	// PostAnnouncements(client, server, pocketbase);
