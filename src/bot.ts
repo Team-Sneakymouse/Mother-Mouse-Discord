@@ -185,6 +185,9 @@ import StreamManager from "./StreamManager.js";
 // Build Team Management
 import BuildTeamManagement from "./BuildTeamManagement.js";
 
+// Give the Rats role to users who post in the designated channel
+import RatsRoleAssignment from "./RatsRoleAssignment.js";
+
 if (process.env.PRODUCTION === "TRUE") {
 	client.setMaxListeners(Infinity);
 	console.log("Registering production plugins");
@@ -236,6 +239,7 @@ if (process.env.PRODUCTION === "TRUE") {
 	DonationBarPosting(client, pocketbase);
 	StreamManager(client, pocketbase);
 	BuildTeamManagement(client);
+	RatsRoleAssignment(client);
 } else {
 	console.log("Registering development plugins");
 }
