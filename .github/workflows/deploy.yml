@@ -1,6 +1,10 @@
 # prettier-ignore
 name: Docker Image CI
 
+permissions:
+  contents: "read"
+  id-token: "write"
+
 on:
   push:
     branches: [ "main" ]
@@ -9,17 +13,43 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3 # Check out source code 
-      - name: Login to custom Container Registry # Login to container registry
-        uses: docker/login-action@v2
+      - uses: actions/checkout@v4 # Check out source code 
+      - name: Fetch registry credentials from Infisical
+        uses: Infisical/secrets-action@v1.0.16
         with:
-          registry: ${{ secrets.DOCKER_REGISTRY }}
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-      - name: Build and push Docker images # Build docker image
-        uses: docker/build-push-action@v4.0.0
+          method: oidc
+          identity-id: ${{ secrets.INFISICAL_IDENTITY_ID }}
+          domain: ${{ secrets.INFISICAL_DOMAIN }}
+          project-slug: lords-of-minecraft
+          env-slug: prod
+          secret-path: /Registry
+      - name: Log in to registry
+        run: |
+          printf '%s' "$REGISTRY_PASSWORD" | docker login $REGISTRY_HOST \
+            --username "$REGISTRY_USER" \
+            --password-stdin
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push
+        run: |
+          docker buildx build \
+            --tag "$REGISTRY_HOST/mother-mouse-discord:latest" \
+            --push \
+            .
+      - name: Fetch Watchtower secrets from Infisical
+        uses: Infisical/secrets-action@v1.0.16
         with:
-          push: true
-          tags: ${{ secrets.DOCKER_REGISTRY }}/mother-mouse-discord:latest
+          method: oidc
+          identity-id: ${{ secrets.INFISICAL_IDENTITY_ID }}
+          domain: ${{ secrets.INFISICAL_DOMAIN }}
+          project-slug: lords-of-minecraft
+          env-slug: prod
+          secret-path: /Watchtower
       - name: Trigger Watchtower # Trigger Watchtower to update the running container
-        run: 'curl -H "Authorization: Bearer ${{ secrets.WATCHTOWER_TOKEN }}" ${{  secrets.WATCHTOWER_URL }} -s'
+        run: |
+          curl --fail-with-body --show-error --silent \
+            --request POST \
+            --header "Authorization: Bearer $WATCHTOWER_TOKEN" \
+            "$WATCHTOWER_URL"
