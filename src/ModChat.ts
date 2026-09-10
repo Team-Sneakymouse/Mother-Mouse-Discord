@@ -48,9 +48,10 @@ export default function ModChat(client: Client) {
 
 		const option = interaction.values[0];
 		const emoji = SelectMenu.options.find((o) => o.data.value === option)?.data.emoji;
+		const member = interaction.guild?.members.cache.get(interaction.user.id) || (await interaction.guild?.members.fetch(interaction.user.id));
 		const thread = await interaction.channel.threads.create({
 			type: ChannelType.PrivateThread,
-			name: `${emoji?.name} ${client.users.cache.get(interaction.user.id)?.displayName}`,
+			name: `${emoji?.name} ${member?.displayName ?? interaction.user.displayName ?? interaction.user.username}`,
 			autoArchiveDuration: ThreadAutoArchiveDuration.OneWeek,
 			invitable: false,
 			reason: "User requested mod chat",
