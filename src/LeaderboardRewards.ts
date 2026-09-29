@@ -75,7 +75,7 @@ export class LeaderboardRewardsManager {
 		this.client.on("interactionCreate", async (interaction) => {
 			if (interaction.isChatInputCommand() && interaction.commandName === "leaderboard") {
 				await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-				const date = new Date(new Date().getTime() - 7 * 60 * 60 * 1000);
+				const date = this.getLeaderboardDate();
 				if (!this.getBranding(date.toLocaleString("en-US", { weekday: "long" }))) {
 					await interaction.editReply("No leaderboard available today");
 					return;
@@ -86,16 +86,21 @@ export class LeaderboardRewardsManager {
 			}
 		});
 
-		// Encounters get disabled and Leaderboard is locked at 5:30 UTC, 1.5 hours before restart
-		this.cronJob = new CronJob("0 31 5 * * *", () => this.runRewards(), undefined, false, "Etc/UTC");
+		// Server restarts at 7:00 UTC; distribute rewards for the completed game day
+		this.cronJob = new CronJob("0 0 7 * * *", () => this.runRewards(), undefined, false, "Etc/UTC");
 		this.cronJob.start();
+	}
+
+	/** Game day ends at 07:00 UTC; subtract just over 7h so the boundary falls on the completed day. */
+	getLeaderboardDate(now = Date.now()): Date {
+		return new Date(now - 7 * 60 * 60 * 1000 - 1000);
 	}
 
 	async runRewards(): Promise<void> {
 		const leaderboardSettings = await this.fetchSettings();
 		if (!leaderboardSettings) return;
 
-		const date = new Date(new Date().getTime() - 7 * 60 * 60 * 1000);
+		const date = this.getLeaderboardDate();
 
 		if (!this.isEnabledWeekday(leaderboardSettings, date)) return;
 
