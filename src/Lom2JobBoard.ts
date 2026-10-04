@@ -212,9 +212,8 @@ export default function Lom2JobBoard(client: Client, pocketBase: PocketBase) {
 				.setTimestamp(startTime)
 				.setThumbnail(oldEmbed.thumbnail?.url ?? null)
 				.setAuthor({ iconURL: discordEmbedIcon, name: `${category} (Expired)` })
-				.setFooter({ text: locationDisplayString });
-
-			if (oldEmbed.url) embedBuilder.setURL(oldEmbed.url);
+				.setFooter({ text: locationDisplayString })
+				.setURL(null); // drop the dynmap link on expire
 
 			await message.edit({ embeds: [embedBuilder] });
 			console.log(`LoM2 job board: expired message ${discordMessageId}`);
