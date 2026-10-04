@@ -36,12 +36,39 @@ function decodeBase64Image(base64String: string, fileName: string) {
 	return response;
 }
 
-function buildMapUrl(location: string): string | undefined {
-	const regex = /name=(\w+).*?x=([-\d.]+).*?y=([-\d.]+).*?z=([-\d.]+)/;
-	const match = regex.exec(location);
-	if (!match) return undefined;
+function worldNameFromLocation(location: string): string | undefined {
+	// CraftWorld{name=world} (Bukkit/Paper)
+	const craftWorldName = /CraftWorld\{[^}]*\bname=([\w-]+)/.exec(location)?.[1];
+	if (craftWorldName) return craftWorldName;
 
-	const [, world, x, y, z] = match;
+	// CraftWorld{key=minecraft:overworld}
+	const worldKey = /(?:^|[,{])key=([a-z0-9_.:-]+)/i.exec(location)?.[1];
+	if (worldKey) {
+		switch (worldKey) {
+			case "minecraft:overworld":
+				return "world";
+			case "minecraft:the_nether":
+				return "world_nether";
+			case "minecraft:the_end":
+				return "world_the_end";
+			default:
+				return worldKey.includes(":") ? worldKey.split(":")[1] : worldKey;
+		}
+	}
+
+	// Legacy custom format: name=<world> ... x=...
+	return /\bname=([\w-]+).*?\bx=/.exec(location)?.[1];
+}
+
+function buildMapUrl(location: string): string | undefined {
+	// Supports both legacy `name=world,x=...,y=...,z=...` and Bukkit Location.toString()
+	const coords = /(?:^|[,{])x=([-\d.]+)(?:,|\s)*y=([-\d.]+)(?:,|\s)*z=([-\d.]+)/.exec(location);
+	if (!coords) return undefined;
+
+	const [, x, y, z] = coords;
+	const world = worldNameFromLocation(location);
+	if (!world) return undefined;
+
 	// Determine the map name based on the Y value
 	const mapName = parseFloat(y) < 215 ? "surface2" : "surface";
 
