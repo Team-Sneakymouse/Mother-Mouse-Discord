@@ -210,7 +210,9 @@ export default function Lom2JobBoard(client: Client, pocketBase: PocketBase) {
 				.addFields({ name: posterDisplayString, value: description })
 				.setColor(0x808080)
 				.setTimestamp(startTime)
-				.setThumbnail(oldEmbed.thumbnail?.url ?? null)
+				// Keep attachment:// so Discord continues to treat the file as embed-only.
+				// Using the CDN https URL makes the original upload show as a visible attachment.
+				.setThumbnail("attachment://posterIcon.png")
 				.setAuthor({ iconURL: discordEmbedIcon, name: `${category} (Expired)` })
 				.setFooter({ text: locationDisplayString })
 				.setURL(null); // drop the dynmap link on expire
