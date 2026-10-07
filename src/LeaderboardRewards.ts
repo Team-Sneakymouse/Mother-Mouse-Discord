@@ -179,11 +179,7 @@ export class LeaderboardRewardsManager {
 			const rules = rewardRules[leaderboard];
 			if (!rules || rules.size === 0) continue;
 
-			scores.sort((a, b) => b.value - a.value);
-			for (let i = 0; i < scores.length; i++) {
-				const rank = i + 1;
-				const score = scores[i];
-
+			for (const { score, rank } of this.rankScores(scores)) {
 				const rewardsCommands = this.getRewardCommands(rules, rank);
 				if (rewardsCommands.length === 0) continue;
 
@@ -191,6 +187,16 @@ export class LeaderboardRewardsManager {
 			}
 			console.log(`Sent a total of ${mailsSent[leaderboard]} mails for leaderboard ${leaderboard}`);
 		}
+	}
+
+	/** Competition ranks: equal scores share the best position (1, 2, 2, 4). */
+	private rankScores(scores: LeaderboardRecord[]): { score: LeaderboardRecord; rank: number }[] {
+		const sorted = [...scores].sort((a, b) => b.value - a.value);
+		let rank = 1;
+		return sorted.map((score, i) => {
+			if (i > 0 && score.value !== sorted[i - 1].value) rank = i + 1;
+			return { score, rank };
+		});
 	}
 
 	getRewardCommands(rules: Set<RewardRule>, rank: number): string[] {
@@ -300,13 +306,12 @@ export class LeaderboardRewardsManager {
 	}
 
 	formatLeaderboardContent(scores: LeaderboardRecord[]): string {
-		return scores
-			.sort((a, b) => b.value - a.value)
+		return this.rankScores(scores)
 			.slice(0, 16)
-			.map((score, i) =>
-				i === 0
-					? `${i}. **${score.name}: ${Intl.NumberFormat("en-US").format(score.value)}**`
-					: `${i}. ${score.name}: **${Intl.NumberFormat("en-US").format(score.value)}**`,
+			.map(({ score, rank }) =>
+				rank === 1
+					? `${rank}\\. **${score.name}: ${Intl.NumberFormat("en-US").format(score.value)}**`
+					: `${rank}\\. ${score.name}: **${Intl.NumberFormat("en-US").format(score.value)}**`,
 			)
 			.join("\n");
 	}
