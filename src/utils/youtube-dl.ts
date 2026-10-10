@@ -1,4 +1,4 @@
-import { exec, spawn } from "child_process";
+import { execFile, spawn } from "child_process";
 
 type DownloadOptions = {
 	url: string;
@@ -11,10 +11,7 @@ export default class YouTubeDL {
 
 	constructor() {
 		this.init = new Promise((resolve, reject) => {
-			exec("command -v youtube-dl", (error, stdout, stderr) => {
-				if (error || stderr) resolve(false);
-				resolve(true);
-			});
+			execFile("yt-dlp", ["--ignore-config", "--version"], (error) => resolve(!error));
 		});
 	}
 
@@ -23,20 +20,37 @@ export default class YouTubeDL {
 		const speed = typeof data === "string" ? "1" : data.speed || "1";
 		const pitch = typeof data === "string" ? "1" : data.pitch || "1";
 
-		await this.init;
+		if (!(await this.init)) throw "yt-dlp is unavailable. Rebuild the downloader image or follow docs/youtube-downloader.md for local setup.";
 		return await new Promise((resolve, reject) => {
-			const dl = spawn("youtube-dl", ["--extract-audio", "--audio-format", "mp3", "-o", "ffmpeg/%(title)s.%(ext)s", url]);
+			const dl = spawn("yt-dlp", [
+				"--ignore-config", "--js-runtimes", "node", "--newline", "--progress", "--no-simulate",
+				"--extract-audio", "--audio-format", "mp3", "--print", "after_move:%(filepath)j",
+				"-o", "ffmpeg/%(title)s.%(ext)s",
+				...(process.env.YTDLP_COOKIES_FILE ? ["--cookies", process.env.YTDLP_COOKIES_FILE] : []),
+				"--", url,
+			]);
 
 			let file: string;
-			dl.stdout.on("data", (data: Buffer) => {
-				const match = data.toString().match(/\[download\]\s+(\d+(?:\.\d+)?)% of (\d+\.\d+\w+) at (\d+\.\d+\w+\/s) ETA (\d+:\d+)/);
+			let pending = "";
+			const readLine = (line: string) => {
+				const match = line.match(/\[download\]\s+(\d+(?:\.\d+)?)%.*? ETA (\S+)/);
 				if (match) {
-					const [, progress, size, speed, eta] = match;
-					if (progress !== "100%" && Math.random() < 0.4) updateCallback(parseFloat(progress), eta);
-					return;
+					const [, progress, eta] = match;
+					if (progress !== "100" && Math.random() < 0.4) updateCallback(parseFloat(progress), eta);
 				}
-				file = data.toString().split("Destination:")[1]?.trim() || file;
+				try {
+					const path: unknown = JSON.parse(line);
+					if (typeof path === "string") file = path;
+				} catch { /* Ignore yt-dlp's human-readable status lines. */ }
+			};
+			dl.stdout.setEncoding("utf8");
+			dl.stdout.on("data", (data: string) => {
+				pending += data;
+				const lines = pending.split("\n");
+				pending = lines.pop()!;
+				lines.forEach(readLine);
 			});
+			dl.stdout.on("end", () => { if (pending) readLine(pending); });
 
 			const errorLines: string[] = [];
 			dl.stderr.on("data", (data: Buffer) => {
@@ -51,7 +65,14 @@ export default class YouTubeDL {
 
 			dl.on("close", (code) => {
 				console.log(`[youtube-dl] close: ${code}`);
-				if (code !== 0) reject(errorLines.join("\n"));
+				if (code !== 0) {
+					const diagnostic = errorLines.join("\n");
+					if (/sign in to confirm|not a bot/i.test(diagnostic)) {
+						return reject("YouTube requires bot verification. Ask an operator to configure YTDLP_COOKIES_FILE with an authorized cookie file (see docs/youtube-downloader.md). Updating yt-dlp alone cannot bypass this check.");
+					}
+					return reject(diagnostic.trim() || `yt-dlp failed with exit code ${code}. Check the downloader installation and network access.`);
+				}
+				if (!file) return reject("yt-dlp did not report a final audio file. Check the downloader installation.");
 				resolve(file);
 			});
 		});

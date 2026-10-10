@@ -7,7 +7,7 @@
 	},
 	"scripts": {
 		"start": "bun src/bot.ts",
-		"dev": "docker run --rm -v \"${PWD}:/app\" -w /app -p 80:80 --network db -t --entrypoint sh oven/bun:1.3.8-alpine -c 'apk add youtube-dl ffmpeg && bun install --frozen-lockfile && bun --watch src/bot.ts'",
+		"dev": "docker build -t mother-mouse-discord:dev . && docker run --rm -v \"${PWD}:/app\" -w /app -p 80:80 --network db -t --entrypoint sh mother-mouse-discord:dev -c 'bun install --frozen-lockfile && bun --watch src/bot.ts'",
 		"watch": "bun --watch src/bot.ts",
 		"typecheck": "tsc --noEmit",
 		"test": "bun test"
