@@ -4,16 +4,28 @@ COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile
 # Official zipimport release bundles the matching EJS challenge solver scripts.
 # Keep version and checksum together when updating; do not use Alpine's youtube-dl alias.
-RUN apk add --no-cache ca-certificates python3 nodejs ffmpeg \
+RUN apk add --no-cache ca-certificates python3 nodejs ffmpeg wget \
     && node -e 'if (Number(process.versions.node.split(".")[0]) < 22) process.exit(1)' \
     && wget -O /usr/local/bin/yt-dlp https://github.com/yt-dlp/yt-dlp/releases/download/2026.08.19/yt-dlp \
     && printf '%s  %s\n' '1fa6733c37ea6fb51c99ad8fe785e7b7e5f3246c9b980230329d4fb72ed8d4d6' '/usr/local/bin/yt-dlp' | sha256sum -c - \
     && chmod +x /usr/local/bin/yt-dlp \
     && yt-dlp --ignore-config --version
+# Release APKs are unsigned; verify the published SHA-256 before allowing installation.
+RUN case "$(apk --print-arch)" in \
+        x86_64) checksum=3579ca38c559652599b17e559a2621f0e341ed4a45393ccb784dca0620fe5db9 ;; \
+        aarch64) checksum=065bbcd30dd20a860d5733023af7058ab581121a039f3318dab50ddffb5772fa ;; \
+        *) echo 'Unsupported Infisical CLI architecture' >&2; exit 1 ;; \
+    esac \
+    && wget -O /tmp/infisical.apk "https://artifacts-cli.infisical.com/apk/stable/main/$(apk --print-arch)/infisical-0.43.140.apk" \
+    && echo "$checksum  /tmp/infisical.apk" | sha256sum -c - \
+    && apk add --no-cache --allow-untrusted /tmp/infisical.apk \
+    && rm /tmp/infisical.apk
 
 VOLUME /app/share
 
 COPY ./src/ ./src/
 COPY ./static/ ./static/
+COPY --chmod=755 ./docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 CMD ["bun", "src/bot.ts"]
