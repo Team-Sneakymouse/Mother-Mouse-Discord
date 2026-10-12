@@ -111,7 +111,7 @@ export class ReposiliteWorker {
 				if (terminal) {
 					console.error(`Reposilite: deployment failed for ${job.payload.path}: ${job.last_error}`);
 					await this.safeNotify(
-						`Automatic deployment failed for ${job.payload.path} after ${attempts} attempts. ${job.completed.length} server(s) completed. Check the bot logs before retrying.`,
+						`Automatic deployment failed for \`${job.payload.path}\` after ${attempts} attempts. ${job.completed.length} server(s) completed. Check the bot logs before retrying.`,
 					);
 				}
 			}
@@ -140,7 +140,7 @@ export class ReposiliteWorker {
 			job.notified = true;
 			await this.store.update(job.id, { notified: true });
 			await this.safeNotify(
-				`Deploying ${uploaded.id} ${uploaded.version} (${artifact.type}) to ${job.targets.length} Lords of Minecraft Dev Server(s). Uploaded by ${job.payload.uploadedBy}. No restart will be performed.`,
+				`Deploying **${uploaded.id}** \`${uploaded.version}\` (${artifact.type}) to ${job.targets.length} dev server(s). Uploaded by ${job.payload.uploadedBy.split("@")[0]}.`,
 			);
 		}
 		const failures: string[] = [];
@@ -167,7 +167,7 @@ export class ReposiliteWorker {
 		if (failures.length) throw new Error(failures.join("; "));
 		await this.store.update(job.id, { status: "completed", last_error: "" });
 		await this.safeNotify(
-			`Uploaded ${uploaded.id} ${uploaded.version} to ${job.targets.map((server) => server.name).join(", ") || "no matching dev servers"}. Restart servers manually to apply the release.`,
+			`Uploaded **${uploaded.id}** \`${uploaded.version}\` to ${job.targets.map((server) => server.name).join(", ") || "no matching dev servers"}. Restart to apply the release.`,
 		);
 	}
 	private async safeNotify(content: string): Promise<void> {
