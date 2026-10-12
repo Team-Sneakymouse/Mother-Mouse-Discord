@@ -8,6 +8,14 @@ export const data = [
 		.addStringOption(new SlashCommandStringOption().setName("url").setDescription("url of video to download").setRequired(false)),
 ];
 
+function formatProgress(progress: number, eta: string): string {
+	const bar = new Array(22)
+		.fill(0)
+		.map((_, i) => (i <= (progress * 22) / 100 ? "=" : " "))
+		.join("");
+	return `\`[${bar}]\` ${progress.toFixed(1)}%, ETA ${eta}`;
+}
+
 export default function YouTube(client: Client, ytdl: YouTubeDL) {
 	client.on("interactionCreate", async (interaction) => {
 		if (!interaction.isChatInputCommand() || interaction.commandName !== "youtube-dl") return;
@@ -57,7 +65,7 @@ export default function YouTube(client: Client, ytdl: YouTubeDL) {
 						],
 					},
 				],
-			})
+			}),
 		);
 		const modal = await interaction
 			.awaitModalSubmit({
@@ -83,20 +91,10 @@ export default function YouTube(client: Client, ytdl: YouTubeDL) {
 		await modal.reply("Downloading <a:typing:990723371522195526>");
 		try {
 			let file = await ytdl.download(url, (progress, eta) => {
-				let bar = new Array(22)
-					.fill(0)
-					.map((_, i) => (i <= (progress * 22) / 100 ? "=" : " "))
-					.join("");
-				bar = "`[" + bar + "]`";
-				modal.editReply(`Downloading <a:typing:990723371522195526>\n${bar} ${progress.toFixed(1)}%, ETA ${eta}`);
+				modal.editReply(`Downloading <a:typing:990723371522195526>\n${formatProgress(progress, eta)}`);
 			});
 			file = await ytdl.resample(file, speed, pitch, (progress, eta) => {
-				let bar = new Array(22)
-					.fill(0)
-					.map((_, i) => (i <= (progress * 22) / 100 ? "=" : " "))
-					.join("");
-				bar = "`[" + bar + "]`";
-				modal.editReply(`Resampling <a:typing:990723371522195526>\n${bar} ${progress.toFixed(1)}%, ETA ${eta}`);
+				modal.editReply(`Resampling <a:typing:990723371522195526>\n${formatProgress(progress, eta)}`);
 			});
 			// console.log(file);
 			await modal.editReply("Uploading to Discord <a:typing:990723371522195526>");
@@ -137,15 +135,10 @@ export default function YouTube(client: Client, ytdl: YouTubeDL) {
 			const files = await Promise.all(
 				urls.map((url, index) =>
 					ytdl.download(url.href, (progress, eta) => {
-						let bar = new Array(22)
-							.fill(0)
-							.map((_, i) => (i <= (progress * 22) / 100 ? "=" : " "))
-							.join("");
-						bar = "`[" + bar + "]`";
-						progressUpdates[index] = `${bar} ${progress.toFixed(1)}%, ETA ${eta}`;
+						progressUpdates[index] = formatProgress(progress, eta);
 						updateProgress();
-					})
-				)
+					}),
+				),
 			);
 			// console.log(file);
 			await reply.edit("Uploading to Discord <a:typing:990723371522195526>");
