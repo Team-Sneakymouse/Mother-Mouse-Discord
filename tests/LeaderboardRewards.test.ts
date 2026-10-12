@@ -32,6 +32,135 @@ function setup(rewards: Settings["value"]["rewards"] = {}) {
 
 const date = new Date("2026-10-07T12:00:00Z");
 
+async function captureLogs(action: (logs: unknown[][], errors: unknown[][]) => Promise<void>) {
+	const logs: unknown[][] = [],
+		errors: unknown[][] = [];
+	const originalLog = console.log,
+		originalError = console.error;
+	console.log = (...args) => {
+		logs.push(args);
+	};
+	console.error = (...args) => {
+		errors.push(args);
+	};
+	try {
+		await action(logs, errors);
+	} finally {
+		console.log = originalLog;
+		console.error = originalError;
+	}
+}
+
+test("manager retains failed-parse error logging and continues with valid rules", async () => {
+	const { manager, settings, mails } = setup({ leaderboard: { fault: "bad", "1+": "good" } });
+	const failure = new Error("simulated parser failure");
+	const originalParseInt = globalThis.parseInt;
+	globalThis.parseInt = (text, radix) => {
+		if (text === "fault") throw failure;
+		return originalParseInt(text, radix);
+	};
+	try {
+		await captureLogs(async (logs, errors) => {
+			await manager.distributeRewards(settings, { leaderboard: [score("A", 100)] }, date);
+			assert.deepEqual(errors, [['Failed to parse range "fault" for leaderboard "leaderboard" with spell "bad"', failure]]);
+			assert.equal(mails.length, 1);
+			assert.deepEqual(logs, [
+				["Sent reward mail to A for leaderboard leaderboard with rank 1 and score 100"],
+				["Sent a total of 1 mails for leaderboard leaderboard"],
+			]);
+		});
+	} finally {
+		globalThis.parseInt = originalParseInt;
+	}
+});
+
+test("mail creates are sequential, continue after failure, and summaries count successes including zero-mail leaderboards", async () => {
+	const { manager, settings } = setup({ leaderboard: { "1+": "reward" }, empty: { "1+": "reward" }, unmatched: { "2": "reward" }, absent: { "1+": "reward" } });
+	const attempted: string[] = [];
+	const failure = new Error("simulated create failure");
+	let active = false;
+	manager.db = {
+		collection(name: string) {
+			assert.equal(name, "lom2_mail");
+			return {
+				async create(mail: Mail) {
+					assert.equal(active, false);
+					active = true;
+					attempted.push(mail.recipient_uuid);
+					await Promise.resolve();
+					active = false;
+					if (mail.recipient_uuid === "A") throw failure;
+					return { id: "success", ...mail };
+				},
+			};
+		},
+	} as unknown as PocketBase;
+	await captureLogs(async (logs, errors) => {
+		await manager.distributeRewards(
+			settings,
+			{ empty: [], leaderboard: [score("B", 90), score("A", 100)], unmatched: [score("C", 50)], unconfigured: [score("D", 20)] },
+			date,
+		);
+		assert.deepEqual(attempted, ["A", "B"]);
+		assert.deepEqual(logs, [
+			["Sent a total of 0 mails for leaderboard empty"],
+			["Sent reward mail to B for leaderboard leaderboard with rank 2 and score 90"],
+			["Sent a total of 1 mails for leaderboard leaderboard"],
+			["Sent a total of 0 mails for leaderboard unmatched"],
+		]);
+		const errorText = "Failed to send reward mail to A for leaderboard leaderboard with rank 1 and score 100";
+		assert.deepEqual(errors, [[errorText, failure], [errorText]]);
+	});
+});
+
+test("runRewards queries only valid parsed leaderboards and preserves invalid-range diagnostics", async () => {
+	const { manager, settings } = setup({ broken: { nope: "bad" }, leaderboard: { "1": "gold" }, empty: {}, reversed: { "3-1": "never" } });
+	const queries: unknown[] = [];
+	manager.getLeaderboardDate = () => date;
+	manager.postLeaderboardMessage = async (leaderboard, scores, postedDate) => {
+		assert.equal(leaderboard, "leaderboard");
+		assert.deepEqual(scores, [score("A", 100)]);
+		assert.equal(postedDate, date);
+	};
+	manager.db = {
+		collection(name: string) {
+			if (name === "settings")
+				return {
+					async getFirstListItem(filter: string) {
+						assert.equal(filter, 'key = "leaderboard_rewards"');
+						return settings;
+					},
+				};
+			if (name === "lom2_leaderboards")
+				return {
+					async getFullList(options: unknown) {
+						queries.push(options);
+						return [score("A", 100), score("R", 50, "reversed")];
+					},
+				};
+			assert.equal(name, "lom2_mail");
+			return {
+				async create(mail: Mail) {
+					return { id: "success", ...mail };
+				},
+			};
+		},
+	} as unknown as PocketBase;
+	await captureLogs(async (logs, errors) => {
+		await manager.runRewards();
+		assert.deepEqual(queries, [{ filter: 'leaderboard="leaderboard" || leaderboard="reversed" && date ~ "2026-10-07" && value > 0' }]);
+		assert.deepEqual(
+			errors,
+			Array.from({ length: 2 }, () => ['Parsed invalid range "nope" for leaderboard "broken" with spell "bad"']),
+		);
+		assert.deepEqual(logs, [
+			["Sent reward mail to A for leaderboard leaderboard with rank 1 and score 100"],
+			["Sent a total of 1 mails for leaderboard leaderboard"],
+			["Sent a total of 0 mails for leaderboard reversed"],
+		]);
+	});
+});
+
 test("tied second-place scores both receive second-place reward mail, skipping third place", async () => {
 	const { manager, settings, mails } = setup({ leaderboard: { "1": "gold", "2": "silver", "3": "bronze", "4+": "participation" } });
 	await manager.distributeRewards(settings, { leaderboard: [score("D", 600), score("B", 800), score("A", 1000), score("C", 800)] }, date);
@@ -61,11 +190,11 @@ test("leaderboard text preserves shared ranks with escaped dots through tenth pl
 });
 
 for (const { name, values, ranks } of [
-	{ name: "tied first place", values: [100, 100, 90], ranks: [1, 1, 3] },
-	{ name: "three-way ties", values: [100, 90, 90, 90, 80], ranks: [1, 2, 2, 2, 5] },
-	{ name: "multiple tied groups", values: [100, 100, 90, 90, 80], ranks: [1, 1, 3, 3, 5] },
-	{ name: "distinct scores", values: [100, 90, 80], ranks: [1, 2, 3] },
-	{ name: "nearby unequal scores", values: [100, 99.9, 99.8], ranks: [1, 2, 3] },
+	{ name: "tied first place", values: [100, 100, 90], ranks: ["1st", "1st", "3rd"] },
+	{ name: "three-way ties", values: [100, 90, 90, 90, 80], ranks: ["1st", "2nd", "2nd", "2nd", "5th"] },
+	{ name: "multiple tied groups", values: [100, 100, 90, 90, 80], ranks: ["1st", "1st", "3rd", "3rd", "5th"] },
+	{ name: "distinct scores", values: [100, 90, 80], ranks: ["1st", "2nd", "3rd"] },
+	{ name: "nearby unequal scores", values: [100, 99.9, 99.8], ranks: ["1st", "2nd", "3rd"] },
 ]) {
 	test(`reward ranks handle ${name}`, async () => {
 		const { manager, settings, mails } = setup({ leaderboard: { "1+": "reward" } });
@@ -73,7 +202,7 @@ for (const { name, values, ranks } of [
 		await manager.distributeRewards(settings, { leaderboard: scores }, date);
 		assert.deepEqual(
 			mails.map((mail) => mail.note.match(/<yellow>(.*?)<\/yellow>/)?.[1]),
-			ranks.map((rank) => manager.getOrdinal(rank)),
+			ranks,
 		);
 	});
 }
