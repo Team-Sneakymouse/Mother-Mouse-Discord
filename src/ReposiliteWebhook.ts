@@ -3,7 +3,7 @@ import type { Client } from "discord.js";
 import express, { type Express } from "express";
 import { z } from "zod";
 import { acquireDeploymentLock } from "./utils/DeploymentLock.js";
-import { PluginDeployment, type Server } from "./utils/PluginDeployment.js";
+import { type Artifact, PluginDeployment, type Server } from "./utils/PluginDeployment.js";
 
 const CHANNEL = "808030927937994772";
 export const DEV_SCOPE = ["Lords of Minecraft", "Dev Server"];
@@ -152,11 +152,17 @@ export class ReposiliteWorker {
 				continue;
 			}
 			try {
+				let deployed: Artifact;
 				try {
-					await service.deploy(server.identifier, uploaded.id, { version: uploaded.version, scope: DEV_SCOPE });
+					deployed = await service.deploy(server.identifier, uploaded.id, { version: uploaded.version, scope: DEV_SCOPE });
 				} catch (error) {
 					failures.push(`${server.name}: ${error instanceof Error ? error.message : "Unexpected error"}`);
 					continue;
+				}
+				try {
+					await service.announceUpdate(server.identifier, deployed);
+				} catch {
+					console.error(`Reposilite: update announcement failed for ${server.name}; deployment processing continues`);
 				}
 				job.completed.push(server.identifier);
 				await this.store.update(job.id, { completed: job.completed });

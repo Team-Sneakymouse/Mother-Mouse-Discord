@@ -55,6 +55,7 @@ function memoryStore(): EventStore & { jobs: WebhookJob[] } {
 const now = new Date("2026-10-12T11:00:00Z").getTime();
 function fakeService() {
 	const calls: { server: string; id: string; options: unknown }[] = [];
+	const announcements: { server: string; id: string; version: string }[] = [];
 	const service = {
 		async artifact(id: string, version: string) {
 			assert.equal(id, "Example");
@@ -70,10 +71,14 @@ function fakeService() {
 		},
 		async deploy(server: string, id: string, options: unknown) {
 			calls.push({ server, id, options });
-			return {};
+			return { id, version: "1.0" };
+		},
+		async announceUpdate(server: string, artifact: { id: string; version: string }) {
+			assert.equal(calls.at(-1)?.server, server);
+			announcements.push({ server, id: artifact.id, version: artifact.version });
 		},
 	};
-	return { service, calls };
+	return { service, calls, announcements };
 }
 
 test("path filter only accepts main release JARs in the configured group", () => {
@@ -91,10 +96,10 @@ test("path filter only accepts main release JARs in the configured group", () =>
 	assert.equal(uploadedArtifact({ ...event, repository: "snapshots" }), undefined);
 });
 
-test("worker deploys the exact event version and both scope phrases even when notification fails", async () => {
+test("worker deploys and announces the exact event version even when Discord notification fails", async () => {
 	const store = memoryStore();
 	await store.accept(event);
-	const { service, calls } = fakeService();
+	const { service, calls, announcements } = fakeService();
 	await new ReposiliteWorker(
 		store,
 		() => service as unknown as PluginDeployment,
@@ -108,6 +113,35 @@ test("worker deploys the exact event version and both scope phrases even when no
 		calls,
 		["dev-one", "dev-two"].map((server) => ({ server, id: "Example", options: { version: "1.0", scope: DEV_SCOPE } })),
 	);
+	assert.deepEqual(
+		announcements,
+		["dev-one", "dev-two"].map((server) => ({ server, id: "Example", version: "1.0" })),
+	);
+});
+
+test("offline announcement failures complete deployments without retrying uploads", async () => {
+	const store = memoryStore();
+	await store.accept(event);
+	const { service, calls } = fakeService();
+	const announced: string[] = [];
+	service.announceUpdate = async (server) => {
+		announced.push(server);
+		throw new Error("Server is offline");
+	};
+	const worker = new ReposiliteWorker(
+		store,
+		() => service as unknown as PluginDeployment,
+		async () => {},
+		() => now,
+	);
+	await worker.tick();
+	assert.equal(store.jobs[0].status, "completed");
+	assert.equal(store.jobs[0].attempts, 0);
+	assert.deepEqual(store.jobs[0].completed, ["dev-one", "dev-two"]);
+	assert.deepEqual(announced, ["dev-one", "dev-two"]);
+	await worker.tick();
+	assert.equal(calls.length, 2);
+	assert.equal(announced.length, 2);
 });
 
 test("missing POM is retried later and unsupported deployment properties are ignored", async () => {
@@ -151,15 +185,15 @@ test("missing POM is retried later and unsupported deployment properties are ign
 	assert.equal(ignored.jobs[0].status, "ignored");
 });
 
-test("retries skip servers already completed in memory", async () => {
+test("retries skip uploads and announcements for servers already completed in memory", async () => {
 	const store = memoryStore();
 	await store.accept(event);
-	const { service, calls } = fakeService();
+	const { service, calls, announcements } = fakeService();
 	let fail = true;
 	service.deploy = async (server, id, options) => {
 		calls.push({ server, id, options });
 		if (server === "dev-two" && fail) throw new Error("Upload failed");
-		return {};
+		return { id, version: "1.0" };
 	};
 	await new ReposiliteWorker(
 		store,
@@ -168,6 +202,10 @@ test("retries skip servers already completed in memory", async () => {
 		() => now,
 	).tick();
 	assert.deepEqual(store.jobs[0].completed, ["dev-one"]);
+	assert.deepEqual(
+		announcements.map((announcement) => announcement.server),
+		["dev-one"],
+	);
 	fail = false;
 	store.jobs[0].next_attempt = new Date(now).toISOString();
 	await new ReposiliteWorker(
@@ -181,6 +219,10 @@ test("retries skip servers already completed in memory", async () => {
 		["dev-one", "dev-two", "dev-two"],
 	);
 	assert.equal(store.jobs[0].status, "completed");
+	assert.deepEqual(
+		announcements.map((announcement) => announcement.server),
+		["dev-one", "dev-two"],
+	);
 });
 
 test("an active manual server lock defers automatic upload without losing the event", async () => {

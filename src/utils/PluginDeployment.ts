@@ -124,6 +124,12 @@ export class PluginDeployment {
 		}
 	}
 
+	async announceUpdate(server: string, artifact: Pick<Artifact, "id" | "version">): Promise<void> {
+		await this.api(`/servers/${encodeURIComponent(server)}/command`, {
+			command: `say Plugin ${artifact.id} ${artifact.version} updated. Restart the server to load it`,
+		});
+	}
+
 	async deploy(server: string, id: string, options: DeploymentOptions = {}): Promise<Artifact> {
 		const current = await this.api<{ attributes: Server }>(`/servers/${encodeURIComponent(server)}`);
 		if (!(options.scope ?? ["Lords of Minecraft"]).every((phrase) => current.attributes.description?.includes(phrase)))

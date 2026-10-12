@@ -106,6 +106,24 @@ test("Paper replacement is verified before staging cleanup and preserves install
 	assert.ok(events.every((event) => !event.url.endsWith("/power")));
 });
 
+test("update announcements send a console say command using the client API", async () => {
+	const request: typeof fetch = async (input, init) => {
+		assert.equal(String(input), "https://panel.example/api/client/servers/dev%20server/command");
+		assert.equal(init?.method, "POST");
+		assert.equal(new Headers(init?.headers).get("Authorization"), "Bearer client-secret");
+		assert.deepEqual(JSON.parse(init?.body as string), { command: "say Plugin Example 2.0 updated. Restart the server to load it" });
+		return new Response(null, { status: 204 });
+	};
+	const service = new PluginDeployment("https://panel.example/api", "application-secret", "client-secret", request);
+	await service.announceUpdate("dev server", { id: "Example", version: "2.0" });
+});
+
+test("update announcements report command failures to the caller", async () => {
+	const request: typeof fetch = async () => new Response("Server is offline", { status: 502 });
+	const service = new PluginDeployment("https://panel.example/api", "application-secret", "client-secret", request);
+	await assert.rejects(service.announceUpdate("server", { id: "Example", version: "2.0" }), /HTTP 502/);
+});
+
 test("Ignite mods upload and clean up exclusively in mods", async () => {
 	const { service, events } = setup("ignite-mod");
 	await service.deploy("server", "Example");
