@@ -14,6 +14,13 @@ import {
 } from "discord.js";
 import PocketBase, { RecordModel } from "pocketbase";
 import { CronJob } from "cron";
+import {
+	formatLeaderboardContent,
+	planLeaderboardRewards,
+	type MailCreatePayload,
+	type PlannedRewardMail,
+	type RewardParsingDiagnostic,
+} from "./LeaderboardRewardPlanning.js";
 
 export const data = [new SlashCommandBuilder().setName("leaderboard").setDescription("Display the current leaderboard")];
 
@@ -34,16 +41,7 @@ type LeaderboardRecord = RecordModel & {
 	name: string;
 	value: number;
 };
-type MailRecord = RecordModel & {
-	sender_uuid?: string;
-	sender_name?: string;
-	recipient_uuid?: string;
-	recipient_name?: string;
-	note: string;
-	available: true;
-	rewards: { type: "command"; command: string }[];
-};
-type RewardRule = { start: number; end: number; spell: string };
+type MailRecord = RecordModel & MailCreatePayload;
 
 export default function LeaderboardRewards(client: Client, db: PocketBase): LeaderboardRewardsManager {
 	const manager = new LeaderboardRewardsManager(client, db);
@@ -104,10 +102,9 @@ export class LeaderboardRewardsManager {
 
 		if (!this.isEnabledWeekday(leaderboardSettings, date)) return;
 
-		const rewardRules = this.parseRules(leaderboardSettings.value.rewards);
-		const leaderboards = Object.keys(rewardRules);
-
-		const leaderboardsData = await this.fetchLeaderboardScores(leaderboards, date);
+		const eligibility = planLeaderboardRewards({}, leaderboardSettings.value.rewards, date.toLocaleString("en-US", { weekday: "long" }));
+		this.logParsingDiagnostics(eligibility.diagnostics);
+		const leaderboardsData = await this.fetchLeaderboardScores(eligibility.eligibleLeaderboards, date);
 
 		await this.distributeRewards(leaderboardSettings, leaderboardsData, date);
 		await this.postLeaderboardMessage("leaderboard", leaderboardsData["leaderboard"], date);
@@ -170,72 +167,48 @@ export class LeaderboardRewardsManager {
 	}
 
 	async distributeRewards(leaderboardSettings: SettingsRecord, leaderboardsData: Record<LeaderboardId, LeaderboardRecord[]>, date: Date): Promise<void> {
-		const rewardRules = this.parseRules(leaderboardSettings.value.rewards);
-		const leaderboards = Object.keys(rewardRules);
-		let mailsSent = Object.fromEntries(leaderboards.map((lb) => [lb, 0]));
-
 		const weekday = date.toLocaleString("en-US", { weekday: "long" });
-		for (const [leaderboard, scores] of Object.entries(leaderboardsData)) {
-			const rules = rewardRules[leaderboard];
-			if (!rules || rules.size === 0) continue;
-
-			for (const { score, rank } of this.rankScores(scores)) {
-				const rewardsCommands = this.getRewardCommands(rules, rank);
-				if (rewardsCommands.length === 0) continue;
-
-				await this.sendRewardMail(score, leaderboard, rank, weekday, rewardsCommands, mailsSent);
+		const plan = planLeaderboardRewards(leaderboardsData, leaderboardSettings.value.rewards, weekday);
+		this.logParsingDiagnostics(plan.diagnostics);
+		const mailsByLeaderboard = new Map<string, PlannedRewardMail[]>(plan.eligibleLeaderboards.map((leaderboard) => [leaderboard, []]));
+		for (const mail of plan.mails) mailsByLeaderboard.get(mail.metadata.leaderboard)!.push(mail);
+		for (const [leaderboard] of Object.entries(leaderboardsData)) {
+			const mails = mailsByLeaderboard.get(leaderboard);
+			if (!mails) continue;
+			let mailsSent = 0;
+			for (const mail of mails) {
+				if (await this.sendRewardMail(mail)) mailsSent++;
 			}
-			console.log(`Sent a total of ${mailsSent[leaderboard]} mails for leaderboard ${leaderboard}`);
+			console.log(`Sent a total of ${mailsSent} mails for leaderboard ${leaderboard}`);
 		}
 	}
 
-	/** Competition ranks: equal scores share the best position (1, 2, 2, 4). */
-	private rankScores(scores: LeaderboardRecord[]): { score: LeaderboardRecord; rank: number }[] {
-		const sorted = [...scores].sort((a, b) => b.value - a.value);
-		let rank = 1;
-		return sorted.map((score, i) => {
-			if (i > 0 && score.value !== sorted[i - 1].value) rank = i + 1;
-			return { score, rank };
-		});
-	}
-
-	getRewardCommands(rules: Set<RewardRule>, rank: number): string[] {
-		const commands: string[] = [];
-		for (const rule of rules) {
-			if (rank >= rule.start && rank <= rule.end) {
-				commands.push(`ms cast as {player} ${rule.spell}`);
+	private logParsingDiagnostics(diagnostics: RewardParsingDiagnostic[]): void {
+		for (const diagnostic of diagnostics) {
+			const { range, leaderboard, spell } = diagnostic;
+			if (diagnostic.kind === "parse-error") {
+				console.error(`Failed to parse range "${range}" for leaderboard "${leaderboard}" with spell "${spell}"`, diagnostic.error);
+			} else {
+				console.error(`Parsed invalid range "${range}" for leaderboard "${leaderboard}" with spell "${spell}"`);
 			}
 		}
-		return commands;
 	}
 
-	async sendRewardMail(
-		score: LeaderboardRecord,
-		leaderboard: LeaderboardId,
-		rank: number,
-		weekday: string,
-		rewardsCommands: string[],
-		mailsSent: Record<LeaderboardId, number>,
-	): Promise<void> {
+	private async sendRewardMail(mail: PlannedRewardMail): Promise<boolean> {
+		const { leaderboard, account, rank, score } = mail.metadata;
 		const result = await this.db
 			.collection("lom2_mail")
-			.create<MailRecord>({
-				sender_name: "<gold>Grand Paladin Order</gold>",
-				sender_uuid: "",
-				recipient_name: "",
-				recipient_uuid: score.account,
-				available: true,
-				note: `<gold>Congratulations!</gold>\nYou placed <yellow>${this.getOrdinal(rank)}</yellow> on ${weekday}'s leaderboard\nwith your score of <white>${Intl.NumberFormat("en-US").format(score.value)}</white>.`,
-				rewards: rewardsCommands.map((command) => ({ type: "command", command })),
-			})
+			.create<MailRecord>(mail.payload)
 			.catch((e: any) => {
-				console.error(`Failed to send reward mail to ${score.account} for leaderboard ${leaderboard} with rank ${rank} and score ${score.value}`, e);
+				console.error(`Failed to send reward mail to ${account} for leaderboard ${leaderboard} with rank ${rank} and score ${score}`, e);
 				return null;
 			});
-		if (!result)
-			return console.error(`Failed to send reward mail to ${score.account} for leaderboard ${leaderboard} with rank ${rank} and score ${score.value}`);
-		mailsSent[leaderboard]++;
-		console.log(`Sent reward mail to ${score.account} for leaderboard ${leaderboard} with rank ${rank} and score ${score.value}`);
+		if (!result) {
+			console.error(`Failed to send reward mail to ${account} for leaderboard ${leaderboard} with rank ${rank} and score ${score}`);
+			return false;
+		}
+		console.log(`Sent reward mail to ${account} for leaderboard ${leaderboard} with rank ${rank} and score ${score}`);
+		return true;
 	}
 
 	private async getLeaderboardRewardsMessageData(
@@ -306,14 +279,7 @@ export class LeaderboardRewardsManager {
 	}
 
 	formatLeaderboardContent(scores: LeaderboardRecord[]): string {
-		return this.rankScores(scores)
-			.slice(0, 16)
-			.map(({ score, rank }) =>
-				rank === 1
-					? `${rank}\\. **${score.name}: ${Intl.NumberFormat("en-US").format(score.value)}**`
-					: `${rank}\\. ${score.name}: **${Intl.NumberFormat("en-US").format(score.value)}**`,
-			)
-			.join("\n");
+		return formatLeaderboardContent(scores);
 	}
 
 	async fetchBrandingImage(imageUrl: string): Promise<Buffer | null> {
@@ -326,44 +292,5 @@ export class LeaderboardRewardsManager {
 			console.error(`Error fetching branding image ${imageUrl}:`, e);
 			return null;
 		}
-	}
-
-	parseRules(config: SettingsRecord["value"]["rewards"]): Record<LeaderboardId, Set<RewardRule>> {
-		const rules: Record<LeaderboardId, Set<RewardRule>> = {};
-		for (const leaderboard in config) {
-			for (const [range, spell] of Object.entries(config[leaderboard] || {})) {
-				let start = 0,
-					end = 0;
-				try {
-					if (range.includes("-")) {
-						[start, end] = range.split("-").map((s) => parseInt(s.trim()));
-					} else if (range.endsWith("+")) {
-						start = parseInt(range.slice(0, -1).trim());
-						end = Number.MAX_SAFE_INTEGER;
-					} else {
-						start = end = parseInt(range.trim());
-					}
-				} catch (e) {
-					console.error(`Failed to parse range "${range}" for leaderboard "${leaderboard}" with spell "${spell}"`, e);
-					continue;
-				}
-				if (Number.isNaN(start) || Number.isNaN(end)) {
-					console.error(`Parsed invalid range "${range}" for leaderboard "${leaderboard}" with spell "${spell}"`);
-					continue;
-				}
-				if (!rules[leaderboard]) rules[leaderboard] = new Set();
-				rules[leaderboard].add({ start, end, spell });
-			}
-		}
-		return rules;
-	}
-
-	getOrdinal(i: number): string {
-		const suffixes = ["th", "st", "nd", "rd", "th", "th", "th", "th", "th", "th"];
-		const absI = Math.abs(i);
-		const mod100 = absI % 100;
-		const mod10 = absI % 10;
-		if (mod100 >= 11 && mod100 <= 13) return `${i}th`;
-		return `${i}${suffixes[mod10]}`;
 	}
 }
