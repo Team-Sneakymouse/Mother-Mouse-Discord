@@ -32,7 +32,8 @@ export function oldFiles(files: RemoteFile[], artifact: Artifact): string[] {
 export class PluginDeployment {
 	constructor(
 		private host: string,
-		private key: string,
+		private applicationKey: string,
+		private clientKey: string,
 		private request: typeof fetch = fetch,
 	) {
 		const url = new URL(host);
@@ -46,10 +47,14 @@ export class PluginDeployment {
 		return response;
 	}
 
-	private async api<T>(path: string, body?: unknown): Promise<T> {
-		const response = await this.get(`${this.host}/client${path}`, {
+	private async api<T>(path: string, body?: unknown, api: "client" | "application" = "client"): Promise<T> {
+		const response = await this.get(`${this.host}/${api}${path}`, {
 			method: body === undefined ? "GET" : "POST",
-			headers: { Authorization: `Bearer ${this.key}`, Accept: "application/json", ...(body === undefined ? {} : { "Content-Type": "application/json" }) },
+			headers: {
+				Authorization: `Bearer ${api === "application" ? this.applicationKey : this.clientKey}`,
+				Accept: "application/json",
+				...(body === undefined ? {} : { "Content-Type": "application/json" }),
+			},
 			...(body === undefined ? {} : { body: JSON.stringify(body) }),
 		});
 		return response.status === 204 ? (undefined as T) : ((await response.json()) as T);
@@ -59,7 +64,7 @@ export class PluginDeployment {
 		const servers: Server[] = [];
 		let page = 1;
 		while (true) {
-			const listing = await this.api<Listing<Server>>(`?page=${page}`);
+			const listing = await this.api<Listing<Server>>(`/servers?page=${page}`, undefined, "application");
 			servers.push(...listing.data.map((item) => item.attributes).filter((server) => server.description?.includes("Lords of Minecraft")));
 			if (page >= (listing.meta?.pagination?.total_pages ?? 1)) break;
 			page++;
@@ -120,7 +125,7 @@ export class PluginDeployment {
 
 	async deploy(server: string, id: string): Promise<Artifact> {
 		const current = await this.api<{ attributes: Server }>(`/servers/${encodeURIComponent(server)}`);
-		if (!current.attributes.description?.includes("Lords of Minecraft")) throw new Error("Server is no longer in scope");
+		if (!current.attributes.description?.includes("Lords of Minecraft")) throw new Error("Client server description does not confirm Lords of Minecraft scope");
 		const artifact = await this.artifact(id);
 		if (!artifact) throw new Error("Latest release is no longer eligible for deployment");
 		const jar = await (await this.get(artifact.url)).arrayBuffer();

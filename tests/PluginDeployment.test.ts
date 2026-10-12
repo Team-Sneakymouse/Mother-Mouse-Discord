@@ -41,11 +41,11 @@ function setup(type = "paper-plugin", failUpload = false, failCleanup = false, b
 					...(uploaded ? [file("Example-2.0.jar", badSize ? 0 : 4)] : []),
 				]);
 		} else if (url.endsWith("/files/delete")) return new Response(null, { status: failCleanup ? 500 : 204 });
-		else if (url.endsWith("/servers/server")) result = { attributes: { description: "Lords of Minecraft - test" } };
+		else if (url.endsWith("/client/servers/server")) result = { attributes: { description: "Lords of Minecraft - test" } };
 		else throw new Error(`Unexpected request ${url}`);
 		return Response.json(result);
 	};
-	return { service: new PluginDeployment("https://panel.example/api/", "secret", request), events };
+	return { service: new PluginDeployment("https://panel.example/api/", "application-secret", "client-secret", request), events };
 }
 
 test("only explicit supported deployment properties qualify, including namespaced Maven POMs", () => {
@@ -99,7 +99,10 @@ test("Paper replacement is verified before staging cleanup and preserves install
 		[{ root: "/plugins/.update", files: ["Example-1.0.jar"] }],
 	);
 	assert.ok(events.indexOf(deletes[0]) > uploadIndex + 1);
-	for (const event of events) assert.equal(event.headers.get("Authorization"), event.url.startsWith("https://panel.example/") ? "Bearer secret" : null);
+	for (const event of events) {
+		assert.equal(event.headers.get("Authorization"), event.url.startsWith("https://panel.example/api/client/") ? "Bearer client-secret" : null);
+		assert.ok(!event.url.includes("/application/"));
+	}
 	assert.ok(events.every((event) => !event.url.endsWith("/power")));
 });
 
@@ -128,22 +131,38 @@ test("cleanup failure reports that the replacement was already uploaded", async 
 	await assert.rejects(service.deploy("server", "Example"), /2.0 uploaded, but cleanup failed/);
 });
 
-test("server listing paginates and excludes descriptions outside scope", async () => {
-	const request: typeof fetch = async (url) => {
+test("application server listing paginates, uses client-compatible identifiers and excludes descriptions outside scope", async () => {
+	const request: typeof fetch = async (url, init) => {
+		assert.equal(new Headers(init?.headers).get("Authorization"), "Bearer application-secret");
+		assert.equal(new URL(String(url)).pathname, "/api/application/servers");
+		assert.equal(new URL(String(url)).searchParams.has("type"), false);
 		const page = new URL(String(url)).searchParams.get("page");
 		return Response.json({
 			...listing(
 				page === "1"
-					? [{ identifier: "other", name: "Other", description: "Other game" }]
-					: [{ identifier: "lom", name: "LoM", description: "Test Lords of Minecraft" }],
+					? [{ id: 12, identifier: "other", name: "Other", description: "Other game" }]
+					: [{ id: 42, identifier: "lom", name: "LoM", description: "Test Lords of Minecraft" }],
 			),
 			meta: { pagination: { total_pages: 2 } },
 		});
 	};
 	assert.deepEqual(
-		(await new PluginDeployment("https://panel.example/api", "key", request).servers()).map((server) => server.identifier),
+		(await new PluginDeployment("https://panel.example/api", "application-secret", "client-secret", request).servers()).map((server) => server.identifier),
 		["lom"],
 	);
+});
+
+test("empty application listings do not fall back to client server listing", async () => {
+	const queries: string[] = [];
+	const request: typeof fetch = async (input) => {
+		const url = new URL(String(input));
+		queries.push(url.search);
+		assert.equal(url.pathname, "/api/application/servers");
+		return Response.json(listing([]));
+	};
+	const servers = await new PluginDeployment("https://panel.example/api", "application-secret", "client-secret", request).servers();
+	assert.deepEqual(servers, []);
+	assert.deepEqual(queries, ["?page=1"]);
 });
 
 test("scope and latest POM eligibility are checked again immediately before deployment", async () => {
@@ -151,7 +170,10 @@ test("scope and latest POM eligibility are checked again immediately before depl
 	await assert.rejects(service.deploy("server", "Example"), /no longer eligible/);
 	assert.ok(events.every((event) => event.method === "GET"));
 	const request: typeof fetch = async () => Response.json({ attributes: { description: "Different game" } });
-	await assert.rejects(new PluginDeployment("https://panel.example/api", "key", request).deploy("server", "Example"), /no longer in scope/);
+	await assert.rejects(
+		new PluginDeployment("https://panel.example/api", "application-secret", "client-secret", request).deploy("server", "Example"),
+		/does not confirm/,
+	);
 });
 
 test("slash command defaults to administrators and includes update subcommand", () => {
