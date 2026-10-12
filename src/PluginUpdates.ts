@@ -1,18 +1,18 @@
 import {
-	ActionRowBuilder,
-	ButtonBuilder,
-	ButtonStyle,
+	ComponentType,
 	type ChatInputCommandInteraction,
 	type Client,
+	type Message,
+	type MessageComponentInteraction,
 	MessageFlags,
 	PermissionFlagsBits,
 	SlashCommandBuilder,
-	StringSelectMenuBuilder,
 } from "discord.js";
-import { PluginDeployment } from "./utils/PluginDeployment.js";
+import { Artifact, PluginDeployment } from "./utils/PluginDeployment.js";
+import { acquireDeploymentLock } from "./utils/DeploymentLock.js";
+import { parseRoute, pending, PREFIX, readState, renderState, selectArtifacts, type UpdateState } from "./utils/PluginUpdateMessage.js";
 
 const RAWBTV = "391355330241757205";
-const busy = new Set<string>();
 export const data = [
 	new SlashCommandBuilder()
 		.setName("plugins")
@@ -21,144 +21,172 @@ export const data = [
 		.addSubcommand((command) => command.setName("update").setDescription("Select a Lords of Minecraft server and releases to upload")),
 ];
 
-export default function PluginUpdates(client: Client): void {
-	client.on("interactionCreate", async (interaction) => {
-		if (!interaction.isChatInputCommand() || interaction.commandName !== "plugins") return;
+function deployment(): PluginDeployment {
+	const host = process.env.PELICAN_API_HOST;
+	const applicationKey = process.env.PELICAN_APPLICATION_KEY;
+	const clientKey = process.env.PELICAN_CLIENT_KEY;
+	if (!host || !applicationKey || !clientKey) throw new Error("PELICAN_API_HOST, PELICAN_APPLICATION_KEY and PELICAN_CLIENT_KEY must be configured");
+	return new PluginDeployment(host, applicationKey, clientKey);
+}
+
+function snapshot(message: Message): string {
+	return JSON.stringify([message.content, message.embeds.map((embed) => embed.toJSON()), message.components.map((row) => row.toJSON())]);
+}
+
+export class PluginUpdatesController {
+	private messages = new Set<string>();
+	constructor(private service: () => PluginDeployment = deployment) {}
+
+	async command(interaction: ChatInputCommandInteraction): Promise<void> {
 		if (interaction.guildId !== RAWBTV || !interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
 			await interaction.reply({ content: "Only RAWBTV administrators can deploy releases.", flags: MessageFlags.Ephemeral });
 			return;
 		}
 		await interaction.deferReply();
 		try {
-			await run(interaction);
+			const servers = await this.service().servers();
+			if (!servers.length) throw new Error("No accessible servers have Lords of Minecraft in their description");
+			await interaction.editReply(renderState({ owner: interaction.user.id, stage: "servers", page: 0, selected: [], completed: [] }, servers));
 		} catch (error) {
 			await interaction.editReply({ content: "Deployment stopped due to error.", components: [] });
-			await interaction.followUp({
-				content: `Deployment stopped: ${error instanceof Error ? error.message : "Unexpected error"}`,
-				flags: MessageFlags.Ephemeral,
-			});
-		}
-	});
-}
-
-function navigation(page: number, pages: number, canUpload: boolean, plugins: boolean): ActionRowBuilder<ButtonBuilder> {
-	const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
-		new ButtonBuilder()
-			.setCustomId("previous")
-			.setLabel("Previous")
-			.setStyle(ButtonStyle.Secondary)
-			.setDisabled(page === 0),
-		new ButtonBuilder()
-			.setCustomId("next")
-			.setLabel("Next")
-			.setStyle(ButtonStyle.Secondary)
-			.setDisabled(page >= pages - 1),
-	);
-	if (plugins) row.addComponents(new ButtonBuilder().setCustomId("upload").setLabel("Upload selected").setStyle(ButtonStyle.Primary).setDisabled(!canUpload));
-	return row.addComponents(new ButtonBuilder().setCustomId("cancel").setLabel("Cancel").setStyle(ButtonStyle.Secondary));
-}
-
-async function run(interaction: ChatInputCommandInteraction): Promise<void> {
-	const host = process.env.PELICAN_API_HOST;
-	const applicationKey = process.env.PELICAN_APPLICATION_KEY;
-	const clientKey = process.env.PELICAN_CLIENT_KEY;
-	if (!host || !applicationKey || !clientKey) throw new Error("PELICAN_API_HOST, PELICAN_APPLICATION_KEY and PELICAN_CLIENT_KEY must be configured");
-	const deployment = new PluginDeployment(host, applicationKey, clientKey);
-	const [servers, catalog] = await Promise.all([deployment.servers(), deployment.catalog()]);
-	if (!servers.length) throw new Error("No accessible servers have Lords of Minecraft in their description");
-	if (!catalog.artifacts.length)
-		throw new Error(`No eligible releases found${catalog.failures.length ? ` (${catalog.failures.length} artifacts could not be read)` : ""}`);
-	let page = 0;
-	let server: (typeof servers)[number] | undefined;
-	const selected = new Set<string>();
-	const deadline = Date.now() + 10 * 60_000;
-	while (true) {
-		const options = server ? catalog.artifacts : servers;
-		const pages = Math.ceil(options.length / 25);
-		const visible = options.slice(page * 25, (page + 1) * 25);
-		const menu = new StringSelectMenuBuilder()
-			.setCustomId(server ? "artifacts" : "server")
-			.setPlaceholder(server ? "Select plugins and mods" : "Select a server")
-			.setMinValues(server ? 0 : 1)
-			.setMaxValues(server ? visible.length : 1)
-			.addOptions(
-				server
-					? catalog.artifacts.slice(page * 25, (page + 1) * 25).map((artifact) => ({
-							label: artifact.id.slice(0, 100),
-							value: artifact.id,
-							description: `${artifact.version} · ${artifact.type}`.slice(0, 100),
-							default: selected.has(artifact.id),
-						}))
-					: servers.slice(page * 25, (page + 1) * 25).map((item) => ({ label: item.name.slice(0, 100), value: item.identifier })),
-			);
-		const message = await interaction.editReply({
-			content: `${server ? `**${server.name}** — ${selected.size} selected. Latest releases will be uploaded; older published versions will be removed. No restart.` : "Choose a Lords of Minecraft server."}\nPage ${page + 1}/${pages}${catalog.failures.length ? `\nWarning: ${catalog.failures.length} artifacts could not be read and are omitted.` : ""}`,
-			components: [new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(menu), navigation(page, pages, selected.size > 0, !!server)],
-		});
-		const remaining = deadline - Date.now();
-		if (remaining <= 0) break;
-		const component = await message.awaitMessageComponent({ filter: (event) => event.user.id === interaction.user.id, time: remaining }).catch(() => undefined);
-		if (!component) break;
-		if (component.guildId !== RAWBTV || !component.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
-			await component.reply({ content: "Administrator permission is required.", flags: MessageFlags.Ephemeral });
-			await interaction.editReply({ content: "Deployment cancelled: administrator permission is required.", components: [] });
-			return;
-		}
-		await component.deferUpdate();
-		if (component.customId === "cancel") {
-			await interaction.editReply({ content: "Deployment cancelled.", components: [] });
-			return;
-		}
-		if (component.customId === "previous") page = Math.max(0, page - 1);
-		else if (component.customId === "next") page = Math.min(pages - 1, page + 1);
-		else if (component.isStringSelectMenu() && component.customId === "server") {
-			server = servers.find((item) => item.identifier === component.values[0]);
-			page = 0;
-		} else if (component.isStringSelectMenu() && component.customId === "artifacts") {
-			for (const artifact of catalog.artifacts.slice(page * 25, (page + 1) * 25)) selected.delete(artifact.id);
-			for (const id of component.values) if (catalog.artifacts.some((artifact) => artifact.id === id)) selected.add(id);
-		} else if (component.customId === "upload" && server && selected.size) {
-			if (busy.has(server.identifier)) throw new Error("Another deployment is already running for this server");
-			busy.add(server.identifier);
-			try {
-				const results: string[] = [];
-				const failures: string[] = [];
-				for (const id of selected) {
-					await interaction.editReply({
-						content: `Uploading **${id}** to **${server.name}** (${results.length + failures.length + 1}/${selected.size})…`,
-						components: [],
-					});
-					try {
-						const artifact = await deployment.deploy(server.identifier, id);
-						results.push(`✓ ${id} ${artifact.version} → ${artifact.type === "paper-plugin" ? "plugins/.update/" : "mods/"}`);
-					} catch (error) {
-						failures.push(`✗ ${id}: ${error instanceof Error ? error.message : "Unexpected error"}`);
-					}
-				}
-				// Follow-ups keep large, paginated selections within Discord's message limit.
-				await interaction.editReply({
-					content: `Deployment finished for **${server.name}**: ${results.length} succeeded, ${failures.length} failed. Restart the server to apply them.`,
-					components: [],
-				});
-				for (const [messages, privateReply] of [
-					[results, false],
-					[failures, true],
-				] as const) {
-					let chunk = "";
-					for (const result of messages) {
-						if ((chunk + result).length > 1900) {
-							await interaction.followUp({ content: chunk, ...(privateReply ? { flags: MessageFlags.Ephemeral } : {}) });
-							chunk = "";
-						}
-						chunk += `${result}\n`;
-					}
-					if (chunk) await interaction.followUp({ content: chunk, ...(privateReply ? { flags: MessageFlags.Ephemeral } : {}) });
-				}
-			} finally {
-				busy.delete(server.identifier);
-			}
-			return;
+			await this.error(interaction, error);
 		}
 	}
-	await interaction.editReply({ content: "Deployment selection expired. Run /plugins update again.", components: [] });
+
+	async component(interaction: MessageComponentInteraction): Promise<void> {
+		if (!interaction.customId.startsWith(PREFIX)) return;
+		try {
+			const route = parseRoute(interaction.customId);
+			if (
+				interaction.message.author.id !== interaction.client.user.id ||
+				interaction.guildId !== RAWBTV ||
+				!interaction.memberPermissions?.has(PermissionFlagsBits.Administrator) ||
+				interaction.user.id !== route.owner
+			) {
+				await interaction.reply({ content: "Only the administrator who started this deployment can use these controls.", flags: MessageFlags.Ephemeral });
+				return;
+			}
+			if (this.messages.has(interaction.message.id)) {
+				await interaction.reply({ content: "This deployment is already being processed.", flags: MessageFlags.Ephemeral });
+				return;
+			}
+			this.messages.add(interaction.message.id);
+			try {
+				const clicked = snapshot(interaction.message);
+				await interaction.deferUpdate();
+				const message = await interaction.message.fetch(true);
+				if (snapshot(message) !== clicked) throw new Error("The deployment changed while you clicked. Use the updated controls.");
+				const state = readState(message);
+				if (route.action === "cancel") {
+					await message.edit({ content: "Deployment cancelled.", components: [] });
+					return;
+				}
+				const service = this.service();
+				if ((route.action === "upload" && state.stage === "select") || (route.action === "retry" && state.stage === "upload")) {
+					await this.upload(message, state, service, interaction);
+					return;
+				}
+				if (state.stage === "upload") throw new Error("Use Retry remaining to continue this deployment");
+				if (state.stage === "servers") {
+					const servers = await service.servers();
+					if (route.action === "server" && interaction.isStringSelectMenu()) {
+						const server = servers.find((item) => item.identifier === interaction.values[0]);
+						if (!server) throw new Error("Selected server is no longer in scope");
+						state.server = { identifier: server.identifier, name: server.name };
+						state.stage = "select";
+						state.page = 0;
+					} else {
+						this.navigate(state, route.action);
+						await message.edit(renderState(state, servers));
+						return;
+					}
+				} else if (route.action === "artifacts" && interaction.isStringSelectMenu()) {
+					// Use the options actually displayed, even if the Maven catalog has changed.
+					const menu = message.components
+						.flatMap((row) => (row.type === ComponentType.ActionRow ? row.components : []))
+						.find((item) => "customId" in item && item.customId === interaction.customId);
+					if (!menu || !("options" in menu)) throw new Error("Artifact menu is missing");
+					selectArtifacts(
+						state,
+						menu.options.map((option) => option.value),
+						interaction.values,
+					);
+				} else this.navigate(state, route.action);
+				const catalog = await service.catalog();
+				await message.edit(
+					renderState(
+						state,
+						[],
+						catalog.artifacts,
+						catalog.failures.length ? `${catalog.failures.length} artifacts could not be read and are omitted.` : undefined,
+					),
+				);
+			} finally {
+				this.messages.delete(interaction.message.id);
+			}
+		} catch (error) {
+			await this.error(interaction, error);
+		}
+	}
+
+	private navigate(state: UpdateState, action: string): void {
+		if (action === "previous") state.page = Math.max(0, state.page - 1);
+		else if (action === "next") state.page++;
+		else throw new Error("This action does not match the current deployment stage");
+	}
+
+	private async upload(message: Message, state: UpdateState, service: PluginDeployment, interaction: MessageComponentInteraction): Promise<void> {
+		if (!state.server || !pending(state).length) throw new Error("Select at least one unfinished release");
+		const server = state.server.identifier;
+		const release = acquireDeploymentLock(server);
+		if (!release) throw new Error("Another deployment is already running for this server");
+		try {
+			state.stage = "upload";
+			await message.edit(
+				renderState(state, [], [], "Uploading releases. Retry remaining becomes available after an interruption; no server restart is performed."),
+			);
+			for (const id of pending(state)) {
+				await message.edit(renderState(state, [], [], `Uploading **${id}** (${state.completed.length}/${state.selected.length} completed)…`));
+				let artifact: Artifact;
+				try {
+					artifact = await service.deploy(server, id);
+				} catch (error) {
+					await this.error(interaction, new Error(`${id}: ${error instanceof Error ? error.message : "Unexpected error"}`));
+					continue;
+				}
+				state.completed.push({ id, version: artifact.version, type: artifact.type });
+				// Persist each success before starting the next artifact. Retrying an unrecorded success is safe.
+				await message.edit(renderState(state, [], [], `${state.completed.length}/${state.selected.length} uploaded.`));
+			}
+			await message.edit(
+				renderState(
+					state,
+					[],
+					[],
+					`Deployment finished: ${state.completed.length} uploaded, ${pending(state).length} unfinished. ${pending(state).length ? "Use Retry remaining to retry unfinished releases. " : ""}Restart the server yourself to apply uploads.`,
+				),
+			);
+		} finally {
+			release();
+		}
+	}
+
+	private async error(interaction: ChatInputCommandInteraction | MessageComponentInteraction, error: unknown): Promise<void> {
+		const reply = { content: error instanceof Error ? error.message : "Unexpected deployment error", flags: MessageFlags.Ephemeral as const };
+		try {
+			if (interaction.deferred || interaction.replied) await interaction.followUp(reply);
+			else await interaction.reply(reply);
+		} catch {
+			// Long deployments may outlive the click's token. Their public progress and retry controls use the bot token.
+			console.error(`PluginUpdates: private error response could not be sent: ${reply.content}`);
+		}
+	}
+}
+
+export default function PluginUpdates(client: Client): void {
+	const controller = new PluginUpdatesController();
+	client.on("interactionCreate", async (interaction) => {
+		if (interaction.isChatInputCommand() && interaction.commandName === "plugins") await controller.command(interaction);
+		else if (interaction.isMessageComponent() && interaction.customId.startsWith(PREFIX)) await controller.component(interaction);
+	});
 }

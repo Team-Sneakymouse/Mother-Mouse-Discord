@@ -6,6 +6,7 @@ const parser = new XMLParser({ ignoreAttributes: true, parseTagValue: false, pro
 export type DeploymentType = "paper-plugin" | "ignite-mod";
 export type Artifact = { id: string; version: string; type: DeploymentType; versions: string[]; url: string; filename: string };
 export type Server = { identifier: string; name: string; description: string };
+export type DeploymentOptions = { version?: string; scope?: string[] };
 type Listing<T> = { data: { attributes: T }[]; meta?: { pagination?: { current_page: number; total_pages: number } } };
 type RemoteFile = { name: string; is_file: boolean; size: number };
 
@@ -60,22 +61,22 @@ export class PluginDeployment {
 		return response.status === 204 ? (undefined as T) : ((await response.json()) as T);
 	}
 
-	async servers(): Promise<Server[]> {
+	async servers(scope: string[] = ["Lords of Minecraft"]): Promise<Server[]> {
 		const servers: Server[] = [];
 		let page = 1;
 		while (true) {
 			const listing = await this.api<Listing<Server>>(`/servers?page=${page}`, undefined, "application");
-			servers.push(...listing.data.map((item) => item.attributes).filter((server) => server.description?.includes("Lords of Minecraft")));
+			servers.push(...listing.data.map((item) => item.attributes).filter((server) => scope.every((phrase) => server.description?.includes(phrase))));
 			if (page >= (listing.meta?.pagination?.total_pages ?? 1)) break;
 			page++;
 		}
 		return servers.sort((a, b) => a.name.localeCompare(b.name));
 	}
 
-	async artifact(id: string): Promise<Artifact | undefined> {
+	async artifact(id: string, requestedVersion?: string): Promise<Artifact | undefined> {
 		const base = `${MAVEN}/releases/${GROUP}/${segment(id)}`;
 		const metadata = parseXml(await (await this.get(`${base}/maven-metadata.xml`)).text()).metadata?.versioning;
-		const version = (metadata?.release || metadata?.latest)?.trim();
+		const version = requestedVersion ?? (metadata?.release || metadata?.latest)?.trim();
 		if (!version || version.endsWith("-SNAPSHOT")) return;
 		const filename = `${id}-${version}.jar`;
 		const release = `${base}/${segment(version)}/${segment(id)}-${segment(version)}`;
@@ -123,10 +124,11 @@ export class PluginDeployment {
 		}
 	}
 
-	async deploy(server: string, id: string): Promise<Artifact> {
+	async deploy(server: string, id: string, options: DeploymentOptions = {}): Promise<Artifact> {
 		const current = await this.api<{ attributes: Server }>(`/servers/${encodeURIComponent(server)}`);
-		if (!current.attributes.description?.includes("Lords of Minecraft")) throw new Error("Client server description does not confirm Lords of Minecraft scope");
-		const artifact = await this.artifact(id);
+		if (!(options.scope ?? ["Lords of Minecraft"]).every((phrase) => current.attributes.description?.includes(phrase)))
+			throw new Error("Client server description does not confirm deployment scope");
+		const artifact = await this.artifact(id, options.version);
 		if (!artifact) throw new Error("Latest release is no longer eligible for deployment");
 		const jar = await (await this.get(artifact.url)).arrayBuffer();
 		const bytes = new Uint8Array(jar);

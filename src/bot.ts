@@ -48,6 +48,10 @@ client.once("clientReady", () => {
 import TwitchShame from "./TwitchShame.js";
 TwitchShame(client, server);
 
+// Register the webhook's own bounded JSON parser before the general JSON middleware.
+import ReposiliteWebhook from "./ReposiliteWebhook.js";
+if (process.env.PRODUCTION === "TRUE") ReposiliteWebhook(client, server);
+
 server.use(express.json());
 
 // Assing default roles to new members

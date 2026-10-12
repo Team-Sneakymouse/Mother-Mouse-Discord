@@ -181,3 +181,42 @@ test("slash command defaults to administrators and includes update subcommand", 
 	assert.equal(command.default_member_permissions, "8");
 	assert.equal(command.options?.[0].name, "update");
 });
+
+test("exact-version resolution reads the uploaded version's POM and JAR even when metadata points to a newer release", async () => {
+	const urls: string[] = [];
+	const request: typeof fetch = async (input) => {
+		const url = String(input);
+		urls.push(url);
+		if (url.endsWith("maven-metadata.xml")) return new Response(metadata);
+		assert.ok(url.endsWith("/Example/1.0/Example-1.0.pom"));
+		return new Response(pom("ignite-mod"));
+	};
+	const artifact = await new PluginDeployment("https://panel.example/api", "application", "client", request).artifact("Example", "1.0");
+	assert.equal(artifact?.version, "1.0");
+	assert.equal(artifact?.type, "ignite-mod");
+	assert.ok(artifact?.url.endsWith("/Example/1.0/Example-1.0.jar"));
+	assert.equal(urls.length, 2);
+});
+
+test("automatic discovery and final client check require both description phrases", async () => {
+	const request: typeof fetch = async (input) => {
+		const url = String(input);
+		if (url.includes("/application/servers?"))
+			return Response.json(
+				listing([
+					{ identifier: "live", name: "Live", description: "Lords of Minecraft" },
+					{ identifier: "other", name: "Other", description: "Dev Server" },
+					{ identifier: "dev", name: "Dev", description: "Lords of Minecraft Dev Server" },
+				]),
+			);
+		assert.ok(url.endsWith("/client/servers/dev"));
+		return Response.json({ attributes: { description: "Lords of Minecraft" } });
+	};
+	const service = new PluginDeployment("https://panel.example/api", "application", "client", request);
+	const scope = ["Lords of Minecraft", "Dev Server"];
+	assert.deepEqual(
+		(await service.servers(scope)).map((server) => server.identifier),
+		["dev"],
+	);
+	await assert.rejects(service.deploy("dev", "Example", { version: "1.0", scope }), /does not confirm/);
+});

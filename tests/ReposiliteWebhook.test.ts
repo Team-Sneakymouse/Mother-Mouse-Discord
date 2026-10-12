@@ -1,0 +1,291 @@
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import type { AddressInfo } from "node:net";
+import express from "express";
+import {
+	DEV_SCOPE,
+	type EventStore,
+	MemoryEventStore,
+	registerReposiliteRoute,
+	ReposiliteWorker,
+	type UploadEvent,
+	uploadedArtifact,
+	type WebhookJob,
+} from "../src/ReposiliteWebhook.ts";
+import type { PluginDeployment } from "../src/utils/PluginDeployment.ts";
+import { acquireDeploymentLock } from "../src/utils/DeploymentLock.ts";
+
+const event: UploadEvent = {
+	event: "artifact.uploaded",
+	schemaVersion: 1,
+	id: "d4fa61fb-1eb1-45e2-9c58-70d4af566431",
+	timestamp: "2026-10-12T10:00:00Z",
+	repository: "releases",
+	path: "io/github/team-sneakymouse/Example/1.0/Example-1.0.jar",
+	uploadedBy: "alice",
+};
+function memoryStore(): EventStore & { jobs: WebhookJob[] } {
+	const jobs: WebhookJob[] = [];
+	return {
+		jobs,
+		async accept(payload) {
+			if (jobs.some((job) => job.payload.id === payload.id)) return false;
+			jobs.push({
+				id: payload.id,
+				payload: structuredClone(payload),
+				status: "pending",
+				attempts: 0,
+				next_attempt: "2026-10-12T10:00:00Z",
+				targets: null,
+				completed: [],
+				notified: false,
+				last_error: "",
+			});
+			return true;
+		},
+		async next() {
+			const job = jobs.find((job) => job.status === "pending");
+			return job ? structuredClone(job) : undefined;
+		},
+		async update(id, patch) {
+			Object.assign(jobs.find((job) => job.id === id)!, structuredClone(patch));
+		},
+	};
+}
+const now = new Date("2026-10-12T11:00:00Z").getTime();
+function fakeService() {
+	const calls: { server: string; id: string; options: unknown }[] = [];
+	const service = {
+		async artifact(id: string, version: string) {
+			assert.equal(id, "Example");
+			assert.equal(version, "1.0");
+			return { type: "paper-plugin" };
+		},
+		async servers(scope: string[]) {
+			assert.deepEqual(scope, DEV_SCOPE);
+			return [
+				{ identifier: "dev-one", name: "Dev one" },
+				{ identifier: "dev-two", name: "Dev two" },
+			];
+		},
+		async deploy(server: string, id: string, options: unknown) {
+			calls.push({ server, id, options });
+			return {};
+		},
+	};
+	return { service, calls };
+}
+
+test("path filter only accepts main release JARs in the configured group", () => {
+	assert.deepEqual(uploadedArtifact(event), { id: "Example", version: "1.0" });
+	for (const path of [
+		event.path + ".sha256",
+		event.path.replace(".jar", ".pom"),
+		event.path.replace(".jar", "-sources.jar"),
+		event.path.replace(".jar", "-javadoc.jar"),
+		event.path.replace("team-sneakymouse", "other"),
+		"../Example-1.0.jar",
+		event.path.replaceAll("1.0", "1.0-SNAPSHOT"),
+	])
+		assert.equal(uploadedArtifact({ ...event, path }), undefined);
+	assert.equal(uploadedArtifact({ ...event, repository: "snapshots" }), undefined);
+});
+
+test("worker deploys the exact event version and both scope phrases even when notification fails", async () => {
+	const store = memoryStore();
+	await store.accept(event);
+	const { service, calls } = fakeService();
+	await new ReposiliteWorker(
+		store,
+		() => service as unknown as PluginDeployment,
+		async () => {
+			throw new Error("Discord unavailable");
+		},
+		() => now,
+	).tick();
+	assert.equal(store.jobs[0].status, "completed");
+	assert.deepEqual(
+		calls,
+		["dev-one", "dev-two"].map((server) => ({ server, id: "Example", options: { version: "1.0", scope: DEV_SCOPE } })),
+	);
+});
+
+test("missing POM is retried later and unsupported deployment properties are ignored", async () => {
+	const store = memoryStore();
+	await store.accept(event);
+	const { service, calls } = fakeService();
+	let available = false;
+	(service as any).artifact = async () => {
+		if (!available) throw new Error("HTTP 404");
+		return { type: "ignite-mod" };
+	};
+	const worker = new ReposiliteWorker(
+		store,
+		() => service as unknown as PluginDeployment,
+		async () => {},
+		() => now,
+	);
+	await worker.tick();
+	assert.equal(store.jobs[0].attempts, 1);
+	assert.equal(calls.length, 0);
+	available = true;
+	await worker.tick();
+	assert.equal(calls.length, 0);
+	store.jobs[0].next_attempt = new Date(now).toISOString();
+	await new ReposiliteWorker(
+		store,
+		() => service as unknown as PluginDeployment,
+		async () => {},
+		() => now,
+	).tick();
+	assert.equal(store.jobs[0].status, "completed");
+	const ignored = memoryStore();
+	await ignored.accept(event);
+	(service as any).artifact = async () => undefined;
+	await new ReposiliteWorker(
+		ignored,
+		() => service as unknown as PluginDeployment,
+		async () => {},
+		() => now,
+	).tick();
+	assert.equal(ignored.jobs[0].status, "ignored");
+});
+
+test("retries skip servers already completed in memory", async () => {
+	const store = memoryStore();
+	await store.accept(event);
+	const { service, calls } = fakeService();
+	let fail = true;
+	service.deploy = async (server, id, options) => {
+		calls.push({ server, id, options });
+		if (server === "dev-two" && fail) throw new Error("Upload failed");
+		return {};
+	};
+	await new ReposiliteWorker(
+		store,
+		() => service as unknown as PluginDeployment,
+		async () => {},
+		() => now,
+	).tick();
+	assert.deepEqual(store.jobs[0].completed, ["dev-one"]);
+	fail = false;
+	store.jobs[0].next_attempt = new Date(now).toISOString();
+	await new ReposiliteWorker(
+		store,
+		() => service as unknown as PluginDeployment,
+		async () => {},
+		() => now,
+	).tick();
+	assert.deepEqual(
+		calls.map((call) => call.server),
+		["dev-one", "dev-two", "dev-two"],
+	);
+	assert.equal(store.jobs[0].status, "completed");
+});
+
+test("an active manual server lock defers automatic upload without losing the event", async () => {
+	const store = memoryStore();
+	await store.accept(event);
+	const { service, calls } = fakeService();
+	const release = acquireDeploymentLock("dev-one")!;
+	try {
+		await new ReposiliteWorker(
+			store,
+			() => service as unknown as PluginDeployment,
+			async () => {},
+			() => now,
+		).tick();
+	} finally {
+		release();
+	}
+	assert.deepEqual(
+		calls.map((call) => call.server),
+		["dev-two"],
+	);
+	assert.equal(store.jobs[0].status, "pending");
+});
+
+test("delayed earlier events block later events to preserve release ordering", async () => {
+	const store = memoryStore();
+	await store.accept(event);
+	await store.accept({ ...event, id: "e4fa61fb-1eb1-45e2-9c58-70d4af566431" });
+	store.jobs[0].next_attempt = new Date(now + 60_000).toISOString();
+	const { service, calls } = fakeService();
+	await new ReposiliteWorker(
+		store,
+		() => service as unknown as PluginDeployment,
+		async () => {},
+		() => now,
+	).tick();
+	assert.equal(calls.length, 0);
+});
+
+test("retry limit records terminal failures", async () => {
+	const store = memoryStore();
+	await store.accept(event);
+	store.jobs[0].attempts = 11;
+	const { service } = fakeService();
+	(service as any).artifact = async () => {
+		throw new Error("POM missing");
+	};
+	const notifications: string[] = [];
+	await new ReposiliteWorker(
+		store,
+		() => service as unknown as PluginDeployment,
+		async (text) => {
+			notifications.push(text);
+		},
+		() => now,
+	).tick();
+	assert.equal(store.jobs[0].status, "failed");
+	assert.equal(store.jobs[0].attempts, 12);
+	assert.match(notifications[0], /failed/);
+});
+
+test("HTTP receiver authenticates, validates, filters, and deduplicates in memory", async () => {
+	const store = memoryStore();
+	let configuredToken: string | undefined = "secret";
+	const app = express();
+	registerReposiliteRoute(app, store, () => configuredToken);
+	const http = app.listen(0, "127.0.0.1");
+	await new Promise<void>((resolve) => http.once("listening", resolve));
+	const url = `http://127.0.0.1:${(http.address() as AddressInfo).port}/reposilite`;
+	async function send(payload = event, token = "secret", headerId = payload.id) {
+		return (
+			await fetch(url, {
+				method: "POST",
+				headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, "X-Reposilite-Event-Id": headerId },
+				body: JSON.stringify(payload),
+			})
+		).status;
+	}
+	try {
+		assert.equal(await send(event, "wrong"), 401);
+		assert.equal(store.jobs.length, 0);
+		assert.equal(await send(event, "secret", "wrong"), 400);
+		assert.equal(await send({ ...event, schemaVersion: 2 } as unknown as UploadEvent), 400);
+		assert.equal(await send({ ...event, path: event.path + ".sha1" }), 204);
+		assert.equal(await send(), 202);
+		assert.equal(store.jobs.length, 1);
+		assert.equal(await send(), 200);
+		assert.equal(store.jobs.length, 1);
+		configuredToken = undefined;
+		assert.equal(await send(), 503);
+		configuredToken = "secret";
+		store.accept = async () => {
+			throw new Error("Queue is full");
+		};
+		assert.equal(await send(), 503);
+	} finally {
+		await new Promise<void>((resolve, reject) => http.close((error) => (error ? reject(error) : resolve())));
+	}
+});
+
+test("deduplication is in memory and a new store accepts an event again", async () => {
+	const first = new MemoryEventStore();
+	assert.equal(await first.accept(event), true);
+	assert.equal(await first.accept(event), false);
+	await assert.rejects(first.accept({ ...event, uploadedBy: "different" }), /different payload/);
+	const restarted = new MemoryEventStore();
+	assert.equal(await restarted.accept(event), true);
+});
