@@ -36,6 +36,7 @@ import { data as Leaderboard } from "./src/LeaderboardRewards.js";
 import { data as StreamManager } from "./src/StreamManager.js";
 import { data as BuildTeamManagement } from "./src/BuildTeamManagement.js";
 import { data as SendMail } from "./src/SendMail.js";
+import { data as PluginUpdates } from "./src/PluginUpdates.js";
 
 const commands = {
 	global: [...Vibecheck, ...Roll, ...TwitterFix, ...Uuid, ...EditBotMessages],
@@ -50,6 +51,7 @@ const commands = {
 		...Leaderboard,
 		...BuildTeamManagement,
 		...SendMail,
+		...PluginUpdates,
 	],
 	[GuildIds.TILII]: [...GitlabIssues],
 	[GuildIds.SNEAKYRP]: [],

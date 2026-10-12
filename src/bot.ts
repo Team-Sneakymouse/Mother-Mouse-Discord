@@ -190,6 +190,7 @@ import RatsRoleAssignment from "./RatsRoleAssignment.js";
 
 // Send item mail to recently active Legend of Mice accounts
 import SendMail from "./SendMail.js";
+import PluginUpdates from "./PluginUpdates.js";
 
 if (process.env.PRODUCTION === "TRUE") {
 	client.setMaxListeners(Infinity);
@@ -244,6 +245,7 @@ if (process.env.PRODUCTION === "TRUE") {
 	BuildTeamManagement(client);
 	RatsRoleAssignment(client);
 	SendMail(client, pocketbase);
+	PluginUpdates(client);
 } else {
 	console.log("Registering development plugins");
 }

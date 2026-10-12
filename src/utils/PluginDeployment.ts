@@ -1,0 +1,151 @@
+import { XMLParser, XMLValidator } from "fast-xml-parser";
+
+const MAVEN = "https://maven.sneakyrp.com";
+const GROUP = "io/github/team-sneakymouse";
+const parser = new XMLParser({ ignoreAttributes: true, parseTagValue: false, processEntities: false });
+export type DeploymentType = "paper-plugin" | "ignite-mod";
+export type Artifact = { id: string; version: string; type: DeploymentType; versions: string[]; url: string; filename: string };
+export type Server = { identifier: string; name: string; description: string };
+type Listing<T> = { data: { attributes: T }[]; meta?: { pagination?: { current_page: number; total_pages: number } } };
+type RemoteFile = { name: string; is_file: boolean; size: number };
+
+function segment(value: string): string {
+	if (!/^[A-Za-z0-9_][A-Za-z0-9_.+-]*$/.test(value)) throw new Error("Invalid Maven path segment");
+	return encodeURIComponent(value);
+}
+
+export function parseXml(xml: string): any {
+	if (xml.includes("<!DOCTYPE") || XMLValidator.validate(xml) !== true) throw new Error("Invalid Maven XML");
+	return parser.parse(xml);
+}
+
+export function deploymentType(pom: string): DeploymentType | undefined {
+	const type = parseXml(pom).project?.properties?.["sneakyrp.deployment.type"]?.trim();
+	return type === "paper-plugin" || type === "ignite-mod" ? type : undefined;
+}
+
+export function oldFiles(files: RemoteFile[], artifact: Artifact): string[] {
+	const known = new Set(artifact.versions.filter((version) => version !== artifact.version).map((version) => `${artifact.id}-${version}.jar`));
+	return files.filter((file) => file.is_file && known.has(file.name)).map((file) => file.name);
+}
+
+export class PluginDeployment {
+	constructor(
+		private host: string,
+		private key: string,
+		private request: typeof fetch = fetch,
+	) {
+		const url = new URL(host);
+		if (url.protocol !== "https:") throw new Error("PELICAN_API_HOST must use HTTPS");
+		this.host = host.replace(/\/+$/, "");
+	}
+
+	private async get(url: string, init: RequestInit = {}): Promise<Response> {
+		const response = await this.request(url, { ...init, signal: AbortSignal.timeout(120_000) });
+		if (!response.ok) throw new Error(`Request failed (HTTP ${response.status})`);
+		return response;
+	}
+
+	private async api<T>(path: string, body?: unknown): Promise<T> {
+		const response = await this.get(`${this.host}/client${path}`, {
+			method: body === undefined ? "GET" : "POST",
+			headers: { Authorization: `Bearer ${this.key}`, Accept: "application/json", ...(body === undefined ? {} : { "Content-Type": "application/json" }) },
+			...(body === undefined ? {} : { body: JSON.stringify(body) }),
+		});
+		return response.status === 204 ? (undefined as T) : ((await response.json()) as T);
+	}
+
+	async servers(): Promise<Server[]> {
+		const servers: Server[] = [];
+		let page = 1;
+		while (true) {
+			const listing = await this.api<Listing<Server>>(`?page=${page}`);
+			servers.push(...listing.data.map((item) => item.attributes).filter((server) => server.description?.includes("Lords of Minecraft")));
+			if (page >= (listing.meta?.pagination?.total_pages ?? 1)) break;
+			page++;
+		}
+		return servers.sort((a, b) => a.name.localeCompare(b.name));
+	}
+
+	async artifact(id: string): Promise<Artifact | undefined> {
+		const base = `${MAVEN}/releases/${GROUP}/${segment(id)}`;
+		const metadata = parseXml(await (await this.get(`${base}/maven-metadata.xml`)).text()).metadata?.versioning;
+		const version = (metadata?.release || metadata?.latest)?.trim();
+		if (!version || version.endsWith("-SNAPSHOT")) return;
+		const filename = `${id}-${version}.jar`;
+		const release = `${base}/${segment(version)}/${segment(id)}-${segment(version)}`;
+		const type = deploymentType(await (await this.get(`${release}.pom`)).text());
+		if (!type) return;
+		const published = metadata.versions?.version ?? [];
+		const versions: string[] = (Array.isArray(published) ? published : [published]).map((value: string) => value.trim());
+		versions.forEach(segment);
+		return { id, version, type, versions, filename, url: `${release}.jar` };
+	}
+
+	async catalog(): Promise<{ artifacts: Artifact[]; failures: string[] }> {
+		const listing = (await (await this.get(`${MAVEN}/api/maven/details/releases/${GROUP}`)).json()) as { files: { name: string; type: string }[] };
+		const artifacts: Artifact[] = [];
+		const failures: string[] = [];
+		const directories = listing.files.filter((file) => file.type === "DIRECTORY");
+		// Bound repository traffic while reading every artifact's latest POM.
+		for (let offset = 0; offset < directories.length; offset += 5) {
+			await Promise.all(
+				directories.slice(offset, offset + 5).map(async ({ name }) => {
+					try {
+						const artifact = await this.artifact(name);
+						if (artifact) artifacts.push(artifact);
+					} catch {
+						failures.push(name);
+					}
+				}),
+			);
+		}
+		return { artifacts: artifacts.sort((a, b) => a.id.localeCompare(b.id)), failures };
+	}
+
+	private async files(server: string, directory: string): Promise<RemoteFile[]> {
+		const result = await this.api<Listing<RemoteFile>>(`/servers/${encodeURIComponent(server)}/files/list?directory=${encodeURIComponent(directory)}`);
+		return result.data.map((file) => file.attributes);
+	}
+
+	private async ensureDirectory(server: string, directory: string): Promise<void> {
+		let root = "/";
+		for (const name of directory.split("/").filter(Boolean)) {
+			const existing = (await this.files(server, root)).find((file) => file.name === name);
+			if (existing?.is_file) throw new Error(`${root}${name} is a file`);
+			if (!existing) await this.api(`/servers/${encodeURIComponent(server)}/files/create-folder`, { root, name });
+			root = `${root}${name}/`;
+		}
+	}
+
+	async deploy(server: string, id: string): Promise<Artifact> {
+		const current = await this.api<{ attributes: Server }>(`/servers/${encodeURIComponent(server)}`);
+		if (!current.attributes.description?.includes("Lords of Minecraft")) throw new Error("Server is no longer in scope");
+		const artifact = await this.artifact(id);
+		if (!artifact) throw new Error("Latest release is no longer eligible for deployment");
+		const jar = await (await this.get(artifact.url)).arrayBuffer();
+		const bytes = new Uint8Array(jar);
+		if (bytes.length < 4 || bytes[0] !== 0x50 || bytes[1] !== 0x4b) throw new Error("Release is not a JAR archive");
+		const directory = artifact.type === "paper-plugin" ? "/plugins/.update" : "/mods";
+		await this.ensureDirectory(server, directory);
+		const signed = await this.api<{ attributes: { url: string } }>(`/servers/${encodeURIComponent(server)}/files/upload`);
+		const upload = new URL(signed.attributes.url);
+		if (upload.protocol !== "https:") throw new Error("Upload URL must use HTTPS");
+		upload.searchParams.set("directory", directory);
+		const form = new FormData();
+		form.append("files", new Blob([jar], { type: "application/java-archive" }), artifact.filename);
+		await this.get(upload.toString(), { method: "POST", body: form });
+		const uploaded = await this.files(server, directory);
+		if (!uploaded.some((file) => file.is_file && file.name === artifact.filename && file.size === jar.byteLength)) {
+			throw new Error("Upload could not be verified; previous versions were kept");
+		}
+		try {
+			// Paper needs the installed JAR to discover and consume its staged update on startup.
+			const previous = oldFiles(uploaded, artifact);
+			if (previous.length) await this.api(`/servers/${encodeURIComponent(server)}/files/delete`, { root: directory, files: previous });
+		} catch {
+			throw new Error(`${artifact.version} uploaded, but cleanup failed; check for older JARs before restarting`);
+		}
+		return artifact;
+	}
+}
