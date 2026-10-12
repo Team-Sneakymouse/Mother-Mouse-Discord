@@ -32,7 +32,7 @@ export default function PluginUpdates(client: Client): void {
 		try {
 			await run(interaction);
 		} catch (error) {
-			await interaction.editReply({ content: "Deployment stopped.", components: [] });
+			await interaction.editReply({ content: "Deployment stopped due to error.", components: [] });
 			await interaction.followUp({
 				content: `Deployment stopped: ${error instanceof Error ? error.message : "Unexpected error"}`,
 				flags: MessageFlags.Ephemeral,
@@ -137,7 +137,7 @@ async function run(interaction: ChatInputCommandInteraction): Promise<void> {
 				}
 				// Follow-ups keep large, paginated selections within Discord's message limit.
 				await interaction.editReply({
-					content: `Deployment finished for **${server.name}**: ${results.length} succeeded, ${failures.length} failed. Server restart is up to you.`,
+					content: `Deployment finished for **${server.name}**: ${results.length} succeeded, ${failures.length} failed. Restart the server to apply them.`,
 					components: [],
 				});
 				for (const [messages, privateReply] of [
