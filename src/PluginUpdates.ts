@@ -60,9 +60,9 @@ function navigation(page: number, pages: number, canUpload: boolean, plugins: bo
 
 async function run(interaction: ChatInputCommandInteraction): Promise<void> {
 	const host = process.env.PELICAN_API_HOST;
-	const applicationKey = process.env.PELICAN_APLICATION_KEY;
+	const applicationKey = process.env.PELICAN_APPLICATION_KEY;
 	const clientKey = process.env.PELICAN_CLIENT_KEY;
-	if (!host || !applicationKey || !clientKey) throw new Error("PELICAN_API_HOST, PELICAN_APLICATION_KEY and PELICAN_CLIENT_KEY must be configured");
+	if (!host || !applicationKey || !clientKey) throw new Error("PELICAN_API_HOST, PELICAN_APPLICATION_KEY and PELICAN_CLIENT_KEY must be configured");
 	const deployment = new PluginDeployment(host, applicationKey, clientKey);
 	const [servers, catalog] = await Promise.all([deployment.servers(), deployment.catalog()]);
 	if (!servers.length) throw new Error("No accessible servers have Lords of Minecraft in their description");
