@@ -37,7 +37,7 @@ function message(initial: ReturnType<typeof renderState>) {
 	};
 	function apply(payload: ReturnType<typeof renderState>) {
 		result.content = payload.content;
-		result.embeds = payload.embeds.map((embed) => new Embed(embed.toJSON()));
+		if (payload.embeds) result.embeds = payload.embeds.map((embed) => new Embed(embed.toJSON()));
 		result.components = payload.components.map((row) => new ActionRow(row.toJSON()));
 	}
 	apply(initial);
@@ -219,6 +219,41 @@ test("unchanged controls remain usable when fetched message JSON has different p
 	assert.equal(readState(fetched.result).page, 1);
 });
 
+for (const action of ["server", "cancel"]) {
+	test(`${action} accepts equivalent server controls with Discord metadata and explicit defaults`, async () => {
+		const selection: UpdateState = { owner, stage: "servers", page: 0, selected: [], completed: [] };
+		const servers = [{ identifier: "abcdefgh", name: "Buildteam" }];
+		const clicked = message(renderState(selection, servers));
+		const fetched = message(renderState(selection, servers));
+		fetched.result.embeds = fetched.result.embeds.map((embed) => new Embed({ ...embed.toJSON(), type: "rich" }));
+		fetched.result.components = fetched.result.components.map((row, index) => {
+			const data = row.toJSON();
+			return new ActionRow({
+				...data,
+				id: index + 1,
+				components: data.components.map((component, componentIndex) => ({
+					...component,
+					id: index * 10 + componentIndex + 3,
+					disabled: component.disabled ?? false,
+					...(component.type === ComponentType.StringSelect
+						? { options: component.options.map((option) => ({ ...option, default: option.default ?? false })) }
+						: {}),
+				})),
+			});
+		});
+		clicked.result.fetch = async () => fetched.result;
+		const event = click(clicked.result, customId(selection, action), ["abcdefgh"]);
+		const service = {
+			servers: async () => servers,
+			catalog: async () => ({ artifacts, failures: [] }),
+		} as unknown as PluginDeployment;
+		await new PluginUpdatesController(() => service).component(event.interaction);
+		assert.deepEqual(event.replies, []);
+		if (action === "server") assert.equal(readState(fetched.result).server?.identifier, "abcdefgh");
+		else assert.equal(fetched.result.content, "Deployment cancelled.");
+	});
+}
+
 test("a stale click cannot overwrite a freshly changed message", async () => {
 	const selection = state();
 	const stale = message(renderState(selection, [], artifacts));
@@ -229,6 +264,27 @@ test("a stale click cannot overwrite a freshly changed message", async () => {
 	assert.match(event.replies[0].content, /changed while you clicked/);
 	assert.equal(updated.edits.length, 0);
 });
+
+for (const change of ["content", "route", "options", "disabled"]) {
+	test(`a stale click is rejected when ${change} changes`, async () => {
+		const selection = state();
+		const clicked = message(renderState(selection, [], artifacts));
+		const rendered = renderState(selection, [], change === "options" ? artifacts.slice(1) : artifacts);
+		if (change === "content") rendered.content = "Deployment cancelled.";
+		else if (change !== "options") {
+			const button = rendered.components[1].components.find((component) => component.data.custom_id === customId(selection, "next"));
+			assert.ok(button);
+			if (change === "route") button.data.custom_id = customId({ ...selection, page: 1 }, "next");
+			else button.data.disabled = true;
+		}
+		const fetched = message(rendered);
+		clicked.result.fetch = async () => fetched.result;
+		const event = click(clicked.result, customId(selection, "next"));
+		await new PluginUpdatesController().component(event.interaction);
+		assert.match(event.replies[0].content, /changed while you clicked/);
+		assert.equal(fetched.edits.length, 0);
+	});
+}
 
 test("a fetch that mutates cached embed fields still detects a stale click", async () => {
 	const selection = state();

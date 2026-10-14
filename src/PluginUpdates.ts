@@ -31,7 +31,26 @@ function deployment(): PluginDeployment {
 }
 
 function snapshot(message: Message) {
-	return structuredClone([message.content, message.embeds.map((embed) => embed.toJSON()), message.components.map((row) => row.toJSON())]);
+	return {
+		content: message.content,
+		embeds: message.embeds.map((embed) => ({
+			title: embed.title,
+			description: embed.description,
+			fields: embed.fields.map((field) => ({ name: field.name, value: field.value })),
+		})),
+		components: message.components.map((row) => ({
+			type: row.type,
+			controls:
+				row.type === ComponentType.ActionRow
+					? row.components.map((component) => ({
+							type: component.type,
+							customId: "customId" in component ? component.customId : null,
+							disabled: "disabled" in component ? (component.disabled ?? false) : false,
+							options: "options" in component ? component.options.map((option) => option.value) : [],
+						}))
+					: [],
+		})),
+	};
 }
 
 export class PluginUpdatesController {
