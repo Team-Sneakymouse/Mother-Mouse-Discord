@@ -17,7 +17,7 @@ export function customId(state: UpdateState, action: string): string {
 }
 
 export function parseRoute(id: string) {
-	const match = /^plugin-update:(\d+):([A-Za-z0-9-]+):(servers|select|upload):(\d+):(server|artifacts|previous|next|upload|retry|cancel)$/.exec(id);
+	const match = /^plugin-update:(\d+):([A-Za-z0-9-]+):(servers|select|upload):(\d+):(server|artifacts|previous|next|upload|retry|reset|cancel)$/.exec(id);
 	if (!match) throw new Error("This deployment message cannot be read. Run /plugins update again.");
 	return { owner: match[1], server: match[2], stage: match[3] as UpdateState["stage"], page: Number(match[4]), action: match[5] };
 }
@@ -150,8 +150,7 @@ export function renderState(state: UpdateState, servers: Server[] = [], artifact
 			);
 		content = `${status ?? (state.stage === "select" ? `${state.selected.length} selected. Latest releases will be uploaded; older copies in the destination will be removed. No restart.` : content)}\nPage ${state.page + 1}/${pages}`;
 	}
-	if (state.stage !== "upload" || pending(state).length)
-		controls.addComponents(new ButtonBuilder().setCustomId(customId(state, "cancel")).setLabel("Cancel").setStyle(ButtonStyle.Secondary));
+	controls.addComponents(new ButtonBuilder().setCustomId(customId(state, "reset")).setLabel("Reset").setStyle(ButtonStyle.Secondary));
 	if (controls.components.length) components.push(controls);
 	return { content, embeds: [embed], components, allowedMentions: { parse: [] as never[] } };
 }

@@ -102,6 +102,12 @@ export class PluginUpdatesController {
 					return;
 				}
 				const service = this.service();
+				if (route.action === "reset") {
+					const servers = await service.servers();
+					if (!servers.length) throw new Error("No accessible servers have Lords of Minecraft in their description");
+					await message.edit(renderState({ owner: state.owner, stage: "servers", page: 0, selected: [], completed: [] }, servers));
+					return;
+				}
 				if ((route.action === "upload" && state.stage === "select") || (route.action === "retry" && state.stage === "upload")) {
 					await this.upload(message, state, service, interaction);
 					return;

@@ -71,6 +71,64 @@ function click(target: Message, id: string, values: string[] = [], user = owner)
 	return { interaction: result as unknown as MessageComponentInteraction, replies };
 }
 
+function assertResetControl(target: Message) {
+	const controls = target.components.flatMap((row) => (row.type === ComponentType.ActionRow ? row.components : []));
+	assert.ok(controls.some((component) => "customId" in component && component.customId?.endsWith(":reset")));
+	assert.ok(!controls.some((component) => "customId" in component && component.customId?.endsWith(":cancel")));
+}
+
+for (const stage of ["servers", "select", "upload", "finished"] as const) {
+	test(`reset returns ${stage} deployments to fresh server selection without deploying`, async () => {
+		const selection = state();
+		selection.stage = stage === "finished" ? "upload" : stage;
+		selection.page = 1;
+		selection.selected = ["Plugin0", "Plugin1"];
+		selection.completed = [{ id: "Plugin0", version: "old-release", type: "paper-plugin" }];
+		if (stage === "finished") selection.completed.push({ id: "Plugin1", version: "old-release", type: "paper-plugin" });
+		const servers = Array.from({ length: 30 }, (_, index) => ({ identifier: `server${index}`, name: `Server ${index}` }));
+		const target = message(renderState(selection, servers, artifacts));
+		assertResetControl(target.result);
+		let listings = 0;
+		const service = {
+			async servers() {
+				listings++;
+				return [{ identifier: "freshserver", name: "New server" }];
+			},
+			async deploy() {
+				assert.fail("Reset must not upload releases");
+			},
+		} as unknown as PluginDeployment;
+		const event = click(target.result, customId(selection, "reset"));
+		await new PluginUpdatesController(() => service).component(event.interaction);
+		assert.deepEqual(event.replies, []);
+		assert.equal(listings, 1);
+		assert.deepEqual(readState(target.result), { owner, stage: "servers", page: 0, selected: [], completed: [] });
+		assert.match(JSON.stringify(target.result.components), /freshserver/);
+		assertResetControl(target.result);
+	});
+}
+
+for (const failure of ["empty", "error"]) {
+	test(`reset preserves deployment progress when refreshed server lookup is ${failure}`, async () => {
+		const selection = state();
+		selection.stage = "upload";
+		selection.selected = ["Plugin0", "Plugin1"];
+		selection.completed = [{ id: "Plugin0", version: "old-release", type: "paper-plugin" }];
+		const target = message(renderState(selection));
+		const service = {
+			async servers() {
+				if (failure === "error") throw new Error("Server listing unavailable");
+				return [];
+			},
+		} as unknown as PluginDeployment;
+		const event = click(target.result, customId(selection, "reset"));
+		await new PluginUpdatesController(() => service).component(event.interaction);
+		assert.match(event.replies[0].content, failure === "error" ? /Server listing unavailable/ : /No accessible servers/);
+		assert.deepEqual(readState(target.result), selection);
+		assert.equal(target.edits.length, 0);
+	});
+}
+
 test("selection and completed uploads survive a message round trip without process state", () => {
 	const original = state();
 	original.selected = ["Plugin0", "Plugin27"];
@@ -120,7 +178,7 @@ test("retry skips recorded successes and persists each new success before starti
 	} as unknown as PluginDeployment;
 	await new PluginUpdatesController(() => service).component(click(target.result, customId(selection, "retry")).interaction);
 	assert.deepEqual(deployed, ["Plugin1", "Plugin2"]);
-	assert.equal(target.result.components.length, 0);
+	assertResetControl(target.result);
 	assert.ok(target.result.embeds[0].fields.some((field) => field.value.includes("Plugin1 new-release")));
 });
 
@@ -164,7 +222,7 @@ test("retry after an upload but before recording success repeats that artifact",
 	} as unknown as PluginDeployment;
 	await new PluginUpdatesController(() => service).component(click(target.result, customId(selection, "retry")).interaction);
 	assert.equal(calls, 1);
-	assert.equal(target.result.components.length, 0);
+	assertResetControl(target.result);
 });
 
 test("failure to persist an upload stops the batch and the next controller retries the unrecorded upload", async () => {
@@ -219,7 +277,7 @@ test("unchanged controls remain usable when fetched message JSON has different p
 	assert.equal(readState(fetched.result).page, 1);
 });
 
-for (const action of ["server", "cancel"]) {
+for (const action of ["server", "reset"]) {
 	test(`${action} accepts equivalent server controls with Discord metadata and explicit defaults`, async () => {
 		const selection: UpdateState = { owner, stage: "servers", page: 0, selected: [], completed: [] };
 		const servers = [{ identifier: "abcdefgh", name: "Buildteam" }];
@@ -250,7 +308,7 @@ for (const action of ["server", "cancel"]) {
 		await new PluginUpdatesController(() => service).component(event.interaction);
 		assert.deepEqual(event.replies, []);
 		if (action === "server") assert.equal(readState(fetched.result).server?.identifier, "abcdefgh");
-		else assert.equal(fetched.result.content, "Deployment cancelled.");
+		else assert.deepEqual(readState(fetched.result), selection);
 	});
 }
 
@@ -325,6 +383,9 @@ test("message lock rejects concurrent retries and server lock rejects another me
 	const retry = click(target.result, customId(readState(target.result), "retry"));
 	await controller.component(retry.interaction);
 	assert.match(retry.replies[0].content, /already being processed/);
+	const reset = click(target.result, customId(readState(target.result), "reset"));
+	await controller.component(reset.interaction);
+	assert.match(reset.replies[0].content, /already being processed/);
 	const other = message(renderState(selection, [], artifacts));
 	other.result.id = "other-message";
 	const otherClick = click(other.result, customId(selection, "upload"));
@@ -337,7 +398,7 @@ test("message lock rejects concurrent retries and server lock rejects another me
 test("only the initiating administrator may use a persistent message", async () => {
 	const selection = state();
 	const target = message(renderState(selection, [], artifacts));
-	const outsider = click(target.result, customId(selection, "next"), [], "999999999999999999");
+	const outsider = click(target.result, customId(selection, "reset"), [], "999999999999999999");
 	await new PluginUpdatesController().component(outsider.interaction);
 	assert.match(outsider.replies[0].content, /who started/);
 	assert.equal(target.edits.length, 0);
