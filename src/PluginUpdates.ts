@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from "node:util";
 import {
 	ComponentType,
 	type ChatInputCommandInteraction,
@@ -29,8 +30,8 @@ function deployment(): PluginDeployment {
 	return new PluginDeployment(host, applicationKey, clientKey);
 }
 
-function snapshot(message: Message): string {
-	return JSON.stringify([message.content, message.embeds.map((embed) => embed.toJSON()), message.components.map((row) => row.toJSON())]);
+function snapshot(message: Message) {
+	return structuredClone([message.content, message.embeds.map((embed) => embed.toJSON()), message.components.map((row) => row.toJSON())]);
 }
 
 export class PluginUpdatesController {
@@ -75,7 +76,7 @@ export class PluginUpdatesController {
 				const clicked = snapshot(interaction.message);
 				await interaction.deferUpdate();
 				const message = await interaction.message.fetch(true);
-				if (snapshot(message) !== clicked) throw new Error("The deployment changed while you clicked. Use the updated controls.");
+				if (!isDeepStrictEqual(snapshot(message), clicked)) throw new Error("The deployment changed while you clicked. Use the updated controls.");
 				const state = readState(message);
 				if (route.action === "cancel") {
 					await message.edit({ content: "Deployment cancelled.", components: [] });

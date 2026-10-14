@@ -195,6 +195,30 @@ test("failure to persist an upload stops the batch and the next controller retri
 	assert.deepEqual(deployed, ["Plugin0", "Plugin0", "Plugin1"]);
 });
 
+test("unchanged controls remain usable when fetched message JSON has different property order", async () => {
+	const selection = state();
+	const clicked = message(renderState(selection, [], artifacts));
+	const fetched = message(renderState(selection, [], artifacts));
+	function reorder<Payload>(value: Payload): Payload {
+		if (Array.isArray(value)) return value.map(reorder) as Payload;
+		if (value && typeof value === "object")
+			return Object.fromEntries(
+				Object.entries(value)
+					.reverse()
+					.map(([key, item]) => [key, reorder(item)]),
+			) as Payload;
+		return value;
+	}
+	fetched.result.embeds = fetched.result.embeds.map((embed) => new Embed(reorder(embed.toJSON())));
+	fetched.result.components = fetched.result.components.map((row) => new ActionRow(reorder(row.toJSON())));
+	clicked.result.fetch = async () => fetched.result;
+	const event = click(clicked.result, customId(selection, "next"));
+	const service = { catalog: async () => ({ artifacts, failures: [] }) } as unknown as PluginDeployment;
+	await new PluginUpdatesController(() => service).component(event.interaction);
+	assert.deepEqual(event.replies, []);
+	assert.equal(readState(fetched.result).page, 1);
+});
+
 test("a stale click cannot overwrite a freshly changed message", async () => {
 	const selection = state();
 	const stale = message(renderState(selection, [], artifacts));
@@ -204,6 +228,20 @@ test("a stale click cannot overwrite a freshly changed message", async () => {
 	await new PluginUpdatesController().component(event.interaction);
 	assert.match(event.replies[0].content, /changed while you clicked/);
 	assert.equal(updated.edits.length, 0);
+});
+
+test("a fetch that mutates cached embed fields still detects a stale click", async () => {
+	const selection = state();
+	selection.selected = ["Plugin0"];
+	const target = message(renderState(selection, [], artifacts));
+	target.result.fetch = async () => {
+		target.result.embeds[0].fields[0].value = "`Plugin1`";
+		return target.result;
+	};
+	const event = click(target.result, customId(selection, "next"));
+	await new PluginUpdatesController().component(event.interaction);
+	assert.match(event.replies[0].content, /changed while you clicked/);
+	assert.equal(target.edits.length, 0);
 });
 
 test("message lock rejects concurrent retries and server lock rejects another message's upload", async () => {
