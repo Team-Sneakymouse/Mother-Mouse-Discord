@@ -8,6 +8,7 @@ const jobChannelId = "1233508899630481408";
 
 type JobData = {
 	id: string;
+	serverPort?: number;
 	category: string;
 	posterDisplayString: string;
 	posterIconBase64: string;
@@ -84,6 +85,10 @@ export default function Lom2JobBoard(client: Client, pocketBase: PocketBase) {
 		pocketBase
 			.collection("lom2_listed_jobs")
 			.subscribe("*", (e) => {
+				// Zero/missing ports are legacy records; only 50001 is live otherwise.
+				const serverPort = e.record.serverPort ?? 0;
+				if (serverPort !== 0 && serverPort !== 50001) return;
+
 				console.log(`LoM2 job board: ${e.action} ${e.record.id}`);
 				if (e.action === "create") void postJob(e.record);
 				else if (e.action === "update") void expireJob(e.record);
