@@ -58,8 +58,9 @@ export class PluginUpdatesController {
 	constructor(private service: () => PluginDeployment = deployment) {}
 
 	async command(interaction: ChatInputCommandInteraction): Promise<void> {
-		if (interaction.guildId !== RAWBTV || !interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
-			await interaction.reply({ content: "Only RAWBTV administrators can deploy releases.", flags: MessageFlags.Ephemeral });
+		// Discord authorizes slash command delivery, including server command permission overrides.
+		if (interaction.guildId !== RAWBTV) {
+			await interaction.reply({ content: "This command is only available in the RAWBTV server.", flags: MessageFlags.Ephemeral });
 			return;
 		}
 		await interaction.deferReply();
@@ -77,13 +78,12 @@ export class PluginUpdatesController {
 		if (!interaction.customId.startsWith(PREFIX)) return;
 		try {
 			const route = parseRoute(interaction.customId);
-			if (
-				interaction.message.author.id !== interaction.client.user.id ||
-				interaction.guildId !== RAWBTV ||
-				!interaction.memberPermissions?.has(PermissionFlagsBits.Administrator) ||
-				interaction.user.id !== route.owner
-			) {
-				await interaction.reply({ content: "Only the administrator who started this deployment can use these controls.", flags: MessageFlags.Ephemeral });
+			// Persistent controls continue the authorized command, but only for its initiating user.
+			if (interaction.message.author.id !== interaction.client.user.id || interaction.guildId !== RAWBTV || interaction.user.id !== route.owner) {
+				await interaction.reply({
+					content: "Only the user who started this deployment can use these controls in the RAWBTV server.",
+					flags: MessageFlags.Ephemeral,
+				});
 				return;
 			}
 			if (this.messages.has(interaction.message.id)) {

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { ActionRow, ComponentType, Embed, type Message, type MessageComponentInteraction } from "discord.js";
+import { ActionRow, type ChatInputCommandInteraction, ComponentType, Embed, type Message, type MessageComponentInteraction } from "discord.js";
 import { PluginUpdatesController } from "../src/PluginUpdates.ts";
 import { type Artifact, type PluginDeployment } from "../src/utils/PluginDeployment.ts";
 import { customId, pending, readState, renderState, selectArtifacts, type UpdateState } from "../src/utils/PluginUpdateMessage.ts";
@@ -44,7 +44,7 @@ function message(initial: ReturnType<typeof renderState>) {
 	return { result: result as unknown as Message, edits };
 }
 
-function click(target: Message, id: string, values: string[] = [], user = owner) {
+function click(target: Message, id: string, values: string[] = [], user = owner, memberPermissions: { has: () => boolean } | null = { has: () => true }) {
 	const replies: any[] = [];
 	const result = {
 		customId: id,
@@ -52,7 +52,7 @@ function click(target: Message, id: string, values: string[] = [], user = owner)
 		guildId: "391355330241757205",
 		client: { user: { id: "bot" } },
 		user: { id: user },
-		memberPermissions: { has: () => true },
+		memberPermissions,
 		deferred: false,
 		replied: false,
 		values,
@@ -69,6 +69,46 @@ function click(target: Message, id: string, values: string[] = [], user = owner)
 		},
 	};
 	return { interaction: result as unknown as MessageComponentInteraction, replies };
+}
+
+function command(memberPermissions: { has: () => boolean } | null, guildId: string | null = "391355330241757205") {
+	const replies: any[] = [];
+	const edits: ReturnType<typeof renderState>[] = [];
+	const result = {
+		guildId,
+		user: { id: owner },
+		memberPermissions,
+		deferred: false,
+		async deferReply() {
+			result.deferred = true;
+		},
+		async reply(payload: any) {
+			replies.push(payload);
+		},
+		async editReply(payload: ReturnType<typeof renderState>) {
+			edits.push(payload);
+		},
+	};
+	return { interaction: result as unknown as ChatInputCommandInteraction, replies, edits };
+}
+
+for (const memberPermissions of [{ has: () => false }, null]) {
+	test(`Discord-authorized delivered command accepts ${memberPermissions ? "non-admin" : "null"} member permissions`, async () => {
+		const servers = [{ identifier: "abcdefgh", name: "Test server" }];
+		let listings = 0;
+		const service = {
+			async servers() {
+				listings++;
+				return servers;
+			},
+		} as unknown as PluginDeployment;
+		const event = command(memberPermissions);
+		await new PluginUpdatesController(() => service).command(event.interaction);
+		assert.equal(event.interaction.deferred, true);
+		assert.deepEqual(event.replies, []);
+		assert.equal(listings, 1);
+		assert.deepEqual(readState(message(event.edits[0]).result), { owner, stage: "servers", page: 0, selected: [], completed: [] });
+	});
 }
 
 function assertResetControl(target: Message) {
@@ -395,14 +435,65 @@ test("message lock rejects concurrent retries and server lock rejects another me
 	await uploading;
 });
 
-test("only the initiating administrator may use a persistent message", async () => {
-	const selection = state();
-	const target = message(renderState(selection, [], artifacts));
-	const outsider = click(target.result, customId(selection, "reset"), [], "999999999999999999");
-	await new PluginUpdatesController().component(outsider.interaction);
-	assert.match(outsider.replies[0].content, /who started/);
-	assert.equal(target.edits.length, 0);
-});
+for (const memberPermissions of [{ has: () => false }, null]) {
+	test(`initiating user with ${memberPermissions ? "non-admin" : "null"} permissions continues deployment across fresh controllers`, async () => {
+		const deployed: string[] = [];
+		const service = {
+			servers: async () => [{ identifier: "abcdefgh", name: "Test server" }],
+			catalog: async () => ({ artifacts, failures: [] }),
+			async deploy(server: string, id: string) {
+				assert.equal(server, "abcdefgh");
+				deployed.push(id);
+				return artifacts[0];
+			},
+		} as unknown as PluginDeployment;
+		const start = command(memberPermissions);
+		await new PluginUpdatesController(() => service).command(start.interaction);
+		const target = message(start.edits[0]);
+		for (const [action, values] of [
+			["server", ["abcdefgh"]],
+			["artifacts", ["Plugin0"]],
+			["upload", []],
+		] as const) {
+			const event = click(target.result, customId(readState(target.result), action), [...values], owner, memberPermissions);
+			await new PluginUpdatesController(() => service).component(event.interaction);
+			assert.deepEqual(event.replies, []);
+			assert.equal(event.interaction.deferred, true);
+		}
+		assert.deepEqual(deployed, ["Plugin0"]);
+		assert.deepEqual(readState(target.result).completed, [{ id: "Plugin0", version: "2026.10.12", type: "paper-plugin" }]);
+	});
+}
+
+for (const guildId of ["foreign-guild", null]) {
+	test(`command rejects guild ${guildId} before service creation or deferral`, async () => {
+		const event = command({ has: () => true }, guildId);
+		await new PluginUpdatesController(() => assert.fail("Denied command must not create the service")).command(event.interaction);
+		assert.deepEqual(event.replies, [{ content: "This command is only available in the RAWBTV server.", flags: 64 }]);
+		assert.equal(event.interaction.deferred, false);
+		assert.deepEqual(event.edits, []);
+	});
+}
+
+for (const denied of ["other non-admin", "other admin", "foreign guild", "forged author"]) {
+	test(`persistent controls reject ${denied} before side effects`, async () => {
+		const selection = state();
+		selection.selected = ["Plugin0"];
+		const target = message(renderState(selection, [], artifacts));
+		const otherUser = denied.startsWith("other");
+		const event = click(target.result, customId(selection, "upload"), [], otherUser ? "999999999999999999" : owner, {
+			has: () => denied !== "other non-admin",
+		});
+		if (denied === "foreign guild") (event.interaction as any).guildId = "foreign-guild";
+		if (denied === "forged author") (target.result.author as any).id = "not-the-bot";
+		target.result.fetch = async () => assert.fail("Denied controls must not fetch the message");
+		await new PluginUpdatesController(() => assert.fail("Denied controls must not create the service")).component(event.interaction);
+		assert.deepEqual(event.replies, [{ content: "Only the user who started this deployment can use these controls in the RAWBTV server.", flags: 64 }]);
+		assert.equal(event.interaction.deferred, false);
+		assert.equal(target.edits.length, 0);
+		assert.deepEqual(readState(target.result), selection);
+	});
+}
 
 test("Discord component IDs and persisted embed fields stay within API limits", () => {
 	const selection = state();
