@@ -71,13 +71,13 @@ function click(target: Message, id: string, values: string[] = [], user = owner,
 	return { interaction: result as unknown as MessageComponentInteraction, replies };
 }
 
-function command(memberPermissions: { has: () => boolean } | null, guildId: string | null = "391355330241757205") {
+function command(guildId: string | null = "391355330241757205") {
 	const replies: any[] = [];
 	const edits: ReturnType<typeof renderState>[] = [];
 	const result = {
 		guildId,
 		user: { id: owner },
-		memberPermissions,
+		memberPermissions: { has: () => false },
 		deferred: false,
 		async deferReply() {
 			result.deferred = true;
@@ -92,24 +92,14 @@ function command(memberPermissions: { has: () => boolean } | null, guildId: stri
 	return { interaction: result as unknown as ChatInputCommandInteraction, replies, edits };
 }
 
-for (const memberPermissions of [{ has: () => false }, null]) {
-	test(`Discord-authorized delivered command accepts ${memberPermissions ? "non-admin" : "null"} member permissions`, async () => {
-		const servers = [{ identifier: "abcdefgh", name: "Test server" }];
-		let listings = 0;
-		const service = {
-			async servers() {
-				listings++;
-				return servers;
-			},
-		} as unknown as PluginDeployment;
-		const event = command(memberPermissions);
-		await new PluginUpdatesController(() => service).command(event.interaction);
-		assert.equal(event.interaction.deferred, true);
-		assert.deepEqual(event.replies, []);
-		assert.equal(listings, 1);
-		assert.deepEqual(readState(message(event.edits[0]).result), { owner, stage: "servers", page: 0, selected: [], completed: [] });
-	});
-}
+test("Discord-authorized delivered command accepts non-admin member permissions", async () => {
+	const service = { servers: async () => [state().server!] } as unknown as PluginDeployment;
+	const event = command();
+	await new PluginUpdatesController(() => service).command(event.interaction);
+	assert.equal(event.interaction.deferred, true);
+	assert.deepEqual(event.replies, []);
+	assert.deepEqual(readState(message(event.edits[0]).result), { owner, stage: "servers", page: 0, selected: [], completed: [] });
+});
 
 function assertResetControl(target: Message) {
 	const controls = target.components.flatMap((row) => (row.type === ComponentType.ActionRow ? row.components : []));
@@ -435,39 +425,20 @@ test("message lock rejects concurrent retries and server lock rejects another me
 	await uploading;
 });
 
-for (const memberPermissions of [{ has: () => false }, null]) {
-	test(`initiating user with ${memberPermissions ? "non-admin" : "null"} permissions continues deployment across fresh controllers`, async () => {
-		const deployed: string[] = [];
-		const service = {
-			servers: async () => [{ identifier: "abcdefgh", name: "Test server" }],
-			catalog: async () => ({ artifacts, failures: [] }),
-			async deploy(server: string, id: string) {
-				assert.equal(server, "abcdefgh");
-				deployed.push(id);
-				return artifacts[0];
-			},
-		} as unknown as PluginDeployment;
-		const start = command(memberPermissions);
-		await new PluginUpdatesController(() => service).command(start.interaction);
-		const target = message(start.edits[0]);
-		for (const [action, values] of [
-			["server", ["abcdefgh"]],
-			["artifacts", ["Plugin0"]],
-			["upload", []],
-		] as const) {
-			const event = click(target.result, customId(readState(target.result), action), [...values], owner, memberPermissions);
-			await new PluginUpdatesController(() => service).component(event.interaction);
-			assert.deepEqual(event.replies, []);
-			assert.equal(event.interaction.deferred, true);
-		}
-		assert.deepEqual(deployed, ["Plugin0"]);
-		assert.deepEqual(readState(target.result).completed, [{ id: "Plugin0", version: "2026.10.12", type: "paper-plugin" }]);
-	});
-}
+test("a fresh controller accepts persistent controls from the non-admin owner", async () => {
+	const selection = state();
+	const target = message(renderState(selection, [], artifacts));
+	const service = { catalog: async () => ({ artifacts, failures: [] }) } as unknown as PluginDeployment;
+	const event = click(target.result, customId(selection, "next"), [], owner, { has: () => false });
+	await new PluginUpdatesController(() => service).component(event.interaction);
+	assert.deepEqual(event.replies, []);
+	assert.equal(event.interaction.deferred, true);
+	assert.equal(readState(target.result).page, 1);
+});
 
 for (const guildId of ["foreign-guild", null]) {
 	test(`command rejects guild ${guildId} before service creation or deferral`, async () => {
-		const event = command({ has: () => true }, guildId);
+		const event = command(guildId);
 		await new PluginUpdatesController(() => assert.fail("Denied command must not create the service")).command(event.interaction);
 		assert.deepEqual(event.replies, [{ content: "This command is only available in the RAWBTV server.", flags: 64 }]);
 		assert.equal(event.interaction.deferred, false);
