@@ -100,7 +100,7 @@ const repositorySchema = z.object({
 	full_name: z
 		.string()
 		.max(160)
-		.regex(/^Team-Sneakymouse\/[A-Za-z0-9_.-]+$/),
+		.regex(/^Team-Sneakymouse\/[A-Za-z0-9_.-]+$/i),
 });
 const pullRequestSchema = z.object({
 	number: z.number().int().positive(),

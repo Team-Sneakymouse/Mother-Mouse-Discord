@@ -75,6 +75,26 @@ test("empty organization needs only one request and returns an empty snapshot", 
 	assert.equal(calls, 1);
 });
 
+test("accepts organization case variants without changing repository identifiers", async () => {
+	for (const full_name of ["team-sneakymouse/MixedCase.Repo", "tEaM-SnEaKyMoUsE/MixedCase.Repo"]) {
+		const calls: string[] = [];
+		const result = await collectOpenPullRequests({
+			get: async (path) => {
+				calls.push(path);
+				return { data: path.startsWith("/orgs/") ? [{ full_name }] : [pr(1)] };
+			},
+		});
+		assert.deepEqual(result, [{ repository: full_name, ...pr(1) }]);
+		assert.deepEqual(calls, ["/orgs/Team-Sneakymouse/repos", `/repos/${full_name}/pulls`]);
+	}
+});
+
+test("rejects repositories from a foreign organization regardless of case", async () => {
+	for (const full_name of ["OtherOrg/repo", "otherorg/repo"]) {
+		await assert.rejects(collectOpenPullRequests({ get: async () => ({ data: [{ full_name }] }) }));
+	}
+});
+
 test("rejects oversized repository names before producing invalid Discord chunks", async () => {
 	await assert.rejects(collectOpenPullRequests({ get: async (path) => ({ data: path.startsWith("/orgs/") ? [repo("x".repeat(2000))] : [pr(1)] }) }));
 });
