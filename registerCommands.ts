@@ -20,7 +20,7 @@ import { data as tfcSolver } from "./src/tfcSolver.js";
 import { data as Roll } from "./src/Roll.js";
 import { data as PalsRoles } from "./src/PalsRoles.js";
 import { data as PronounRoles } from "./src/PronounRoles.js";
-//import { data as Todo } from "./src/Todo.js";
+import { data as SharedTodos } from "./src/Todo.js";
 import { data as UserPins } from "./src/UserPins.js";
 import { data as GitlabIssues } from "./src/GitlabIssues/index.js";
 import { data as OocTools } from "./src/OocTools.js";
@@ -52,6 +52,7 @@ const commands = {
 		...BuildTeamManagement,
 		...SendMail,
 		...PluginUpdates,
+		...SharedTodos,
 	],
 	[GuildIds.TILII]: [...GitlabIssues],
 	[GuildIds.SNEAKYRP]: [],
