@@ -1,7 +1,7 @@
 import { escapeMarkdown, type Message, type MessageEditOptions } from "discord.js";
 import type { Todo } from "./assessment.js";
-export interface Group {id:string;name:string;labels:string[];child_groups:string[]}
-export interface ListFilters {label?:string;kind?:string;priority?:string}
+export interface Group {id:string;name:string;labels:string[];child_groups:string[];assigned_user_id?:string}
+export interface ListFilters {label?:string;kind?:string;priority?:string;userId?:string}
 export interface ListState {owner:string;page:number;filters:ListFilters}
 export function expandGroup(id:string,groups:Group[]):Set<string>{
  const labels=new Set<string>(),visited=new Set<string>(),active=new Set<string>();
@@ -10,7 +10,8 @@ export function expandGroup(id:string,groups:Group[]):Set<string>{
 }
 export function filterTodos(todos:Todo[],labels:{id:string;name:string}[],groups:Group[],filters:ListFilters):Todo[]{
  let selected:Set<string>|undefined;
- if(filters.label){const [type,id]=filters.label.split(":");if(type==="label"&&labels.some(l=>l.id===id))selected=new Set([id]);else if(type==="group")selected=expandGroup(id,groups);else throw new Error("Unknown label filter");}
+ if(filters.label==="me"){selected=new Set<string>();for(const g of groups.filter(g=>!!filters.userId&&g.assigned_user_id===filters.userId))for(const id of expandGroup(g.id,groups))selected.add(id);}
+ else if(filters.label){const [type,id]=filters.label.split(":");if(type==="label"&&labels.some(l=>l.id===id))selected=new Set([id]);else if(type==="group")selected=expandGroup(id,groups);else throw new Error("Unknown label filter");}
  const rank:Record<string,number>={red:0,yellow:1,blue:2};const name=(id:string)=>labels.find(l=>l.id===id)?.name??"Untriaged";
  return todos.filter(t=>["open","in_progress","blocked"].includes(t.status)&&(!selected||selected.has(t.label))&&(!filters.kind||t.kind===filters.kind)&&(!filters.priority||t.priority===filters.priority))
  .sort((a,b)=>name(a.label).localeCompare(name(b.label))||(rank[a.priority]??3)-(rank[b.priority]??3)||(a.number??0)-(b.number??0));

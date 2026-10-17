@@ -2,6 +2,7 @@ import { ApplicationCommandType, ContextMenuCommandBuilder, MessageFlags, Permis
 import type PocketBase from "pocketbase";
 import { configuredTodoTransports } from "./todo/hermes.js";
 import { collectContext, type ContextMessage } from "./todo/context.js";
+import { TodoManagement } from "./todo/management.js";
 import { readDetailState, renderDetail } from "./todo/detail.js";
 import { attachReportLinks, readListState, renderList, type ListFilters, type ListState } from "./todo/list.js";
 import { TodoRepository, TodoService, type ConversationTransport } from "./todo/service.js";
@@ -13,6 +14,7 @@ export const data=[
   .addStringOption(o=>o.setName("label").setDescription("Label or group; omitted means all").setAutocomplete(true))
   .addStringOption(o=>o.setName("kind").setDescription("Omitted means bugs and features").addChoices({name:"Bug",value:"bug"},{name:"Feature",value:"feature"}))
   .addStringOption(o=>o.setName("priority").setDescription("Omitted means all priorities").addChoices(...["red","yellow","blue"].map(value=>({name:value,value})))))
+ .addSubcommand(c=>c.setName("manage").setDescription("Graphically manage labels, nested groups and user assignments"))
  .addSubcommand(c=>c.setName("assess").setDescription("Manually assess pending or failed reports")
   .addStringOption(o=>o.setName("report").setDescription("Report record ID; omitted processes pending/failed reports")))
  .addSubcommand(c=>c.setName("resolve").setDescription("Manually resolve a report after human clarification; never calls the model")
@@ -66,8 +68,10 @@ export class TodoController {
   if(!await this.allowed(i))return;await i.deferReply({flags:MessageFlags.Ephemeral});
   try{
    const action=i.options.getSubcommand();
+   if(action==="manage"){await i.editReply(await new TodoManagement(this.service.repo).open(i.guildId!,i.user.id));return;}
    if(action==="list"){
     const filters:ListFilters={};for(const key of ["label","kind","priority"] as const){const value=i.options.getString(key);if(value)filters[key]=value;}
+    if(filters.label==="me")filters.userId=i.user.id;
     const {todos,labels}=await this.service.list(i.guildId!,filters);await i.editReply(renderList(todos,labels,{owner:i.user.id,page:0,filters}));return;
    }
    if(action==="assess"){
@@ -109,7 +113,7 @@ export class TodoController {
  }
  async autocomplete(i:AutocompleteInteraction):Promise<void>{
   if(i.guildId!==RAWBTV){await i.respond([]);return;}
-  try{const [labels,groups]=await Promise.all([this.service.repo.labels(i.guildId),this.service.repo.groups(i.guildId)]);const query=String(i.options.getFocused()).toLowerCase();await i.respond([...labels.map(l=>({name:l.name,value:`label:${l.id}`})),...(i.options.getSubcommand()==="label"?[]:groups.map(g=>({name:`${g.name} (group)`,value:`group:${g.id}`})))].filter(c=>c.name.toLowerCase().includes(query)).sort((a,b)=>a.name.localeCompare(b.name)).slice(0,25).map(c=>({...c,name:c.name.slice(0,100)})));}catch{await i.respond([]);}
+  try{const [labels,groups]=await Promise.all([this.service.repo.labels(i.guildId),this.service.repo.groups(i.guildId)]);const query=String(i.options.getFocused()).toLowerCase();await i.respond([...(i.options.getSubcommand()==="list"?[{name:"me — my assigned label groups",value:"me"}]:[]),...labels.map(l=>({name:l.name,value:`label:${l.id}`})),...(i.options.getSubcommand()==="label"?[]:groups.map(g=>({name:`${g.name} (group)`,value:`group:${g.id}`})))].filter(c=>c.name.toLowerCase().includes(query)).sort((a,b)=>a.name.localeCompare(b.name)).slice(0,25).map(c=>({...c,name:c.name.slice(0,100)})));}catch{await i.respond([]);}
  }
  async component(i:MessageComponentInteraction):Promise<void>{
   const [prefix,owner,action,id]=i.customId.split("|");if(prefix!=="todo")return;
@@ -132,24 +136,27 @@ export class TodoController {
     await i.editReply(renderDetail(attachReportLinks([todo],origins)[0],labels,state,page));return;
    }
    if(action==="back"){
-    const {todos,labels}=await this.service.list(i.guildId!,state.filters);await i.editReply(renderList(todos,labels,state));return;
+    const {todos,labels}=await this.service.list(i.guildId!,{...state.filters,...(state.filters.label==="me"?{userId:i.user.id}:{})});await i.editReply(renderList(todos,labels,state));return;
    }
    if(action==="start"){
     const todo=await this.service.start(id,i.user.id,i.guildId!);
-    const {todos,labels}=await this.service.list(i.guildId!,state.filters);
+    const {todos,labels}=await this.service.list(i.guildId!,{...state.filters,...(state.filters.label==="me"?{userId:i.user.id}:{})});
     const rendered=renderList(todos,labels,state);rendered.content=`Forum conversation admission accepted for #${todo.number}. This is not confirmation of completed work or message delivery.\n${rendered.content}`;await i.editReply(rendered);return;
    }
    if(action==="next")state.page++;else if(action==="previous")state.page=Math.max(0,state.page-1);else if(action!=="refresh")throw new Error("Unknown list control");
-   const {todos,labels}=await this.service.list(i.guildId!,state.filters);await i.editReply(renderList(todos,labels,state));
+   const {todos,labels}=await this.service.list(i.guildId!,{...state.filters,...(state.filters.label==="me"?{userId:i.user.id}:{})});await i.editReply(renderList(todos,labels,state));
   }catch(error){await this.error(i,error);}
  }
 }
 export default function TodoList(client:Client,pb:PocketBase,transports:{assessment?:AssessmentTransport;conversation?:ConversationTransport}=configuredTodoTransports(client)):void{
- const controller=new TodoController(new TodoService(new TodoRepository(pb),transports.assessment,transports.conversation));
+ const controllerRepo=new TodoRepository(pb);
+ const controller=new TodoController(new TodoService(controllerRepo,transports.assessment,transports.conversation));
  client.on("interactionCreate",async i=>{
   try{if(i.isMessageContextMenuCommand()&&i.commandName==="Create report")await controller.capture(i);
   else if(i.isChatInputCommand()&&i.commandName==="todo")await controller.command(i);
   else if(i.isAutocomplete()&&i.commandName==="todo")await controller.autocomplete(i);
+  else if(i.isMessageComponent()&&i.customId.startsWith("todo-manage|"))await new TodoManagement(controllerRepo).component(i);
+  else if(i.isModalSubmit()&&i.customId.startsWith("todo-manage|"))await new TodoManagement(controllerRepo).modal(i);
   else if(i.isMessageComponent()&&i.customId.startsWith("todo|"))await controller.component(i);
   }catch{console.error("Todo: interaction response failed");}
  });

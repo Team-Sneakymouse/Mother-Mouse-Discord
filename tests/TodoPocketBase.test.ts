@@ -4,6 +4,7 @@ import { mkdtemp, rm, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import PocketBase from "pocketbase";
+import { renderManagement } from "../src/todo/management.js";
 const binary = process.env.TODO_PB_BINARY;
 const integration = binary ? test : test.skip;
 let processPB: ChildProcess; let directory:string; let pb:PocketBase; let label:string; let report:string;
@@ -64,6 +65,73 @@ integration("server rejects label group cycles and cross-guild descendants",asyn
  await expect(pb.collection("todo_list_label_groups").update(a.id,{child_groups:[b.id]})).rejects.toThrow();
  const foreign=await pb.collection("todo_list_label_groups").create({guild_id:"foreign",name:"Foreign",labels:[],child_groups:[]});
  await expect(pb.collection("todo_list_label_groups").update(a.id,{child_groups:[foreign.id]})).rejects.toThrow();
+});
+integration("management creates and edits labels/groups, preserves memberships on metadata changes and rejects foreign guilds/cycles",async()=>{
+ const l=await api("manage-label",{guild_id:"mg",name:"Managed",repo:"",description:"Known",actor:"123"});
+ const a=await api("manage-group",{guild_id:"mg",name:"Owned",labels:[l.id],child_groups:[],assigned_user_id:"123",actor:"123"});
+ expect(a.assigned_user_id).toBe("123");
+ const changed=await api("manage-group",{guild_id:"mg",id:a.id,name:"Renamed",actor:"123"});
+ expect(changed.labels).toEqual([l.id]);expect(changed.assigned_user_id).toBe("123");
+ const b=await api("manage-group",{guild_id:"mg",name:"Child",labels:[],child_groups:[a.id],actor:"123"});
+ await expect(api("manage-group",{guild_id:"mg",id:a.id,child_groups:[b.id],actor:"123"})).rejects.toThrow();
+ await expect(api("manage-label",{guild_id:"other",id:l.id,name:"Hijacked",actor:"123"})).rejects.toThrow();
+ await expect(api("manage-group",{guild_id:"mg",id:a.id,labels:[label],actor:"123"})).rejects.toThrow();
+ await expect(api("manage-group",{guild_id:"mg",id:a.id,assigned_user_id:"not-a-user",actor:"123"})).rejects.toThrow();
+ const cleared=await api("manage-group",{guild_id:"mg",id:a.id,assigned_user_id:"",actor:"123"});expect(cleared.assigned_user_id).toBe("");
+ expect((await pb.collection("todo_list_label_groups").getOne(a.id)).labels).toEqual([l.id]);
+});
+integration("management preconditions transactionally reject stale label snapshots without partial name/repo/description writes",async()=>{
+ const l=await api("manage-label",{guild_id:"optimistic",actor:"123",name:"Original 雪",repo:"https://github.com/Team/Old",description:'Old "description"\n😀'});
+ const token=(r:any)=>JSON.parse(renderManagement([r],[],"123","label",r.id).embeds[0].footer.text.slice(17)).metadata;
+ const baseline=token(l);
+ // Two independent HTTP requests share a persisted original snapshot; exactly one may commit.
+ const outcomes=await Promise.allSettled(["A","B"].map(s=>api("manage-label",{guild_id:"optimistic",actor:"123",id:l.id,expected_metadata:baseline,name:`Winner ${s}`,repo:`https://github.com/Team/${s}`,description:s.repeat(5000)})));
+ expect(outcomes.filter(r=>r.status==="fulfilled")).toHaveLength(1);
+ const saved=(outcomes.find(r=>r.status==="fulfilled") as PromiseFulfilledResult<any>).value;
+ await expect(api("manage-label",{guild_id:"optimistic",actor:"123",id:l.id,expected_metadata:baseline,name:"Stale name",repo:l.repo,description:l.description})).rejects.toThrow("Stale management edit");
+ const current=await pb.collection("todo_list_labels").getOne(l.id);
+ expect(current.name).toBe(saved.name);expect(current.repo).toBe(saved.repo);expect(current.description).toBe(saved.description);expect(current.description).toHaveLength(5000);
+ // Exact original-value matches work, and omitted metadata stays untouched.
+ const renamed=await api("manage-label",{guild_id:"optimistic",actor:"123",id:l.id,expected_metadata:token({...current,description:"short"}),name:"Invalid"}).catch(e=>e);
+ expect(renamed).toBeInstanceOf(Error);
+ await expect(api("manage-label",{guild_id:"optimistic",actor:"123",id:l.id,expected_metadata:null,name:"Invalid"})).rejects.toThrow();
+ // Use an unchanged long description's hash, not its truncated display preview.
+ const { createHash }=await import("node:crypto");
+ const expected=createHash("sha256").update(JSON.stringify([current.name,current.repo,current.description])).digest("hex").slice(0,32);
+ const exact=await api("manage-label",{guild_id:"optimistic",actor:"123",id:l.id,expected_metadata:expected,name:"Fresh name"});
+ expect(exact.name).toBe("Fresh name");expect(exact.repo).toBe(saved.repo);expect(exact.description).toBe(saved.description);
+});
+integration("group name preconditions ignore independent membership/assignment changes but reject stale renames atomically",async()=>{
+ const l=await api("manage-label",{guild_id:"optimistic-group",actor:"123",name:"Member"});
+ const g=await api("manage-group",{guild_id:"optimistic-group",actor:"123",name:"Original group",labels:[],child_groups:[],assigned_user_id:"123"});
+ const view=renderManagement([], [g], "123", "group", g.id);
+ const expected_metadata=JSON.parse(view.embeds[0].footer.text.slice(17)).metadata;
+ await Promise.all([
+  api("manage-group",{guild_id:g.guild_id,actor:"123",id:g.id,membership:{field:"labels",operation:"link",id:l.id}}),
+  api("manage-group",{guild_id:g.guild_id,actor:"123",id:g.id,assigned_user_id:"456"})
+ ]);
+ const renamed=await api("manage-group",{guild_id:g.guild_id,actor:"123",id:g.id,expected_metadata,name:"New group"});
+ expect(renamed.labels).toEqual([l.id]);expect(renamed.assigned_user_id).toBe("456");
+ await expect(api("manage-group",{guild_id:g.guild_id,actor:"123",id:g.id,expected_metadata,name:"Stale name",assigned_user_id:"789",membership:{field:"labels",operation:"unlink",id:l.id}})).rejects.toThrow("Stale management edit");
+ const current=await pb.collection("todo_list_label_groups").getOne(g.id);
+ expect(current.name).toBe("New group");expect(current.labels).toEqual([l.id]);expect(current.assigned_user_id).toBe("456");expect(current.child_groups).toEqual([]);
+});
+integration("catalog seed is exact, idempotent with existing labels/groups and atomically refuses conflicts",async()=>{
+ const seed=JSON.parse(await readFile("pocketbase/todo.catalog.seed.json","utf8"));
+ expect(seed.labels).toHaveLength(37);expect(seed.groups).toHaveLength(7);
+ const body={...seed,guild_id:"seed",actor:"123"};
+ const result=await api("seed-catalog",body);expect(result.created_labels).toBe(37);expect(result.created_groups).toBe(7);
+ const again=await api("seed-catalog",body);expect(again.created_labels).toBe(0);expect(again.created_groups).toBe(0);
+ const gs=await pb.collection("todo_list_label_groups").getFullList({filter:"guild_id='seed'"});
+ const momo=gs.find(g=>g.name==="Momo")!;expect(momo.assigned_user_id).toBe("108296164599734272");expect(momo.child_groups.sort()).toEqual(gs.filter(g=>["Oakley","Bungo"].includes(g.name)).map(g=>g.id).sort());
+ const paper=gs.find(g=>g.name==="Paper plugins")!;expect(paper.labels).toHaveLength(32);
+ const ls=await pb.collection("todo_list_labels").getFullList({filter:"guild_id='seed'"});
+ expect(paper.labels).toContain(ls.find(l=>l.name==="Mother Mouse Discord")!.id);
+ expect(ls.find(l=>l.name==="SneakyWantedPosters")!.repo).toBe("");
+ await expect(api("seed-catalog",{...body,labels:[{name:"Must roll back",url:null,explanation:null},...body.labels.map((l:any)=>l.name==="BubbleChat"?{...l,explanation:"conflict"}:l)]})).rejects.toThrow();
+ expect(await pb.collection("todo_list_labels").getFullList({filter:"name='Must roll back'"})).toHaveLength(0);
+ await pb.collection("todo_list_label_groups").update(momo.id,{assigned_user_id:"999"});
+ await expect(api("seed-catalog",body)).rejects.toThrow();expect((await pb.collection("todo_list_label_groups").getOne(momo.id)).assigned_user_id).toBe("999");
 });
 integration("public numbers cannot be edited or reused after deleting highest numbered todo",async()=>{
  const todos=await pb.collection("todo_list_todos").getFullList({sort:"number"});

@@ -12,6 +12,13 @@ test("label groups dedupe descendants, reject cycles and filters AND kind, label
  expect(filterTodos(todos,labels,groups,{label:"group:root",kind:"bug",priority:"red"}).map(t=>t.id)).toEqual(["2"]);
  expect(filterTodos(todos,labels,groups,{label:"label:b"}).map(t=>t.id)).toEqual(["3"]);
 });
+test("me unions every invoking-user group recursively, ANDs filters and never broadens unassigned users",()=>{
+ const assigned=groups.map(g=>({...g,assigned_user_id:g.id==="root"?"123":"456"}));
+ const todos=[todo("1","a","red"),todo("2","b","blue"),todo("3","b","red")];
+ expect(filterTodos(todos,labels,assigned,{label:"me",userId:"123",priority:"red"}).map(t=>t.id)).toEqual(["1","3"]);
+ expect(filterTodos(todos,labels,assigned,{label:"me",userId:"999"})).toEqual([]);
+ expect(filterTodos(todos,labels,assigned,{label:"me"})).toEqual([]);
+});
 test("ephemeral list cards paginate with owner-bound state and only unclaimed open todos have Start",()=>{
  const todos=Array.from({length:9},(_,i)=>todo(String(i+1),"a","red"));todos[1].status="blocked";todos[2].claim={developer:"dev"} as any;
  const state={owner:"123",page:0,filters:{label:"group:root",kind:"bug"}};

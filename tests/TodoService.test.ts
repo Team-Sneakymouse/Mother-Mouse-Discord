@@ -12,6 +12,12 @@ test("Start uses the label returned by the atomic claim after a concurrent relab
  expect(opened.prompt).toContain("Repository configured for label New plugin: https://github.com/Team/NewPlugin");
  expect(opened.prompt).not.toContain("https://github.com/Team/Plugin");expect(opened.prompt).toContain("latest report after claim");expect(labelReads).toEqual(["new-label"]);
 });
+test("Start carries post-claim label, priority and kind into forum metadata",async()=>{
+ const f=fixture();const operation=f.repo.operation;let opened:any;
+ f.repo.operation=async(action:string,body:any)=>{const result=await operation(action,body);return action==="claim"?{...result,number:7,title:"Claimed summary",priority:"blue",kind:"feature"}:result;};
+ await new TodoService(f.repo,undefined,{ready:async()=>{},start:async input=>{opened=input;return {conversationId:"session"};}}).start("todo","dev","g");
+ expect(opened).toMatchObject({labelName:"Plugin",priority:"blue",kind:"feature",todoNumber:7,title:"Claimed summary"});
+});
 for(const missing of ["repository","label"]){
  test(`Start safely releases a claim when its ${missing} is missing after claim`,async()=>{
   const f=fixture();let started=false;let claimed=false;const operation=f.repo.operation;
@@ -21,6 +27,15 @@ for(const missing of ["repository","label"]){
   expect(started).toBe(false);expect(f.calls.map(c=>c.action)).toEqual(["claim","claim-fail"]);expect(f.calls[1].body).toMatchObject({id:"todo",token:"token",definitive:true});
  });
 }
+test("opening prompt lists every clickable original report above all source context with explicit repository",async()=>{
+ const f=fixture();f.reports.push({...f.reports[0],id:"r2",source:{...f.reports[0].source,url:"https://discord.com/channels/g/c/m2"},context_text:"second full context"});let prompt="";
+ await new TodoService(f.repo,undefined,{ready:async()=>{},start:async input=>{prompt=input.prompt;return {conversationId:"session"};}}).start("todo","dev","g");
+ expect(prompt).toContain("Repository configured for label Plugin: https://github.com/Team/Plugin");
+ const contextStart=prompt.indexOf("Source snapshot:");expect(contextStart).toBeGreaterThan(0);
+ expect(prompt.slice(0,contextStart)).toContain("[Report 1](https://discord.com/channels/g/c/m)");
+ expect(prompt.slice(0,contextStart)).toContain("[Report 2](https://discord.com/channels/g/c/m2)");
+ expect(prompt).toContain(f.reports[0].context_text);expect(prompt).toContain("second full context");expect(prompt).not.toContain("DO NOT HAND OFF THIS");
+});
 test("Start claims atomically then supplies full reports and snapshots without reasoning to designated new conversation",async()=>{
  const {repo,calls}=fixture();let opened:any;
  const transport={ready:async()=>{},start:async(input:any)=>{opened=input;await input.onThreadCreated({id:"999",url:"https://discord.com/channels/g/999"});return {conversationId:"session"};}};

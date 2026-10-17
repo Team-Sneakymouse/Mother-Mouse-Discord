@@ -9,6 +9,13 @@ test("todo developer commands default admin but honor delivered Discord server p
  const i=command();await controller.command(i);expect(lists).toBe(1);expect(i.sent[0].content).toContain("active todos");
  const foreign=command({guildId:"foreign"});await controller.command(foreign);expect(lists).toBe(1);
 });
+test("manage is registered and opens private controls; me uses actual invoker and autocomplete exact special value",async()=>{
+ expect(data[0].toJSON().options?.some(o=>o.name==="manage")).toBe(true);
+ let filters:any;const controller=new TodoController({list:async(_g:string,f:any)=>{filters=f;return {todos:[],labels:[]};},repo:{labels:async()=>[],groups:async()=>[]}} as any);
+ const list=command({options:{getSubcommand:()=>"list",getString:(k:string)=>k==="label"?"me":null}});await controller.command(list);expect(filters).toEqual({label:"me",userId:"123"});
+ const manage=command({options:{getSubcommand:()=>"manage"}});await controller.command(manage);expect(manage.sent[0].content).toContain("Manage labels");
+ let choices:any;await controller.autocomplete(command({options:{getSubcommand:()=>"list",getFocused:()=>"me"},respond:async(x:any)=>choices=x}));expect(choices).toContainEqual({name:"me — my assigned label groups",value:"me"});
+});
 test("Create report is scripted, captures immutable source and recursive context then persists before confirmation",async()=>{
  let captured:any;const service={repo:{operation:async(action:string,body:any)=>{expect(action).toBe("capture");captured=body;return {id:"report",state:"pending"};}}};
  const original={id:"m",guildId:guild,channelId:"thread",createdTimestamp:1000,author:{id:"sender",username:"alice",globalName:"Alice"},content:"broken",attachments:new Map([["a",{url:"https://cdn.discordapp.com/file",name:"file.png",contentType:"image/png"}]]),reference:null,url:`https://discord.com/channels/${guild}/thread/m`};
