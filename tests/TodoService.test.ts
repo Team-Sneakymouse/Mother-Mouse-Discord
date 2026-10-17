@@ -44,6 +44,40 @@ test("Start claims atomically then supplies full reports and snapshots without r
  expect(opened.forumId).toBe("1560943737688039474");expect(opened.idempotencyKey).toBe("token");
  expect(opened.prompt).toContain("https://discord.com/channels/g/c/m");expect(opened.prompt).toContain("context".repeat(4000));expect(opened.prompt).toContain("history_safety_bound");expect(opened.prompt).not.toContain("DO NOT HAND OFF THIS");
 });
+test("Start returns persisted success when the claim-finish response is lost without admitting another run",async()=>{
+ const f=fixture();const operation=f.repo.operation;let persisted:any;let starts=0;
+ f.repo.operation=async(action:string,body:any)=>{
+  const result=await operation(action,body);
+  if(action==="claim-finish"){
+   persisted={...result,claim:{...result.claim,phase:"sent"},audit:[{event:"started",message_id:body.message_id}]};
+   throw new Error("claim-finish response lost");
+  }
+  if(action==="claim-fail")return structuredClone(persisted);
+  return result;
+ };
+ const result=await new TodoService(f.repo,undefined,{ready:async()=>{},start:async()=>{starts++;return {conversationId:"session"};}}).start("todo","dev","g");
+ expect(result).toEqual(persisted);expect(result.claim).toMatchObject({token:"token",phase:"sent",message_id:"session"});
+ expect(starts).toBe(1);expect(f.calls.map(c=>c.action)).toEqual(["claim","claim-context","claim-finish","claim-fail"]);
+ expect(f.calls.at(-1).body).toMatchObject({id:"todo",token:"token",definitive:false});
+});
+for(const outcome of ["uncertain","stale-token","different-session","unavailable"]){
+ test(`Start never repeats admission or reports success when finalization reconciliation is ${outcome}`,async()=>{
+  const f=fixture();const operation=f.repo.operation;let persisted:any;let starts=0;
+  f.repo.operation=async(action:string,body:any)=>{
+   const result=await operation(action,body);
+   if(action==="claim-finish")throw new Error("finish persistence unavailable");
+   if(action==="claim-fail"){
+    if(outcome==="unavailable")throw new Error("reconciliation unavailable");
+    persisted={...result,status:outcome==="uncertain"?"blocked":"in_progress",claim:{...result.claim,phase:outcome==="uncertain"?"uncertain":"sent",token:outcome==="stale-token"?"other-token":"token",message_id:outcome==="different-session"?"other-session":"session"}};
+    return persisted;
+   }
+   return result;
+  };
+  await expect(new TodoService(f.repo,undefined,{ready:async()=>{},start:async()=>{starts++;return {conversationId:"session"};}}).start("todo","dev","g")).rejects.toThrow("do not start a duplicate");
+  expect(starts).toBe(1);expect(f.calls.map(c=>c.action)).toEqual(["claim","claim-context","claim-finish","claim-fail"]);
+  if(outcome==="uncertain")expect(persisted).toMatchObject({status:"blocked",claim:{phase:"uncertain",token:"token"}});
+ });
+}
 test("resume uses persisted thread and exact opening snapshot without creating a second forum post",async()=>{
  const f=fixture();f.repo.todo=async()=>({...todo,status:"blocked",claim:{token:"token",developer:"dev",phase:"uncertain",thread_id:"999",thread_url:"https://discord.com/channels/g/999",prompt:"original snapshot"}});
  let input:any;await new TodoService(f.repo,undefined,{ready:async()=>{},start:async value=>{input=value;return {conversationId:"999"};}}).resume("todo","operator","g");

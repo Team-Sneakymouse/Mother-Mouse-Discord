@@ -198,6 +198,23 @@ integration("manual relabel and closed status audit old/new/reason and reject st
  const claimed=await api("claim",{id:t.id,actor:"dev"});
  await expect(api("status",{id:t.id,status:"closed",actor:"other",expected_revision:claimed.audit.length})).rejects.toThrow();
 });
+integration("claim-fail preserves a confirmed sent claim after a lost claim-finish response",async()=>{
+ const r=await api("capture",{guild_id:"g",channel_id:"c",message_id:"lost-finish",source:{},context:{complete:true},context_text:"full context"});
+ const begin=await api("assess-begin",{id:r.id,actor:"dev"});
+ const assessed=await api("assess-commit",{id:r.id,token:begin.token,rules_version:"v1",decisions:[{action:"create",label,kind:"bug",priority:"red",title:"Lost response",description:"Accepted work",confidence:1,reason:"Confirmed"}]});
+ const claimed=await api("claim",{id:assessed.todos[0],actor:"dev"});const {id}=claimed;const token=claimed.claim.token;
+ await api("claim-context",{id,token,prompt:"complete opening snapshot"});
+ await api("claim-thread",{id,token,thread_id:"123456789",thread_url:"https://discord.com/channels/g/123456789"});
+ const sent=await api("claim-finish",{id,token,message_id:"accepted-session"});
+ expect(sent.claim).toMatchObject({phase:"sent",message_id:"accepted-session",prompt:"complete opening snapshot",thread_id:"123456789",developer:"dev",token});
+ for(const definitive of [false,true]){
+  const reconciled=await api("claim-fail",{id,token,definitive,error:"claim-finish response lost"});
+  const persisted=await pb.collection("todo_list_todos").getOne(id);
+  for(const result of [reconciled,persisted]){expect(result.status).toBe("in_progress");expect(result.claim).toEqual(sent.claim);expect(result.audit).toEqual(sent.audit);}
+  await expect(api("claim-fail",{id,token:"stale-token",definitive,error:"stale"})).rejects.toThrow("Claim lost");
+  expect(await pb.collection("todo_list_todos").getOne(id)).toEqual(persisted);
+ }
+});
 integration("failed assessment is retryable; ambiguous handoff is blocked with audited human recovery",async()=>{
  const r=await api("capture",{guild_id:"g",channel_id:"c",message_id:"m-fail",source:{},context:{complete:true},context_text:"x"});
  const b=await api("assess-begin",{id:r.id,actor:"dev"});await api("assess-fail",{id:r.id,token:b.token,error:"Transport failed"});

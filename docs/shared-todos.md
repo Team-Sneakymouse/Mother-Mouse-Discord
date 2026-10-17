@@ -162,7 +162,7 @@ TODO_PB_BINARY=/absolute/path/to/pocketbase bun test tests/TodoPocketBase.test.t
 
 `TODO_PB_BINARY` selects an actual executable, not a server URL. The integration suite starts a disposable loopback instance with temporary data and the real hooks, imports only its test schema, and removes its temporary database afterwards. Do not point it at a live database. Without this variable the real-PocketBase tests skip; a green default suite alone does not verify hooks. If needed, set `TMPDIR` to an operator-owned scratch directory.
 
-Combined verification using pinned Bun 1.3.8: **200 pass, 0 skipped, 0 fail**, including **16 real disposable-PocketBase hook tests**; TypeScript checking passes. Full command: `TODO_PB_BINARY=/absolute/path/to/pocketbase bun test`. The companion Hermes bridge has **12 passing tests**, including actual installed gateway/session fixtures and policy-v2 instructions. Model and external Discord boundaries remain fixtures: these results do not establish a live coding run, hook activation, service restart, Discord click-through, or end-to-end deployment.
+Combined verification using pinned Bun 1.3.8: **211 pass, 0 skipped, 0 fail**, including **17 real disposable-PocketBase hook tests**; TypeScript checking passes. Full command: `TODO_PB_BINARY=/absolute/path/to/pocketbase bun test`. The companion Hermes bridge has **12 passing tests**, including actual installed gateway/session fixtures and policy-v2 instructions. Model and external Discord boundaries remain fixtures: these results do not establish a live coding run, hook activation, service restart, Discord click-through, or end-to-end deployment.
 
 Before enabling for users:
 

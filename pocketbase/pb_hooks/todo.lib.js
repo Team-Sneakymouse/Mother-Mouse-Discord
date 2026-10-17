@@ -145,7 +145,8 @@ exports.execute=function(app,action,b){
   if(action==="claim-finish"){
    if(typeof b.message_id!=="string"||!b.message_id)fail("Missing handoff message");
    c.phase="sent";c.message_id=b.message_id;t.set("claim",c);t.set("status","in_progress");audit(t,"started",c.developer,{message_id:b.message_id});
-  }else if(b.definitive===true){ t.set("claim",{});t.set("status","open");audit(t,"start_failed",c.developer,{error:String(b.error||"Send rejected").slice(0,2000)}); }
+  }else if(c.phase==="sent")return t; // A lost finish response must never downgrade accepted work.
+  else if(b.definitive===true){ t.set("claim",{});t.set("status","open");audit(t,"start_failed",c.developer,{error:String(b.error||"Send rejected").slice(0,2000)}); }
   else{c.phase="uncertain";t.set("claim",c);t.set("status","blocked");audit(t,"handoff_uncertain",c.developer,{error:String(b.error||"Send outcome unknown").slice(0,2000)});}
   app.save(t);return t;
  }

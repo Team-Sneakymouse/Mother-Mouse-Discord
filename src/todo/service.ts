@@ -103,7 +103,10 @@ export class TodoService {
   try{return await this.repo.operation("claim-finish",{id,token,message_id:conversationId});}
   catch(error){
    // Retain the returned session identifier for automatic/manual reconciliation, never launch again.
-   try{await this.repo.operation("claim-fail",{id,token,definitive:false,error:`Conversation started: ${conversationId}; final persistence failed`});}catch{}
+   try{
+    const reconciled=await this.repo.operation<Todo>("claim-fail",{id,token,definitive:false,error:`Conversation started: ${conversationId}; final persistence failed`});
+    if(reconciled.claim?.token===token&&reconciled.claim.phase==="sent"&&reconciled.claim.message_id===conversationId)return reconciled;
+   }catch{}
    throw new Error(`Conversation ${conversationId} started, but claim finalization failed. Recover this existing conversation; do not start a duplicate.`,{cause:error});
   }
  }
