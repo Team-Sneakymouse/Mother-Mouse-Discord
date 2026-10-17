@@ -25,6 +25,7 @@ VOLUME /app/share
 
 COPY ./src/ ./src/
 COPY ./static/ ./static/
+COPY ./docs/todo-assessment-guidance.md ./docs/todo-assessment-guidance.md
 COPY --chmod=755 ./docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
