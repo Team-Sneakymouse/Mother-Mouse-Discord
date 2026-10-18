@@ -86,18 +86,3 @@ export function readRelease(components: APIContainerComponent[]): Release {
 	}
 	return { title: unescape(heading.content.split("\n")[0].slice(3)), closed: manage.custom_id.endsWith(":1"), features };
 }
-
-/** Serialize fetch/edit pairs in this bot process; no release data is retained here. */
-export function createReleaseQueue() {
-	const pending = new Map<string, Promise<unknown>>();
-	return async <T>(id: string, work: () => Promise<T>): Promise<T> => {
-		const previous = pending.get(id) ?? Promise.resolve();
-		const next = previous.catch(() => {}).then(work);
-		pending.set(id, next);
-		try {
-			return await next;
-		} finally {
-			if (pending.get(id) === next) pending.delete(id);
-		}
-	};
-}

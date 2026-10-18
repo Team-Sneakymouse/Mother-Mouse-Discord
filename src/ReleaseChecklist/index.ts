@@ -19,7 +19,7 @@ import {
 	type ModalSubmitInteraction,
 	type StringSelectMenuInteraction,
 } from "discord.js";
-import { createReleaseQueue, PREFIX, readRelease, releaseName, renderRelease, type Release } from "./card.js";
+import { PREFIX, readRelease, releaseName, renderRelease, type Release } from "./card.js";
 
 export const data = [
 	new SlashCommandBuilder()
@@ -31,6 +31,10 @@ export const data = [
 ];
 
 type ChecklistInteraction = ButtonInteraction | StringSelectMenuInteraction | ModalSubmitInteraction;
+
+function canUpdateSource(interaction: ChecklistInteraction) {
+	return !interaction.isModalSubmit() || interaction.isFromMessage();
+}
 
 function nameModal(action: string, messageId: string, value = "", featureId = "") {
 	const input = new TextInputBuilder().setCustomId("name").setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(120);
@@ -72,7 +76,6 @@ function management(release: Release, messageId: string) {
 }
 
 export default function ReleaseChecklist(client: Client) {
-	const queue = createReleaseQueue();
 	client.on("interactionCreate", async (interaction) => {
 		if (interaction.isChatInputCommand() && interaction.commandName === "release") {
 			try {
@@ -92,7 +95,8 @@ export default function ReleaseChecklist(client: Client) {
 			.catch(async (error) => {
 				console.error("Release checklist interaction failed", error);
 				const content = error instanceof Error ? error.message : "Could not update this release. Please try again.";
-				if (interaction.deferred) await interaction.editReply({ content });
+				if (interaction.deferred && canUpdateSource(interaction)) await interaction.followUp({ content, flags: MessageFlags.Ephemeral });
+				else if (interaction.deferred) await interaction.editReply({ content });
 				else if (interaction.replied) await interaction.followUp({ content, flags: MessageFlags.Ephemeral });
 				else await interaction.reply({ content, flags: MessageFlags.Ephemeral });
 			})
@@ -100,76 +104,66 @@ export default function ReleaseChecklist(client: Client) {
 	});
 
 	async function handle(interaction: ChecklistInteraction) {
-		const started = performance.now();
-		let lastMark = started;
-		const timings: Record<string, number> = {};
-		const mark = (stage: string) => {
-			const now = performance.now();
-			timings[stage] = Math.round(now - lastMark);
-			lastMark = now;
-		};
 		const [action, ref, value] = interaction.customId.slice(PREFIX.length).split(":");
-		const receivedAfterMs = Date.now() - interaction.createdTimestamp;
 		const onCard = action === "add" || action === "manage" || action === "ready";
 		const messageId = onCard && !interaction.isModalSubmit() ? interaction.message.id : ref;
 		const viewing = ["add", "manage", "edit", "rename"].includes(action);
 		const managementAction = ["remove", "archive", "edit-submit", "rename-submit"].includes(action);
-		if (!viewing) {
-			// Modal submissions retain the management message that opened them.
-			if (managementAction && (!interaction.isModalSubmit() || interaction.isFromMessage())) await interaction.deferUpdate();
-			else await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-		}
-		mark("acknowledgeMs");
+		const updateSource = canUpdateSource(interaction);
+		const sourceCard = updateSource && interaction.message?.id === messageId;
+		// Public-card actions can reply directly. Management actions need to retrieve
+		// the separate public message, so overlap that fetch with acknowledgement.
+		const acknowledgement =
+			viewing || sourceCard ? Promise.resolve() : updateSource ? interaction.deferUpdate() : interaction.deferReply({ flags: MessageFlags.Ephemeral });
 		try {
-			await queue(messageId, async () => {
-				mark("queueWaitMs");
-				const channel = interaction.channel;
-				if (!channel || !("messages" in channel)) throw new Error("The release channel is unavailable.");
-				// Always fetch inside the queue: interaction payloads and cached messages may be stale.
-				const message = await channel.messages.fetch({ message: messageId, force: true });
-				mark("fetchMs");
-				if (message.author.id !== client.user?.id) throw new Error("This checklist does not belong to this bot.");
-				const release = readRelease(message.components.map((c) => c.toJSON()) as APIContainerComponent[]);
-				if (action === "manage") {
-					await interaction.reply({ ...management(release, messageId), flags: MessageFlags.Ephemeral });
-					mark("responseMs");
-					return;
-				}
-				if (release.closed && action !== "archive") throw new Error("This release is archived. Reopen it through Manage release to make changes.");
-				if ((action === "add" || action === "rename") && interaction.isButton()) {
-					await interaction.showModal(nameModal(action === "add" ? "add-submit" : "rename-submit", messageId, action === "rename" ? release.title : ""));
-					mark("modalMs");
-					return;
-				}
-				const featureId = action === "ready" ? ref : interaction.isStringSelectMenu() ? interaction.values[0] : value;
-				const feature = release.features.find((f) => f.id === featureId);
-				if (["ready", "edit", "remove", "edit-submit"].includes(action) && !feature)
-					throw new Error("That feature has been removed. Open Manage release again.");
-				if (action === "edit" && interaction.isStringSelectMenu()) {
-					await interaction.showModal(nameModal("edit-submit", messageId, feature!.name, featureId));
-					mark("modalMs");
-					return;
-				}
-				if (action === "ready") feature!.ready = value === "0";
-				else if (action === "remove") release.features = release.features.filter((f) => f.id !== featureId);
-				else if (action === "archive") release.closed = value === "1";
-				else if (interaction.isModalSubmit()) {
-					const name = releaseName(interaction.fields.getTextInputValue("name"));
-					if (action === "add-submit") release.features.push({ id: randomUUID(), name, ready: false });
-					else if (action === "edit-submit") feature!.name = name;
-					else if (action === "rename-submit") release.title = name;
-					else throw new Error("Unknown checklist action.");
-				} else throw new Error("Unknown checklist action.");
-				await message.edit(renderRelease(release));
-				mark("cardEditMs");
-				await interaction.editReply(managementAction ? management(release, messageId) : { content: "Release updated." });
-				mark("responseMs");
-			});
-		} finally {
-			const totalMs = Math.round(performance.now() - started);
-			if (totalMs >= 1000 || receivedAfterMs >= 1000) {
-				console.warn("[DEBUG-release-latency]", { action, interactionId: interaction.id, receivedAfterMs, totalMs, ...timings });
+			const [message] = await Promise.all([sourceCard ? Promise.resolve(interaction.message!) : fetchCard(), acknowledgement]);
+			if (message.author.id !== client.user?.id) throw new Error("This checklist does not belong to this bot.");
+			const release = readRelease(message.components.map((c) => c.toJSON()) as APIContainerComponent[]);
+			if (action === "manage") {
+				await interaction.reply({ ...management(release, messageId), flags: MessageFlags.Ephemeral });
+				return;
 			}
+			if (release.closed && action !== "archive") throw new Error("This release is archived. Reopen it through Manage release to make changes.");
+			if ((action === "add" || action === "rename") && interaction.isButton()) {
+				await interaction.showModal(nameModal(action === "add" ? "add-submit" : "rename-submit", messageId, action === "rename" ? release.title : ""));
+				return;
+			}
+			const featureId = action === "ready" ? ref : interaction.isStringSelectMenu() ? interaction.values[0] : value;
+			const feature = release.features.find((f) => f.id === featureId);
+			if (["ready", "edit", "remove", "edit-submit"].includes(action) && !feature) throw new Error("That feature has been removed. Open Manage release again.");
+			if (action === "edit" && interaction.isStringSelectMenu()) {
+				await interaction.showModal(nameModal("edit-submit", messageId, feature!.name, featureId));
+				return;
+			}
+			if (action === "ready") feature!.ready = value === "0";
+			else if (action === "remove") release.features = release.features.filter((f) => f.id !== featureId);
+			else if (action === "archive") release.closed = value === "1";
+			else if (interaction.isModalSubmit()) {
+				const name = releaseName(interaction.fields.getTextInputValue("name"));
+				if (action === "add-submit") release.features.push({ id: randomUUID(), name, ready: false });
+				else if (action === "edit-submit") feature!.name = name;
+				else if (action === "rename-submit") release.title = name;
+				else throw new Error("Unknown checklist action.");
+			} else throw new Error("Unknown checklist action.");
+			if (!managementAction && sourceCard && (!interaction.isModalSubmit() || interaction.isFromMessage())) {
+				// Ready/add interactions originate on the public card: the response IS the edit.
+				await interaction.update(renderRelease(release));
+			} else {
+				await message.edit(renderRelease(release));
+				await interaction.editReply(managementAction ? management(release, messageId) : { content: "Release updated." });
+			}
+		} catch (error) {
+			// A fetch can fail while acknowledgement is still in flight. Wait before
+			// the outer error handler decides between a reply and a follow-up.
+			await acknowledgement.catch(() => {});
+			throw error;
+		}
+
+		async function fetchCard() {
+			const channel = interaction.channel;
+			if (!channel || !("messages" in channel)) throw new Error("The release channel is unavailable.");
+			// MessageManager returns a complete cached message, fetching only on a cache miss.
+			return channel.messages.fetch({ message: messageId });
 		}
 	}
 }
