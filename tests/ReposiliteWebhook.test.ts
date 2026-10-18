@@ -15,7 +15,7 @@ import {
 	uploadedArtifact,
 	type WebhookJob,
 } from "../src/ReposiliteWebhook.ts";
-import type { PluginDeployment } from "../src/utils/PluginDeployment.ts";
+import { PluginDeployment } from "../src/utils/PluginDeployment.ts";
 import { acquireDeploymentLock } from "../src/utils/DeploymentLock.ts";
 
 const event: UploadEvent = {
@@ -97,6 +97,65 @@ test("path filter only accepts main release JARs in the configured group", () =>
 	])
 		assert.equal(uploadedArtifact({ ...event, path }), undefined);
 	assert.equal(uploadedArtifact({ ...event, repository: "snapshots" }), undefined);
+});
+
+test("an unsupported JAR with unavailable Maven metadata is ignored without deployment notifications", async () => {
+	const store = memoryStore();
+	await store.accept({
+		...event,
+		path: "io/github/team-sneakymouse/magicspells-memory/2026.10.18-e26037c187c7/magicspells-memory-2026.10.18-e26037c187c7.jar",
+	});
+	const requests: string[] = [];
+	const service = new PluginDeployment("https://panel.example/api", "application-secret", "client-secret", async (input) => {
+		const url = String(input);
+		requests.push(url);
+		if (url.endsWith("maven-metadata.xml")) return new Response(null, { status: 404 });
+		if (url.endsWith(".pom")) return new Response("<project><artifactId>magicspells-memory</artifactId></project>");
+		assert.fail(`Unexpected deployment request: ${url}`);
+	});
+	const notifications: string[] = [];
+	await new ReposiliteWorker(
+		store,
+		() => service,
+		async (content) => {
+			notifications.push(content);
+		},
+		() => now,
+	).tick();
+	assert.deepEqual(notifications, [], "Unconfirmed artifacts must not be described as deployment retries");
+	assert.equal(store.jobs[0].status, "ignored");
+	assert.ok(
+		requests.every((url) => url.endsWith(".pom")),
+		"Unsupported artifacts do not need Maven version metadata",
+	);
+});
+
+test("an unreadable POM retries silently and is ignored when it becomes readable without a deployment type", async () => {
+	const store = memoryStore();
+	await store.accept(event);
+	let available = false;
+	const service = new PluginDeployment("https://panel.example/api", "application-secret", "client-secret", async (input) => {
+		assert.ok(String(input).endsWith(".pom"), "Eligibility must be established before other requests");
+		return available ? new Response("<project/>") : new Response(null, { status: 404 });
+	});
+	const notifications: string[] = [];
+	const worker = new ReposiliteWorker(
+		store,
+		() => service,
+		async (content) => {
+			notifications.push(content);
+		},
+		() => now,
+	);
+	await worker.tick();
+	assert.equal(store.jobs[0].status, "pending");
+	assert.equal(store.jobs[0].attempts, 1);
+	assert.deepEqual(notifications, []);
+	available = true;
+	store.jobs[0].next_attempt = new Date(now).toISOString();
+	await worker.tick();
+	assert.equal(store.jobs[0].status, "ignored");
+	assert.deepEqual(notifications, []);
 });
 
 test("worker deploys and announces the exact event version even when Discord notification fails", async () => {
@@ -265,7 +324,7 @@ test("delayed earlier events block later events to preserve release ordering", a
 	assert.equal(calls.length, 0);
 });
 
-test("retry limit records terminal failures", async () => {
+test("retry limit records pre-deployment failures without claiming an upload was attempted", async () => {
 	const store = memoryStore();
 	await store.accept(event);
 	store.jobs[0].attempts = 11;
@@ -284,7 +343,7 @@ test("retry limit records terminal failures", async () => {
 	).tick();
 	assert.equal(store.jobs[0].status, "failed");
 	assert.equal(store.jobs[0].attempts, 12);
-	assert.match(notifications[0], /failed/);
+	assert.deepEqual(notifications, []);
 });
 
 test("HTTP receiver authenticates, validates, filters, and deduplicates in memory", async () => {

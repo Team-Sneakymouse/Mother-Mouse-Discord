@@ -86,7 +86,8 @@ export class PluginDeployment {
 
 	async artifact(id: string, requestedVersion?: string): Promise<Artifact | undefined> {
 		const base = `${MAVEN}/releases/${GROUP}/${segment(id)}`;
-		const metadata = parseXml(await (await this.get(`${base}/maven-metadata.xml`)).text()).metadata?.versioning;
+		const readMetadata = async () => parseXml(await (await this.get(`${base}/maven-metadata.xml`)).text()).metadata?.versioning;
+		let metadata = requestedVersion === undefined ? await readMetadata() : undefined;
 		const version = requestedVersion ?? (metadata?.release || metadata?.latest)?.trim();
 		if (!version || version.endsWith("-SNAPSHOT")) return;
 		const filename = `${id}-${version}.jar`;
@@ -94,6 +95,8 @@ export class PluginDeployment {
 		const pom = await (await this.get(`${release}.pom`)).text();
 		const type = deploymentType(pom);
 		if (!type) return;
+		// Exact-version webhooks can reject libraries before metadata is published or readable.
+		metadata ??= await readMetadata();
 		const published = metadata.versions?.version ?? [];
 		const versions: string[] = (Array.isArray(published) ? published : [published]).map((value: string) => value.trim());
 		versions.forEach(segment);

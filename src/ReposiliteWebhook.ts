@@ -115,11 +115,14 @@ export class ReposiliteWorker {
 				});
 				if (terminal) {
 					console.error(`Reposilite: deployment failed for ${job.payload.path}: ${lastError}`);
-					await this.safeNotify(
-						`Automatic deployment failed for \`${job.payload.path}\` after ${attempts} attempts. ${job.completed.length} server(s) completed. Check the bot logs before retrying.`,
-						job,
-					);
-				} else {
+					if (job.notified) {
+						await this.safeNotify(
+							`Automatic deployment failed for \`${job.payload.path}\` after ${attempts} attempts. ${job.completed.length} server(s) completed. Check the bot logs before retrying.`,
+							job,
+						);
+					}
+				} else if (job.notified) {
+					// Eligibility checks also retry; only update Discord after deployment preparation succeeded.
 					await this.safeNotify(
 						`Automatic deployment of \`${job.payload.path}\` is waiting to retry (attempt ${attempts}/12). ${job.completed.length}/${job.targets?.length ?? "?"} dev server(s) completed.`,
 						job,

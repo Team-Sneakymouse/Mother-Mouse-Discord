@@ -11,6 +11,8 @@ Only main unclassified JARs in repository `releases`, group
 sources, javadoc, other groups, and snapshots receive 204 and are ignored.
 The exact uploaded version's POM must explicitly declare
 `sneakyrp.deployment.type` as `paper-plugin` or `ignite-mod`.
+Exact-version events check this POM before fetching Maven version metadata;
+artifacts without a supported property are ignored immediately.
 
 Targets must contain both case-sensitive phrases `Lords of Minecraft` and
 `Dev Server` in their application API description. The client API description is
@@ -35,7 +37,9 @@ attempts in the same process. Manual and automatic deployments share temporary
 server locks.
 
 Best-effort notifications go to the dedicated [dev update thread](https://discord.com/channels/391355330241757205/1561330944395313255).
-Each accepted upload event gets one message for its exact JAR version. The bot
+Each eligible upload event gets one message for its exact JAR version once
+deployment preparation succeeds. POM, metadata, and target-discovery failures
+before that point retry silently; terminal failures are logged. The bot
 edits that message with retry progress, completion, or terminal failure instead of
 sending separate start and completion posts. Later versions get new messages.
 The bot reopens an archived thread and replaces a deleted message when possible;
