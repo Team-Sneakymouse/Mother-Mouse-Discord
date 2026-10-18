@@ -9,7 +9,7 @@ import {
 	PermissionFlagsBits,
 	SlashCommandBuilder,
 } from "discord.js";
-import { Artifact, PluginDeployment } from "./utils/PluginDeployment.js";
+import { PluginDeployment } from "./utils/PluginDeployment.js";
 import { acquireDeploymentLock } from "./utils/DeploymentLock.js";
 import { parseRoute, pending, PREFIX, readState, renderState, selectArtifacts, type UpdateState } from "./utils/PluginUpdateMessage.js";
 
@@ -173,14 +173,13 @@ export class PluginUpdatesController {
 			);
 			for (const id of pending(state)) {
 				await message.edit(renderState(state, [], [], `Uploading **${id}** (${state.completed.length}/${state.selected.length} completed)…`));
-				let artifact: Artifact;
 				try {
-					artifact = await service.deploy(server, id);
+					await service.deploy(server, id);
 				} catch (error) {
 					await this.error(interaction, new Error(`${id}: ${error instanceof Error ? error.message : "Unexpected error"}`));
 					continue;
 				}
-				state.completed.push({ id, version: artifact.version, type: artifact.type });
+				state.completed.push({ id });
 				// Persist each success before starting the next artifact. Retrying an unrecorded success is safe.
 				await message.edit(renderState(state, [], [], `${state.completed.length}/${state.selected.length} uploaded.`));
 			}

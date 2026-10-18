@@ -113,8 +113,8 @@ for (const stage of ["servers", "select", "upload", "finished"] as const) {
 		selection.stage = stage === "finished" ? "upload" : stage;
 		selection.page = 1;
 		selection.selected = ["Plugin0", "Plugin1"];
-		selection.completed = [{ id: "Plugin0", version: "old-release", type: "paper-plugin" }];
-		if (stage === "finished") selection.completed.push({ id: "Plugin1", version: "old-release", type: "paper-plugin" });
+		selection.completed = [{ id: "Plugin0" }];
+		if (stage === "finished") selection.completed.push({ id: "Plugin1" });
 		const servers = Array.from({ length: 30 }, (_, index) => ({ identifier: `server${index}`, name: `Server ${index}` }));
 		const target = message(renderState(selection, servers, artifacts));
 		assertResetControl(target.result);
@@ -143,7 +143,7 @@ for (const failure of ["empty", "error"]) {
 		const selection = state();
 		selection.stage = "upload";
 		selection.selected = ["Plugin0", "Plugin1"];
-		selection.completed = [{ id: "Plugin0", version: "old-release", type: "paper-plugin" }];
+		selection.completed = [{ id: "Plugin0" }];
 		const target = message(renderState(selection));
 		const service = {
 			async servers() {
@@ -163,10 +163,38 @@ test("selection and completed uploads survive a message round trip without proce
 	const original = state();
 	original.selected = ["Plugin0", "Plugin27"];
 	original.page = 1;
-	original.completed = [{ id: "Plugin0", version: "2026.10.11", type: "paper-plugin" }];
+	original.completed = [{ id: "Plugin0" }];
 	const restored = readState(message(renderState(original, [], artifacts)).result);
 	assert.deepEqual(restored, original);
 	assert.deepEqual(pending(restored), ["Plugin27"]);
+});
+
+test("retry migrates an existing deployment message and skips its recorded successes", async () => {
+	const selection = state();
+	selection.stage = "upload";
+	selection.selected = ["Plugin0", "Plugin1"];
+	const target = message(renderState(selection));
+	target.result.embeds = [new Embed({
+		...target.result.embeds[0].toJSON(),
+		fields: [
+			{ name: "Selected releases", value: "`Plugin0`\n`Plugin1`" },
+			{ name: "Uploaded releases", value: "`Plugin0 old-release paper-plugin`" },
+		],
+	})];
+	assert.deepEqual(pending(readState(target.result)), ["Plugin1"]);
+	const deployed: string[] = [];
+	const service = {
+		async deploy(_server: string, id: string) {
+			deployed.push(id);
+			return artifacts[1];
+		},
+	} as unknown as PluginDeployment;
+	const event = click(target.result, customId(selection, "retry"));
+	await new PluginUpdatesController(() => service).component(event.interaction);
+	assert.deepEqual(event.replies, []);
+	assert.deepEqual(deployed, ["Plugin1"]);
+	assert.deepEqual(pending(readState(target.result)), []);
+	assert.deepEqual(target.result.embeds[0].fields, [{ name: "Releases", value: "✅ `Plugin0`\n✅ `Plugin1`" }]);
 });
 
 test("selections across pages use displayed artifact IDs when the catalog changes", () => {
@@ -195,7 +223,7 @@ test("retry skips recorded successes and persists each new success before starti
 	const selection = state();
 	selection.stage = "upload";
 	selection.selected = ["Plugin0", "Plugin1", "Plugin2"];
-	selection.completed = [{ id: "Plugin0", version: "old-release", type: "paper-plugin" }];
+	selection.completed = [{ id: "Plugin0" }];
 	const target = message(renderState(selection));
 	const deployed: string[] = [];
 	const service = {
@@ -209,7 +237,7 @@ test("retry skips recorded successes and persists each new success before starti
 	await new PluginUpdatesController(() => service).component(click(target.result, customId(selection, "retry")).interaction);
 	assert.deepEqual(deployed, ["Plugin1", "Plugin2"]);
 	assertResetControl(target.result);
-	assert.ok(target.result.embeds[0].fields.some((field) => field.value.includes("Plugin1 new-release")));
+	assert.ok(target.result.embeds[0].fields.some((field) => field.value.includes("✅ `Plugin1`")));
 });
 
 test("failed releases remain retryable after a new controller is created", async () => {
@@ -262,7 +290,7 @@ test("failure to persist an upload stops the batch and the next controller retri
 	const edit = target.result.edit.bind(target.result);
 	let failSave = true;
 	(target.result as any).edit = async (payload: ReturnType<typeof renderState>) => {
-		if (failSave && payload.embeds[0].toJSON().fields?.some((field) => field.name === "Uploaded releases")) {
+		if (failSave && payload.embeds[0].toJSON().fields?.some((field) => field.value.includes("✅ `Plugin0`"))) {
 			failSave = false;
 			throw new Error("Discord write failed");
 		}
@@ -468,11 +496,14 @@ for (const denied of ["other non-admin", "other admin", "foreign guild", "forged
 
 test("Discord component IDs and persisted embed fields stay within API limits", () => {
 	const selection = state();
-	selection.selected = artifacts.slice(0, 20).map((artifact) => artifact.id);
-	selection.completed = selection.selected.map((id) => ({ id, version: "x".repeat(100), type: "paper-plugin" }));
+	// 250 IDs of 15 characters each exactly fill the 5,000-character reserved budget.
+	selection.selected = Array.from({ length: 250 }, (_, index) => `PluginName${String(index).padStart(5, "0")}`);
+	assert.deepEqual(readState(message(renderState(selection, [], artifacts)).result), selection);
+	selection.completed = selection.selected.map((id) => ({ id }));
 	const rendered = renderState(selection, [], artifacts);
 	const embed = rendered.embeds[0].toJSON();
 	assert.ok(embed.fields!.every((field) => field.value.length <= 1024));
+	assert.ok(embed.fields!.length <= 25);
 	assert.ok(rendered.embeds[0].length <= 6000);
 	for (const row of rendered.components)
 		for (const component of row.toJSON().components) {
@@ -480,7 +511,7 @@ test("Discord component IDs and persisted embed fields stay within API limits", 
 		}
 	assert.deepEqual(readState(message(rendered).result), selection);
 	assert.throws(
-		() => renderState({ ...selection, selected: Array.from({ length: 100 }, (_, index) => `LongPluginName${index}`) }, [], artifacts),
+		() => renderState({ ...selection, selected: [...selection.selected, "OneMore"] }, [], artifacts),
 		/separate batches/,
 	);
 });

@@ -1,5 +1,5 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, EmbedBuilder, type Message, StringSelectMenuBuilder } from "discord.js";
-import type { Artifact, DeploymentType, Server } from "./PluginDeployment.js";
+import type { Artifact, Server } from "./PluginDeployment.js";
 
 export type UpdateState = {
 	owner: string;
@@ -7,7 +7,7 @@ export type UpdateState = {
 	stage: "servers" | "select" | "upload";
 	page: number;
 	selected: string[];
-	completed: { id: string; version: string; type: DeploymentType }[];
+	completed: { id: string }[];
 };
 export const PREFIX = "plugin-update:";
 const artifactId = /^[A-Za-z0-9_][A-Za-z0-9_.+-]{0,99}$/;
@@ -30,7 +30,15 @@ export function readState(message: Pick<Message, "components" | "embeds">): Upda
 	const selected: string[] = [];
 	const completed: UpdateState["completed"] = [];
 	for (const field of message.embeds[0]?.fields ?? []) {
-		if (field.name === "Selected releases") {
+		if (field.name === "Releases") {
+			for (const line of field.value.split("\n")) {
+				const match = /^(✅ )?`([^`]+)`$/.exec(line);
+				if (!match || !artifactId.test(match[2])) throw new Error("Invalid release in deployment message");
+				selected.push(match[2]);
+				if (match[1]) completed.push({ id: match[2] });
+			}
+		} else if (field.name === "Selected releases") {
+			// Keep existing deployment messages usable after upgrading the bot.
 			for (const line of field.value.split("\n")) {
 				const id = line.replace(/^`|`$/g, "");
 				if (!artifactId.test(id)) throw new Error("Invalid selected artifact in deployment message");
@@ -40,7 +48,7 @@ export function readState(message: Pick<Message, "components" | "embeds">): Upda
 			for (const line of field.value.split("\n")) {
 				const match = /^`([^ ]+) ([^ ]+) (paper-plugin|ignite-mod)`$/.exec(line);
 				if (!match || !artifactId.test(match[1])) throw new Error("Invalid upload result in deployment message");
-				completed.push({ id: match[1], version: match[2], type: match[3] as DeploymentType });
+				completed.push({ id: match[1] });
 			}
 		}
 	}
@@ -51,7 +59,7 @@ export function readState(message: Pick<Message, "components" | "embeds">): Upda
 		page: route.page,
 		selected,
 		completed,
-		...(route.server === "-" ? {} : { server: { identifier: route.server, name: message.embeds[0]?.title ?? route.server } }),
+		...(route.server === "-" ? {} : { server: { identifier: route.server, name: message.embeds[0]?.title?.replace(/^Server: /, "") ?? route.server } }),
 	};
 }
 
@@ -75,20 +83,17 @@ export function pending(state: UpdateState): string[] {
 }
 
 export function renderState(state: UpdateState, servers: Server[] = [], artifacts: Artifact[] = [], status?: string) {
-	// Reserve room for completed versions before allowing a selection, not after uploading.
-	if (state.selected.reduce((size, id) => size + 2 * id.length + 140, 0) > 5000)
+	// Reserve a completion marker, backticks and a newline for every selected ID.
+	// Leave room for the embed title, description and field names within 6,000 characters.
+	if (state.selected.reduce((size, id) => size + id.length + 5, 0) > 5000)
 		throw new Error("Too many selected releases for one Discord message. Deploy them in separate batches.");
 	const embed = new EmbedBuilder()
 		.setTitle(state.server ? `Server: ${state.server.name}`.slice(0, 256) : "Minecraft release deployment")
 		.setDescription(`Started by <@${state.owner}>`)
 		.addFields(
 			...fields(
-				"Selected releases",
-				state.selected.map((id) => `\`${id}\``),
-			),
-			...fields(
-				"Uploaded releases",
-				state.completed.map((item) => `\`${item.id} ${item.version.slice(0, 100)} ${item.type}\``),
+				"Releases",
+				state.selected.map((id) => `${state.completed.some((item) => item.id === id) ? "✅ " : ""}\`${id}\``),
 			),
 		);
 	const controls = new ActionRowBuilder<ButtonBuilder>();
