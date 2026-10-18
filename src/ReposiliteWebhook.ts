@@ -1,11 +1,12 @@
 import { timingSafeEqual } from "node:crypto";
-import type { Client } from "discord.js";
+import { type Client, MessageFlags } from "discord.js";
 import express, { type Express } from "express";
 import { z } from "zod";
 import { acquireDeploymentLock } from "./utils/DeploymentLock.js";
 import { type Artifact, PluginDeployment, type Server } from "./utils/PluginDeployment.js";
+import { type DeploymentChangelog, PluginChangelog } from "./utils/PluginChangelog.js";
 
-const CHANNEL = "808030927937994772";
+export const DEV_UPDATE_THREAD = "1561330944395313255";
 export const DEV_SCOPE = ["Lords of Minecraft", "Dev Server"];
 const eventSchema = z.object({
 	event: z.literal("artifact.uploaded"),
@@ -27,6 +28,8 @@ export type WebhookJob = {
 	completed: string[];
 	notified: boolean;
 	last_error: string;
+	message_id?: string;
+	changelog?: string;
 };
 export interface EventStore {
 	accept(event: UploadEvent): Promise<boolean>;
@@ -87,8 +90,9 @@ export class ReposiliteWorker {
 	constructor(
 		private store: EventStore,
 		private service: () => PluginDeployment,
-		private notify: (content: string) => Promise<void>,
+		private notify: (content: string, job: WebhookJob) => Promise<void>,
 		private now: () => number = Date.now,
+		private changelog?: DeploymentChangelog,
 	) {}
 	async tick(): Promise<void> {
 		if (this.running) return;
@@ -102,16 +106,23 @@ export class ReposiliteWorker {
 			} catch (error) {
 				const attempts = job.attempts + 1;
 				const terminal = attempts >= 12;
+				const lastError = error instanceof Error ? error.message : "Unexpected deployment error";
 				await this.store.update(job.id, {
 					attempts,
 					status: terminal ? "failed" : "pending",
-					last_error: error instanceof Error ? error.message : "Unexpected deployment error",
+					last_error: lastError,
 					next_attempt: new Date(this.now() + Math.min(300_000, 5000 * 2 ** (attempts - 1))).toISOString(),
 				});
 				if (terminal) {
-					console.error(`Reposilite: deployment failed for ${job.payload.path}: ${job.last_error}`);
+					console.error(`Reposilite: deployment failed for ${job.payload.path}: ${lastError}`);
 					await this.safeNotify(
 						`Automatic deployment failed for \`${job.payload.path}\` after ${attempts} attempts. ${job.completed.length} server(s) completed. Check the bot logs before retrying.`,
+						job,
+					);
+				} else {
+					await this.safeNotify(
+						`Automatic deployment of \`${job.payload.path}\` is waiting to retry (attempt ${attempts}/12). ${job.completed.length}/${job.targets?.length ?? "?"} dev server(s) completed.`,
+						job,
 					);
 				}
 			}
@@ -136,11 +147,22 @@ export class ReposiliteWorker {
 			job.targets = (await service.servers(DEV_SCOPE)).map(({ identifier, name }) => ({ identifier, name }));
 			await this.store.update(job.id, { targets: job.targets });
 		}
+		if (job.changelog === undefined) {
+			let changelog = "Commit history unavailable.";
+			try {
+				changelog = (await this.changelog?.describe(artifact)) ?? changelog;
+			} catch {
+				console.error("Reposilite: commit history lookup failed; deployment processing continues");
+			}
+			job.changelog = changelog;
+			await this.store.update(job.id, { changelog });
+		}
 		if (!job.notified) {
 			job.notified = true;
 			await this.store.update(job.id, { notified: true });
 			await this.safeNotify(
 				`Deploying **${uploaded.id}** \`${uploaded.version}\` (${artifact.type}) to ${job.targets.length} dev server(s). Uploaded by ${job.payload.uploadedBy.split("@")[0]}.`,
+				job,
 			);
 		}
 		const failures: string[] = [];
@@ -171,18 +193,49 @@ export class ReposiliteWorker {
 			}
 		}
 		if (failures.length) throw new Error(failures.join("; "));
+		if (job.targets.length) {
+			try {
+				await this.changelog?.completed(artifact);
+			} catch {
+				console.error("Reposilite: commit checkpoint could not be saved; deployment processing continues");
+			}
+		}
 		await this.store.update(job.id, { status: "completed", last_error: "" });
 		await this.safeNotify(
-			`Uploaded **${uploaded.id}** \`${uploaded.version}\` to ${job.targets.map((server) => server.name).join(", ") || "no matching dev servers"}. Restart to apply the release.`,
+			job.targets.length
+				? `Uploaded **${uploaded.id}** \`${uploaded.version}\` to ${job.targets.map((server) => server.name).join(", ")}. Restart to apply the release.`
+				: `Skipped **${uploaded.id}** \`${uploaded.version}\`: no matching dev servers.`,
+			job,
 		);
 	}
-	private async safeNotify(content: string): Promise<void> {
+	private async safeNotify(content: string, job: WebhookJob): Promise<void> {
 		try {
-			await this.notify(content);
+			await this.notify(`${content.slice(0, 850)}${job.changelog ? `\n\n${job.changelog}` : ""}`.slice(0, 2000), job);
 		} catch {
 			console.error("Reposilite: Discord notification failed; deployment processing continues");
 		}
 	}
+}
+
+export function createDevUpdateNotifier(client: Client, store: EventStore) {
+	return async (content: string, job: WebhookJob): Promise<void> => {
+		const thread = await client.channels.fetch(DEV_UPDATE_THREAD);
+		if (!thread?.isThread() || !thread.isSendable()) throw new Error("Dev update thread is unavailable");
+		if (thread.archived) await thread.setArchived(false);
+		const payload = { content, allowedMentions: { parse: [] as const }, flags: MessageFlags.SuppressEmbeds as const };
+		if (job.message_id) {
+			try {
+				await thread.messages.edit(job.message_id, payload);
+				return;
+			} catch (error) {
+				// Recreate a deleted message, but do not duplicate posts after transient errors.
+				if ((error as { code?: number }).code !== 10008) throw error;
+			}
+		}
+		const message = await thread.send(payload);
+		job.message_id = message.id;
+		await store.update(job.id, { message_id: message.id });
+	};
 }
 
 export function registerReposiliteRoute(
@@ -236,10 +289,9 @@ export default function ReposiliteWebhook(client: Client, server: Express): void
 			if (!host || !app || !key) throw new Error("Pelican API credentials are missing");
 			return new PluginDeployment(host, app, key);
 		},
-		async (content) => {
-			const channel = await client.channels.fetch(CHANNEL);
-			if (channel?.isSendable()) await channel.send({ content: content.slice(0, 2000), allowedMentions: { parse: [] } });
-		},
+		createDevUpdateNotifier(client, store),
+		Date.now,
+		new PluginChangelog(),
 	);
 	const tick = () => {
 		void worker.tick().catch(() => console.error("Reposilite: queue processing failed; will retry"));

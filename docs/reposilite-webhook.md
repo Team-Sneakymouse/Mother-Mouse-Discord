@@ -34,8 +34,50 @@ the first successful lookup. Successful servers are skipped during subsequent
 attempts in the same process. Manual and automatic deployments share temporary
 server locks.
 
-Best-effort start and completion notifications go to channel
-`808030927937994772` if it exists and supports sending. Missing channels and failed
-notifications never prevent deployment. A terminal failure is also reported there
-when possible. Terminal failures are logged. Use `/plugins update` to deploy
-manually after fixing a failed delivery, or publish a new artifact event.
+Best-effort notifications go to the dedicated [dev update thread](https://discord.com/channels/391355330241757205/1561330944395313255).
+Each accepted upload event gets one message for its exact JAR version. The bot
+edits that message with retry progress, completion, or terminal failure instead of
+sending separate start and completion posts. Later versions get new messages.
+The bot reopens an archived thread and replaces a deleted message when possible;
+it needs access to the thread and permission to send messages there. Notification
+errors never prevent deployment. Message IDs are retained with the in-memory
+queue, so replaying an event after a bot restart can create another message.
+Terminal failures are logged. Use `/plugins update` to deploy manually after
+fixing a failed delivery, or publish a new artifact event.
+
+## Commit messages
+
+Published POMs such as SneakyMail, SneakyMisc, and SneakyJobBoard already provide
+GitHub repository URLs, and their date-based version strings end in the build's
+commit hash. The bot reads `<scm><url>` (falling back to the project's `<url>`)
+and an immutable hash from `<scm><tag>` or the version suffix. Only GitHub
+repositories in `Team-Sneakymouse` qualify; artifact names are not assumed to match
+repository names.
+
+The first tracked update shows the release commit's subject. Subsequent updates
+show subjects of commits since the last successful automatic upload of that
+artifact to all its snapshotted dev-server targets. These are uploaded versions,
+not confirmation of which version is running. Partial failures, ignored artifacts,
+and events with no matching servers do not advance the checkpoint. Manual
+deployments do not advance it either. Repository changes start a fresh comparison.
+
+Checkpoints are atomically saved in `share/reposilite-commits.json`. Preserve
+`/app/share` using a persistent Docker volume or bind mount to retain comparisons
+across container replacements. The queue itself remains in memory. An upload
+without source metadata clears that artifact's checkpoint after success so the
+next update does not compare against stale history.
+
+The [GitHub commit API](https://docs.github.com/en/rest/commits/commits#get-a-commit)
+supports fetching a single release commit, and the
+[compare API](https://docs.github.com/en/rest/commits/commits#compare-two-commits)
+provides the range between two release hashes. The bot fetches the first 100
+commits, displays subjects that fit in the message, and links to the complete
+comparison with a count of omitted commits. Commit bodies are not displayed.
+Unavailable or divergent comparisons fall back to the single release commit.
+Missing metadata, API errors, and checkpoint failures never retry successful
+uploads; the message shows a fallback when commit messages cannot be retrieved.
+
+The existing `GITHUB_TOKEN` is used when configured. Private repositories need
+repository **Contents: read** access; public repositories can be queried without
+a token, subject to GitHub's lower unauthenticated rate limit. Configure the token
+in the same runtime secret folder as the bot's other credentials.

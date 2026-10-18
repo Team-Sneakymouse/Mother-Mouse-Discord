@@ -4,7 +4,8 @@ const MAVEN = "https://maven.sneakyrp.com";
 const GROUP = "io/github/team-sneakymouse";
 const parser = new XMLParser({ ignoreAttributes: true, parseTagValue: false, processEntities: false });
 export type DeploymentType = "paper-plugin" | "ignite-mod";
-export type Artifact = { id: string; version: string; type: DeploymentType; versions: string[]; url: string; filename: string };
+export type ArtifactSource = { repository: string; commit: string };
+export type Artifact = { id: string; version: string; type: DeploymentType; versions: string[]; url: string; filename: string; source?: ArtifactSource };
 export type Server = { identifier: string; name: string; description: string };
 export type DeploymentOptions = { version?: string; scope?: string[] };
 type Listing<T> = { data: { attributes: T }[]; meta?: { pagination?: { current_page: number; total_pages: number } } };
@@ -23,6 +24,16 @@ export function parseXml(xml: string): any {
 export function deploymentType(pom: string): DeploymentType | undefined {
 	const type = parseXml(pom).project?.properties?.["sneakyrp.deployment.type"]?.trim();
 	return type === "paper-plugin" || type === "ignite-mod" ? type : undefined;
+}
+
+export function artifactSource(pom: string, version: string): ArtifactSource | undefined {
+	const project = parseXml(pom).project;
+	const url = project?.scm?.url ?? project?.url;
+	if (typeof url !== "string") return;
+	const repository = /^https:\/\/github\.com\/(Team-Sneakymouse\/[A-Za-z0-9_.-]+?)(?:\.git)?\/?$/i.exec(url.trim())?.[1];
+	const tag = project?.scm?.tag;
+	const commit = (typeof tag === "string" && /^[a-f0-9]{7,40}$/i.test(tag.trim()) ? tag.trim() : undefined) ?? /-([a-f0-9]{7,40})$/i.exec(version)?.[1];
+	if (repository && commit) return { repository, commit };
 }
 
 export function oldFiles(files: RemoteFile[], artifact: Artifact): string[] {
@@ -80,12 +91,14 @@ export class PluginDeployment {
 		if (!version || version.endsWith("-SNAPSHOT")) return;
 		const filename = `${id}-${version}.jar`;
 		const release = `${base}/${segment(version)}/${segment(id)}-${segment(version)}`;
-		const type = deploymentType(await (await this.get(`${release}.pom`)).text());
+		const pom = await (await this.get(`${release}.pom`)).text();
+		const type = deploymentType(pom);
 		if (!type) return;
 		const published = metadata.versions?.version ?? [];
 		const versions: string[] = (Array.isArray(published) ? published : [published]).map((value: string) => value.trim());
 		versions.forEach(segment);
-		return { id, version, type, versions, filename, url: `${release}.jar` };
+		const source = artifactSource(pom, version);
+		return { id, version, type, versions, filename, url: `${release}.jar`, ...(source ? { source } : {}) };
 	}
 
 	async catalog(): Promise<{ artifacts: Artifact[]; failures: string[] }> {

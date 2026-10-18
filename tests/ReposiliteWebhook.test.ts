@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { AddressInfo } from "node:net";
 import express from "express";
+import type { Client } from "discord.js";
 import {
+	createDevUpdateNotifier,
+	DEV_UPDATE_THREAD,
 	DEV_SCOPE,
 	type EventStore,
 	MemoryEventStore,
@@ -330,4 +333,181 @@ test("deduplication is in memory and a new store accepts an event again", async 
 	await assert.rejects(first.accept({ ...event, uploadedBy: "different" }), /different payload/);
 	const restarted = new MemoryEventStore();
 	assert.equal(await restarted.accept(event), true);
+});
+
+function fakeDiscord() {
+	const sent: { content: string; allowedMentions: unknown }[] = [];
+	const edits: { id: string; content: string }[] = [];
+	const thread = {
+		archived: true,
+		isThread: () => true,
+		isSendable: () => true,
+		async setArchived(archived: boolean) {
+			this.archived = archived;
+		},
+		async send(payload: { content: string; allowedMentions: unknown }) {
+			sent.push(payload);
+			return { id: `message-${sent.length}` };
+		},
+		messages: {
+			async edit(id: string, payload: { content: string }) {
+				edits.push({ id, content: payload.content });
+			},
+		},
+	};
+	const client = {
+		channels: {
+			async fetch(id: string) {
+				assert.equal(id, DEV_UPDATE_THREAD);
+				return thread;
+			},
+		},
+	} as unknown as Client;
+	return { client, thread, sent, edits };
+}
+
+test("each uploaded version gets one thread message edited across retries and new worker instances", async () => {
+	const store = memoryStore();
+	await store.accept(event);
+	const discord = fakeDiscord();
+	const notify = createDevUpdateNotifier(discord.client, store);
+	const { service, calls } = fakeService();
+	let fail = true;
+	service.deploy = async (server, id, options) => {
+		calls.push({ server, id, options });
+		if (server === "dev-two" && fail) throw new Error("Upload failed");
+		return { id, version: "1.0" };
+	};
+	let descriptions = 0;
+	let checkpoints = 0;
+	const changelog = {
+		async describe() {
+			descriptions++;
+			return "**Commits**\n- Fix a bug";
+		},
+		async completed() {
+			checkpoints++;
+		},
+	};
+	await new ReposiliteWorker(
+		store,
+		() => service as unknown as PluginDeployment,
+		notify,
+		() => now,
+		changelog,
+	).tick();
+	assert.equal(checkpoints, 0);
+	assert.equal(discord.sent.length, 1);
+	assert.equal(discord.thread.archived, false);
+	assert.deepEqual(discord.sent[0].allowedMentions, { parse: [] });
+	assert.match(discord.edits.at(-1)!.content, /waiting to retry.*1\/2 dev server/);
+	assert.equal(store.jobs[0].message_id, "message-1");
+	store.jobs[0].next_attempt = new Date(now).toISOString();
+	fail = false;
+	await new ReposiliteWorker(
+		store,
+		() => service as unknown as PluginDeployment,
+		notify,
+		() => now,
+		changelog,
+	).tick();
+	assert.equal(discord.sent.length, 1);
+	assert.equal(descriptions, 1);
+	assert.equal(checkpoints, 1);
+	assert.ok(discord.edits.every((edit) => edit.id === "message-1"));
+	assert.match(discord.edits.at(-1)!.content, /Uploaded.*Fix a bug/s);
+	const nextEvent = { ...event, id: "e4fa61fb-1eb1-45e2-9c58-70d4af566431", path: event.path.replaceAll("1.0", "2.0") };
+	await store.accept(nextEvent);
+	(service as any).artifact = async () => ({ type: "paper-plugin" });
+	await new ReposiliteWorker(
+		store,
+		() => service as unknown as PluginDeployment,
+		notify,
+		() => now,
+		changelog,
+	).tick();
+	assert.equal(discord.sent.length, 2);
+	assert.equal(discord.edits.at(-1)!.id, "message-2");
+});
+
+test("terminal failure edits the existing message, and no matching servers do not advance commit history", async () => {
+	const store = memoryStore();
+	await store.accept(event);
+	const discord = fakeDiscord();
+	const notify = createDevUpdateNotifier(discord.client, store);
+	const { service } = fakeService();
+	service.deploy = async () => {
+		throw new Error("Upload failed");
+	};
+	const changelog = { describe: async () => "Release commit", completed: async () => assert.fail("Must not checkpoint a failed or empty deployment") };
+	await new ReposiliteWorker(
+		store,
+		() => service as unknown as PluginDeployment,
+		notify,
+		() => now,
+		changelog,
+	).tick();
+	store.jobs[0].attempts = 11;
+	store.jobs[0].next_attempt = new Date(now).toISOString();
+	await new ReposiliteWorker(
+		store,
+		() => service as unknown as PluginDeployment,
+		notify,
+		() => now,
+		changelog,
+	).tick();
+	assert.equal(discord.sent.length, 1);
+	assert.match(discord.edits.at(-1)!.content, /failed.*12 attempts.*Release commit/s);
+	await store.accept({ ...event, id: "e4fa61fb-1eb1-45e2-9c58-70d4af566431" });
+	service.servers = async () => [];
+	await new ReposiliteWorker(
+		store,
+		() => service as unknown as PluginDeployment,
+		notify,
+		() => now,
+		changelog,
+	).tick();
+	assert.equal(store.jobs[1].status, "completed");
+});
+
+test("deleted update messages are replaced while transient edit failures never create duplicates", async () => {
+	const store = memoryStore();
+	await store.accept(event);
+	const discord = fakeDiscord();
+	const notify = createDevUpdateNotifier(discord.client, store);
+	await notify("Starting", store.jobs[0]);
+	let code = 50013;
+	discord.thread.messages.edit = async () => {
+		throw { code };
+	};
+	await assert.rejects(notify("Retrying", store.jobs[0]));
+	assert.equal(discord.sent.length, 1);
+	code = 10008;
+	await notify("Completed", store.jobs[0]);
+	assert.equal(discord.sent.length, 2);
+	assert.equal(store.jobs[0].message_id, "message-2");
+});
+
+test("changelog lookup and checkpoint failures never retry successful uploads", async () => {
+	const store = memoryStore();
+	await store.accept(event);
+	const { service, calls } = fakeService();
+	const changelog = {
+		async describe() {
+			throw new Error("GitHub unavailable");
+		},
+		async completed() {
+			throw new Error("Disk unavailable");
+		},
+	};
+	await new ReposiliteWorker(
+		store,
+		() => service as unknown as PluginDeployment,
+		async () => {},
+		() => now,
+		changelog,
+	).tick();
+	assert.equal(store.jobs[0].status, "completed");
+	assert.equal(store.jobs[0].attempts, 0);
+	assert.equal(calls.length, 2);
 });
