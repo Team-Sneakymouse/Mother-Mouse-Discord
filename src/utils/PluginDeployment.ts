@@ -122,7 +122,7 @@ export class PluginDeployment {
 				}),
 			);
 		}
-		return { artifacts: artifacts.sort((a, b) => a.id.localeCompare(b.id)), failures };
+		return { artifacts: artifacts.sort((a, b) => b.version.localeCompare(a.version) || a.id.localeCompare(b.id)), failures };
 	}
 
 	private async files(server: string, directory: string): Promise<RemoteFile[]> {
