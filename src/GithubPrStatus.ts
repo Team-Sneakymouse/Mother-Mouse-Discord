@@ -51,7 +51,7 @@ export function formatDigest(pulls: readonly OpenPullRequest[]): string[] {
 	let repository = "";
 	for (const pull of sorted) {
 		const heading = `**${safeText(pull.repository, 160)}**\n`;
-		const line = `- ${pull.draft ? "[DRAFT] " : ""}#${pull.number} ${safeText(pull.title, 300)} — ${safeText(pull.user?.login ?? "unknown author", 80)}\n  <https://github.com/${pull.repository}/pull/${pull.number}>\n`;
+		const line = `- ${pull.draft ? "[DRAFT] " : ""}[#${pull.number}](https://github.com/${pull.repository}/pull/${pull.number}) ${safeText(pull.title, 300)} — ${safeText(pull.user?.login ?? "unknown author", 80)}\n`;
 		let addition = (repository === pull.repository ? "" : `\n${heading}`) + line;
 		// Reserve room for the multipart header and never split a PR/link across messages.
 		if (chunk.length + addition.length > 1900) {
