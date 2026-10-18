@@ -66,17 +66,17 @@ export class PluginChangelog implements DeploymentChangelog {
 						})
 						.parse(await this.get(`/repos/${repository}/compare/${range}?per_page=100&page=1`));
 					if (comparison.status === "ahead" || comparison.status === "identical") {
+						const lines: string[] = [];
 						const link = `\n[View all changes](${root}/compare/${range})`;
-						let text = `**Commits since last successful update (${comparison.total_commits})**`;
-						let shown = 0;
+						let size = 0;
 						for (const item of comparison.commits) {
-							const line = `\n- [${item.sha.slice(0, 7)}](${root}/commit/${item.sha}) ${subject(item.commit.message)}`;
-							if (text.length + line.length + link.length > 1000) break;
-							text += line;
-							shown++;
+							const line = `- [${item.sha.slice(0, 7)}](${root}/commit/${item.sha}) ${subject(item.commit.message)}`;
+							if (size + line.length + link.length > 1000) break;
+							lines.push(line);
+							size += line.length;
 						}
-						if (shown < comparison.total_commits) text += `\n${comparison.total_commits - shown} more commit(s) in the comparison.`;
-						return text + link;
+						if (lines.length < comparison.total_commits) lines.push(`${comparison.total_commits - lines.length} more commit(s) in the comparison.`);
+						return lines.join("\n");
 					}
 				} catch {
 					// Missing history, force pushes and API failures can still allow a single-commit lookup.

@@ -163,10 +163,7 @@ export class ReposiliteWorker {
 		if (!job.notified) {
 			job.notified = true;
 			await this.store.update(job.id, { notified: true });
-			await this.safeNotify(
-				`Deploying **${uploaded.id}** \`${uploaded.version}\` (${artifact.type}) to ${job.targets.length} dev server(s). Uploaded by ${job.payload.uploadedBy.split("@")[0]}.`,
-				job,
-			);
+			await this.safeNotify(`Deploying **${uploaded.id}** \`${uploaded.version}\` (${artifact.type}) to ${job.targets.length} dev server(s).`, job);
 		}
 		const failures: string[] = [];
 		for (const server of job.targets) {
@@ -206,7 +203,7 @@ export class ReposiliteWorker {
 		await this.store.update(job.id, { status: "completed", last_error: "" });
 		await this.safeNotify(
 			job.targets.length
-				? `Uploaded **${uploaded.id}** \`${uploaded.version}\` to ${job.targets.map((server) => server.name).join(", ")}. Restart to apply the release.`
+				? `Uploaded **${uploaded.id}** \`${uploaded.version}\` to ${job.targets.map((server) => server.name).join(", ")}.`
 				: `Skipped **${uploaded.id}** \`${uploaded.version}\`: no matching dev servers.`,
 			job,
 		);

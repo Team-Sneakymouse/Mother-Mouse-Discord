@@ -79,7 +79,7 @@ export function renderState(state: UpdateState, servers: Server[] = [], artifact
 	if (state.selected.reduce((size, id) => size + 2 * id.length + 140, 0) > 5000)
 		throw new Error("Too many selected releases for one Discord message. Deploy them in separate batches.");
 	const embed = new EmbedBuilder()
-		.setTitle((state.server?.name ?? "Minecraft release deployment").slice(0, 256))
+		.setTitle(state.server ? `Server: ${state.server.name}`.slice(0, 256) : "Minecraft release deployment")
 		.setDescription(`Started by <@${state.owner}>`)
 		.addFields(
 			...fields(
