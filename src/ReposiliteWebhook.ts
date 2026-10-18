@@ -210,7 +210,7 @@ export class ReposiliteWorker {
 	}
 	private async safeNotify(content: string, job: WebhookJob): Promise<void> {
 		try {
-			await this.notify(`${content.slice(0, 850)}${job.changelog ? `\n\n${job.changelog}` : ""}`.slice(0, 2000), job);
+			await this.notify(`${content.slice(0, 850)}${job.changelog ? `\n${job.changelog}` : ""}`.slice(0, 2000), job);
 		} catch {
 			console.error("Reposilite: Discord notification failed; deployment processing continues");
 		}
