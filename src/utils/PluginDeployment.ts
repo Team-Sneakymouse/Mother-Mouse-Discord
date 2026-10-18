@@ -5,7 +5,7 @@ const GROUP = "io/github/team-sneakymouse";
 const parser = new XMLParser({ ignoreAttributes: true, parseTagValue: false, processEntities: false });
 export type DeploymentType = "paper-plugin" | "ignite-mod";
 export type ArtifactSource = { repository: string; commit: string };
-export type Artifact = { id: string; version: string; type: DeploymentType; versions: string[]; url: string; filename: string; source?: ArtifactSource };
+export type Artifact = { id: string; version: string; type: DeploymentType; versions: string[]; url: string; filename: string; source?: ArtifactSource; lastUpdated?: string };
 export type Server = { identifier: string; name: string; description: string };
 export type DeploymentOptions = { version?: string; scope?: string[] };
 type Listing<T> = { data: { attributes: T }[]; meta?: { pagination?: { current_page: number; total_pages: number } } };
@@ -101,7 +101,11 @@ export class PluginDeployment {
 		const versions: string[] = (Array.isArray(published) ? published : [published]).map((value: string) => value.trim());
 		versions.forEach(segment);
 		const source = artifactSource(pom, version);
-		return { id, version, type, versions, filename, url: `${release}.jar`, ...(source ? { source } : {}) };
+		const lastUpdated = metadata.lastUpdated?.trim();
+		return {
+			id, version, type, versions, filename, url: `${release}.jar`, ...(source ? { source } : {}),
+			...(typeof lastUpdated === "string" && /^\d{14}$/.test(lastUpdated) ? { lastUpdated } : {}),
+		};
 	}
 
 	async catalog(): Promise<{ artifacts: Artifact[]; failures: string[] }> {
@@ -122,7 +126,10 @@ export class PluginDeployment {
 				}),
 			);
 		}
-		return { artifacts: artifacts.sort((a, b) => b.version.localeCompare(a.version) || a.id.localeCompare(b.id)), failures };
+		return {
+			artifacts: artifacts.sort((a, b) => (b.lastUpdated ?? "").localeCompare(a.lastUpdated ?? "") || b.version.localeCompare(a.version) || a.id.localeCompare(b.id)),
+			failures,
+		};
 	}
 
 	private async files(server: string, directory: string): Promise<RemoteFile[]> {

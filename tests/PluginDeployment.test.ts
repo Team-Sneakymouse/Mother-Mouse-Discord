@@ -8,6 +8,22 @@ const pom = (type: string) => `<project><properties><sneakyrp.deployment.type>${
 const file = (name: string, size = 4) => ({ name, is_file: true, size });
 const listing = (files: unknown[]) => ({ data: files.map((attributes) => ({ attributes })) });
 
+test("catalog sorts same-day releases by precise Maven update time before version hashes", async () => {
+	const request: typeof fetch = async (input) => {
+		const url = String(input);
+		if (url.includes("/api/maven/details/")) return Response.json({ files: ["Older", "Newer"].map((name) => ({ name, type: "DIRECTORY" })) });
+		if (url.endsWith(".pom")) return new Response(pom("paper-plugin"));
+		const newer = url.includes("/Newer/");
+		return new Response(`<metadata><versioning><release>2026.10.18-${newer ? "aaaa" : "ffff"}</release><lastUpdated>20261018${newer ? "140000" : "130000"}</lastUpdated></versioning></metadata>`);
+	};
+	const catalog = await new PluginDeployment("https://panel.example", "application", "client", request).catalog();
+	assert.deepEqual(catalog.failures, []);
+	assert.deepEqual(catalog.artifacts.map(({ id, lastUpdated }) => ({ id, lastUpdated })), [
+		{ id: "Newer", lastUpdated: "20261018140000" },
+		{ id: "Older", lastUpdated: "20261018130000" },
+	]);
+});
+
 function setup(type = "paper-plugin", failUpload = false, failCleanup = false, badSize = false) {
 	const events: { url: string; method: string; body?: any; headers: Headers }[] = [];
 	let uploaded = false;
