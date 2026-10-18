@@ -197,6 +197,7 @@ import SendMail from "./SendMail.js";
 import PluginUpdates from "./PluginUpdates.js";
 import GithubPrStatus from "./GithubPrStatus.js";
 import TodoList from "./Todo.js";
+import ReleaseChecklist from "./ReleaseChecklist/index.js";
 
 if (process.env.PRODUCTION === "TRUE") {
 	client.setMaxListeners(Infinity);
@@ -254,6 +255,7 @@ if (process.env.PRODUCTION === "TRUE") {
 	PluginUpdates(client);
 	GithubPrStatus(client);
 	TodoList(client, pocketbase);
+	ReleaseChecklist(client);
 } else {
 	console.log("Registering development plugins");
 }

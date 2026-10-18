@@ -37,9 +37,10 @@ import { data as StreamManager } from "./src/StreamManager.js";
 import { data as BuildTeamManagement } from "./src/BuildTeamManagement.js";
 import { data as SendMail } from "./src/SendMail.js";
 import { data as PluginUpdates } from "./src/PluginUpdates.js";
+import { data as ReleaseChecklist } from "./src/ReleaseChecklist/index.js";
 
 const commands = {
-	global: [...Vibecheck, ...Roll, ...TwitterFix, ...Uuid, ...EditBotMessages],
+	global: [...Vibecheck, ...Roll, ...TwitterFix, ...Uuid, ...EditBotMessages, ...ReleaseChecklist],
 	[GuildIds.OLIVIA]: [...Vibecheck, ...ChannelClearVoting],
 	[GuildIds.TEST]: [...Vibecheck, ...ChannelClearVoting, ...StreamManager],
 	[GuildIds.RAWBTV]: [
