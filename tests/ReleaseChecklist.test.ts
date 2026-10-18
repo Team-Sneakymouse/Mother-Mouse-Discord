@@ -32,6 +32,7 @@ function harness(initial = empty()) {
 		values,
 		deferred: false,
 		replied: false,
+		acknowledgement: "",
 		channel: {
 			messages: {
 				fetch: async (options: any) => {
@@ -45,6 +46,7 @@ function harness(initial = empty()) {
 		isButton: () => kind === "button",
 		isStringSelectMenu: () => kind === "select",
 		isModalSubmit: () => kind === "modal",
+		isFromMessage: () => kind === "modal",
 		responses: [] as any[],
 		modal: undefined as any,
 		async reply(payload: any) {
@@ -53,6 +55,11 @@ function harness(initial = empty()) {
 		},
 		async deferReply() {
 			this.deferred = true;
+			this.acknowledgement = "reply";
+		},
+		async deferUpdate() {
+			this.deferred = true;
+			this.acknowledgement = "update";
 		},
 		async editReply(payload: any) {
 			this.responses.push(payload);
@@ -85,6 +92,57 @@ test("creation is admin-only by default and confined to servers", () => {
 	const command = data[0].toJSON();
 	expect(command.default_member_permissions).toBe("8");
 	expect(command.contexts).toEqual([0]);
+});
+
+test("active card color follows readiness, with empty cards yellow and archived cards gray", () => {
+	const release = empty();
+	const color = () => renderRelease(release).components[0].accent_color;
+	expect(color()).toBe(0xf1c40f);
+	release.features.push({ id: "one", name: "One", ready: false }, { id: "two", name: "Two", ready: true });
+	expect(color()).toBe(0xf1c40f);
+	release.features[0].ready = true;
+	expect(color()).toBe(0x2ecc71);
+	release.features[1].ready = false;
+	expect(color()).toBe(0xf1c40f);
+	release.features[1].ready = true;
+	release.closed = true;
+	expect(color()).toBe(0x808080);
+});
+
+test("management actions update the originating private panel, including modal edits and archive controls", async () => {
+	const h = harness({
+		...empty(),
+		features: [
+			{ id: "one", name: "One", ready: false },
+			{ id: "two", name: "Two", ready: true },
+		],
+	});
+	const edit = h.interaction("edit-submit:123:one", "modal", "Renamed feature");
+	await h.run(edit);
+	expect(edit.acknowledgement).toBe("update");
+	expect(JSON.stringify(edit.responses[0])).toContain("Renamed feature");
+	const rename = h.interaction("rename-submit:123:", "modal", "Renamed release");
+	await h.run(rename);
+	expect(rename.acknowledgement).toBe("update");
+	expect(rename.responses[0].content).toContain("Renamed release");
+	const remove = h.interaction("remove:123", "select", "", ["one"]);
+	await h.run(remove);
+	expect(remove.acknowledgement).toBe("update");
+	expect(remove.responses[0].components[0].toJSON().components[0].options.map((o: any) => o.value)).toEqual(["two"]);
+	const archive = h.interaction("archive:123:1");
+	await h.run(archive);
+	expect(archive.acknowledgement).toBe("update");
+	expect(archive.responses[0].components).toHaveLength(1);
+	expect(JSON.stringify(archive.responses[0])).toContain("Reopen release");
+	const reopen = h.interaction("archive:123:0");
+	await h.run(reopen);
+	expect(reopen.acknowledgement).toBe("update");
+	expect(reopen.responses[0].components).toHaveLength(3);
+	expect(JSON.stringify(reopen.responses[0])).toContain("Archive release");
+	const add = h.interaction("add-submit:123:", "modal", "Third feature");
+	await h.run(add);
+	expect(add.acknowledgement).toBe("reply");
+	expect(add.responses[0].components).toBeUndefined();
 });
 
 test("add modal, restart, ready/unready, rename and edit/remove need only message state and no member permissions", async () => {

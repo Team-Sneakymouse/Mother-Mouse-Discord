@@ -5,6 +5,8 @@ Use `/release title:Weekly release` to post an empty checklist in the current ch
 - **Add feature** opens a modal. New features start yellow and unready.
 - **Mark ready / Mark unready** updates the feature's status and emoji on the same card.
 - **Manage release** opens a private panel for renaming the release, editing or removing features, and archiving or reopening the release. Removal is immediate.
+- Management actions refresh that private panel with the updated title, feature choices and archive controls.
+- Active cards turn green when at least one feature is present and all features are ready; empty or incomplete cards are yellow. Archived cards are gray.
 - Archived cards retain all features and statuses. Reopen them to make changes, even if all features were already ready when archived.
 
 The Discord message is the persistent store: names live in text components, while versioned button custom IDs hold feature identities, readiness and archive state. Interactions use a global handler, so existing cards work after bot restarts. Deleting the message deletes the checklist. There is no database or deployment automation.

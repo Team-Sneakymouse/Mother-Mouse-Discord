@@ -13,6 +13,7 @@ import {
 	StringSelectMenuBuilder,
 	TextInputBuilder,
 	TextInputStyle,
+	escapeMarkdown,
 	type APIContainerComponent,
 	type ButtonInteraction,
 	type ModalSubmitInteraction,
@@ -64,8 +65,9 @@ function management(release: Release, messageId: string) {
 		),
 	);
 	return {
-		content: release.closed ? "This release is archived. Reopen it to make changes." : "Manage this release. Removing a feature takes effect immediately.",
+		content: `**${escapeMarkdown(release.title)}**\n${release.closed ? "This release is archived. Reopen it to make changes." : "Manage this release. Removing a feature takes effect immediately."}`,
 		components,
+		allowedMentions: { parse: [] as [] },
 	};
 }
 
@@ -102,7 +104,12 @@ export default function ReleaseChecklist(client: Client) {
 		const onCard = action === "add" || action === "manage" || action === "ready";
 		const messageId = onCard && !interaction.isModalSubmit() ? interaction.message.id : ref;
 		const viewing = ["add", "manage", "edit", "rename"].includes(action);
-		if (!viewing) await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+		const managementAction = ["remove", "archive", "edit-submit", "rename-submit"].includes(action);
+		if (!viewing) {
+			// Modal submissions retain the management message that opened them.
+			if (managementAction && (!interaction.isModalSubmit() || interaction.isFromMessage())) await interaction.deferUpdate();
+			else await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+		}
 		await queue(messageId, async () => {
 			const channel = interaction.channel;
 			if (!channel || !("messages" in channel)) throw new Error("The release channel is unavailable.");
@@ -137,7 +144,7 @@ export default function ReleaseChecklist(client: Client) {
 				else throw new Error("Unknown checklist action.");
 			} else throw new Error("Unknown checklist action.");
 			await message.edit(renderRelease(release));
-			await interaction.editReply({ content: action === "archive" ? (release.closed ? "Release archived." : "Release reopened.") : "Release updated." });
+			await interaction.editReply(managementAction ? management(release, messageId) : { content: "Release updated." });
 		});
 	}
 }

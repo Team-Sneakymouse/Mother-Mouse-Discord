@@ -34,8 +34,9 @@ export function releaseName(value: string): string {
 
 export function renderRelease(release: Release) {
 	if (release.features.length > MAX_FEATURES) throw new Error(`This card can hold up to ${MAX_FEATURES} features. Remove a feature before adding another.`);
+	const allReady = release.features.length > 0 && release.features.every((feature) => feature.ready);
 	const card = new ContainerBuilder()
-		.setAccentColor(release.closed ? 0x808080 : 0xf1c40f)
+		.setAccentColor(release.closed ? 0x808080 : allReady ? 0x2ecc71 : 0xf1c40f)
 		.addTextDisplayComponents(
 			new TextDisplayBuilder().setContent(
 				`## ${escape(releaseName(release.title))}\n${release.features.filter((f) => f.ready).length} of ${release.features.length} features ready${release.closed ? " · Archived" : ""}`,
