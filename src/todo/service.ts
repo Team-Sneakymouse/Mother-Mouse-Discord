@@ -21,7 +21,14 @@ export class UnconfiguredConversationTransport implements ConversationTransport 
 export class DefinitiveHandoffError extends Error {}
 export class TodoRepository {
  constructor(readonly pb:PocketBase){}
- operation<T=any>(action:string,body:unknown):Promise<T>{return this.pb.send(`/api/shared-todo/${action}`,{method:"POST",body});}
+ async operation<T=any>(action:string,body:unknown):Promise<T>{
+  try{return await this.pb.send(`/api/shared-todo/${action}`,{method:"POST",body});}
+  catch(error){
+   // PocketBase's stock 404 for an unregistered custom route is opaque in Discord.
+   if((error as {status?:number}).status===404)throw new Error(`Shared-todo PocketBase route /api/shared-todo/${action} was not found. Install pocketbase/pb_hooks (todo.pb.js + todo.lib.js) and restart PocketBase.`);
+   throw error;
+  }
+ }
  async todo(id:string):Promise<Todo>{return this.pb.collection("todo_list_todos").getOne(id);}
  async label(id:string):Promise<Label>{return this.pb.collection("todo_list_labels").getOne(id);}
  async labels(guild:string):Promise<Label[]>{return this.pb.collection("todo_list_labels").getFullList({filter:this.pb.filter("guild_id = {:guild}",{guild})});}
