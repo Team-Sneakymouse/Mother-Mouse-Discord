@@ -1,9 +1,12 @@
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import { spawn, type ChildProcess } from "node:child_process";
+import {Database} from 'bun:sqlite';
 import { mkdtemp, rm, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import PocketBase from "pocketbase";
+import {createHash} from 'node:crypto';
+const canonical=(v:any):string=>Array.isArray(v)?'['+v.map(canonical).join(',')+']':v&&typeof v==='object'?'{'+Object.keys(v).sort().map(k=>JSON.stringify(k)+':'+canonical(v[k])).join(',')+'}':JSON.stringify(v);
 import {TodoRetrospective} from '../src/todo/retrospective.js';
 
 const binary = process.env.TODO_PB_BINARY;
@@ -163,6 +166,9 @@ integration("explicit batches cap at 50 without skipping newer corrections",asyn
  const done=await api("assess-commit",{id:r.id,token:a.token,rules_version:"v1",decisions:[{action:"create",label:l.id,kind:"bug",priority:"red",title:"Batch",description:"Issue",confidence:1,reason:"Evidence"}]});
  for(let i=0;i<51;i++)await api("classification",{id:done.todos[0],actor:"123",priority:i%2?"red":"yellow"});
  const first=await api("retrospective-begin",{guild_id:"batch",actor:"123"});expect(first.corrections).toHaveLength(50);expect(first.run.upper_sequence).toBe(first.corrections.at(-1).sequence);
+ expect(Array.from(first.opening_context).length).toBeLessThanOrEqual(60000);
+ expect(Buffer.byteLength(JSON.stringify({run_id:first.run.id,thread_id:'0'.repeat(20),user_id:'123',guild_id:'batch',corrections:first.corrections,context:first.opening_context}))).toBeLessThanOrEqual(200000);
+ expect(first.corrections.every((c:any)=>c.evidence_ref?.id===c.id)).toBe(true);
  const base={id:first.run.id,actor:"123"},proposal_hash="1".repeat(64);
  await api("retrospective-stage",{...base,thread_id:"123",baseline_version:"v1",baseline_hash:"2".repeat(64)});
  await api("retrospective-proposal",{...base,proposal_hash,proposal:{rules:[],memory:[],summary:"No change"}});
@@ -219,3 +225,43 @@ integration('service approval race and frozen retry recover against real PB with
  await service.approve('batch','123',run.id,B);
  const done=await pb.collection('todo_list_assessment_retrospectives').getOne(run.id);expect(done.state).toBe('completed');expect(done.proposal_hash).toBe(B);expect(writes).toBe(1);
 });
+ integration("huge Unicode single-event evidence fits before freeze with exact immutable retrieval",async()=>{
+ const guild_id="huge-wire";
+ const l=await pb.collection("todo_list_labels").create({guild_id,name:"Huge"});
+ const text="🧀漢\"".repeat(150000);
+ const r=await api("capture",{guild_id,channel_id:"c",message_id:"huge",source:{},context:{complete:true},context_text:text});
+ const a=await api("assess-begin",{id:r.id,actor:"123"});
+ const d=await api("assess-commit",{id:r.id,token:a.token,rules_version:"v1",decisions:[{action:"create",label:l.id,kind:"bug",priority:"red",title:"Huge",description:"Issue",confidence:1,reason:"Original"}]});
+ await api("classification",{id:d.todos[0],actor:"123",priority:"yellow",reason:"Exact reason"});
+ const batch=await api("retrospective-begin",{guild_id,actor:"123"});
+ expect(batch.corrections).toHaveLength(1);
+ expect(batch.opening_context).toContain("PocketBase");
+ expect(Array.from(batch.opening_context).length).toBeLessThanOrEqual(60000);
+ expect(Buffer.byteLength(JSON.stringify({run_id:batch.run.id,thread_id:"0".repeat(20),user_id:"123",guild_id,corrections:batch.corrections,context:batch.opening_context}))).toBeLessThanOrEqual(200000);
+ const ref=batch.corrections[0].evidence_ref;
+ const original=await pb.collection(ref.collection).getOne(ref.id);
+ expect(original.reports[0].context_text).toBe(text);
+ expect(original.reason).toBe("Exact reason");
+ expect(createHash('sha256').update(canonical(original)).digest('hex')).toBe(ref.sha256);
+ expect(batch.run.correction_ids).toEqual([original.id]);
+ // Local SQLite fixture reproduces a legacy full-evidence freeze; never weakens API guards.
+ const legacy=()=>{const db=new Database(join(directory,'data.db'));db.query("UPDATE todo_list_assessment_retrospectives SET corrections=(SELECT json_array(json_object('id',id,'reports',json(reports),'todo_snapshot',json(todo_snapshot))) FROM todo_list_manual_changes WHERE id=?) WHERE id=?").run(original.id,batch.run.id);db.close();};
+ legacy();
+ const recovered=await api('retrospective-begin',{guild_id,actor:'123'});
+ expect(recovered.run.id).toBe(batch.run.id);expect(recovered.run.correction_ids).toEqual(batch.run.correction_ids);
+ expect(recovered.run.error).toContain('preserved correction IDs');
+ expect(recovered.corrections).toEqual(batch.corrections);
+ let preflight=false,started=false;
+ const service=new TodoRetrospective({operation:api} as any,{
+ ready:async()=>{},preflightRetrospective:async(input:any)=>{expect((await pb.collection('todo_list_assessment_retrospectives').getOne(input.run.id)).dispatch_token).toBe('');expect(Array.from(input.context).length).toBeLessThanOrEqual(60000);preflight=true;},
+ startRetrospective:async(input:any)=>{expect(preflight).toBe(true);started=true;await input.onThread('123456');return {thread_id:'123456',baseline_version:'v1',baseline_hash:'a'.repeat(64)};},status:async()=>({run_id:batch.run.id,state:'investigating'})
+ } as any);
+ await service.open(guild_id,'123');expect(started).toBe(true);
+ legacy();const bound=await pb.collection('todo_list_assessment_retrospectives').getOne(batch.run.id);
+ await expect(api('retrospective-begin',{guild_id,actor:'123'})).rejects.toThrow('operator recovery');
+ expect(await pb.collection('todo_list_assessment_retrospectives').getOne(batch.run.id)).toEqual(bound);
+ const db=new Database(join(directory,'data.db'));db.query("UPDATE todo_list_assessment_retrospectives SET state='applying', proposal_hash=?, proposal=? WHERE id=?").run('b'.repeat(64),JSON.stringify({rules:[],memory:[],summary:'Frozen approval'}),batch.run.id);db.close();
+ const approved=await pb.collection('todo_list_assessment_retrospectives').getOne(batch.run.id);
+ await expect(api('retrospective-begin',{guild_id,actor:'123'})).rejects.toThrow('operator recovery');
+ expect(await pb.collection('todo_list_assessment_retrospectives').getOne(batch.run.id)).toEqual(approved);
+ },30000);
