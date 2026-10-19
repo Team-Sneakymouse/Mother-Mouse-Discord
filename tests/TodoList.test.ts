@@ -53,7 +53,9 @@ test("every list card exposes Edit and detail UI has paginated concrete labels a
  const state={owner:"123",page:0,filters:{}};
  const list=renderList([t],labels,state);expect(list.components[0].components.some(c=>c.label==="Edit")).toBe(true);
  const detail=renderDetail(t,Array.from({length:30},(_,i)=>({id:String(i),name:`Label ${i}`})),state,0);
- expect(detail.components).toHaveLength(3);expect(detail.components[0].components[0].options).toHaveLength(25);
+ expect(detail.components).toHaveLength(5);
+ expect(detail.components[2].components[0].options.map((o:any)=>o.value)).toEqual(["bug","feature"]);
+ expect(detail.components[3].components[0].options.map((o:any)=>o.value)).toEqual(["red","yellow","blue"]);expect(detail.components[0].components[0].options).toHaveLength(25);
  expect(detail.components[1].components[0].options.map((o:any)=>o.value)).toContain("closed");
  expect(JSON.stringify(detail.embeds)).toContain("https://discord.com/channels/111/222/333");
  expect(detail.embeds[0].footer.text).toContain('"revision":1');

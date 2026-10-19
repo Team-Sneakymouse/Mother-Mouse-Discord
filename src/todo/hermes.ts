@@ -1,9 +1,10 @@
+import type { RetrospectiveTransport } from "./retrospective.js";
 import type { assessmentPrompt, AssessmentTransport } from "./assessment.js";
-import { ChannelType, escapeMarkdown, type Client } from "discord.js";
+import { ChannelType, DiscordAPIError, escapeMarkdown, type Client } from "discord.js";
 import { DefinitiveHandoffError, TODO_FORUM_ID, type ConversationInput, type ConversationTransport } from "./service.js";
-export function configuredTodoTransports(client:Client,env:NodeJS.ProcessEnv=process.env):{assessment?:AssessmentTransport;conversation?:ConversationTransport}{
+export function configuredTodoTransports(client:Client,env:NodeJS.ProcessEnv=process.env):{assessment?:AssessmentTransport;conversation?:ConversationTransport;retrospective?:RetrospectiveTransport}{
  if(!env.HERMES_TODO_BRIDGE_URL||!env.HERMES_TODO_BRIDGE_TOKEN)return {};
- const bridge=new HermesTodoBridge(client,env.HERMES_TODO_BRIDGE_URL,env.HERMES_TODO_BRIDGE_TOKEN);return {assessment:bridge,conversation:bridge};
+ const bridge=new HermesTodoBridge(client,env.HERMES_TODO_BRIDGE_URL,env.HERMES_TODO_BRIDGE_TOKEN);return {assessment:bridge,conversation:bridge,retrospective:bridge};
 }
 /** Lossless Discord-sized slices; prefer paragraph/line boundaries without tiny fragments. */
 function splitOpeningPrompt(prompt:string,firstLimit:number):string[]{
@@ -35,6 +36,40 @@ export class HermesTodoBridge implements ConversationTransport,AssessmentTranspo
   try{response=await fetch(new URL(path,this.base),{method:"POST",headers:{Authorization:`Bearer ${this.token}`,"Content-Type":"application/json"},body,redirect:"error",signal:AbortSignal.timeout(110000)});}catch{throw new Error("Hermes todo bridge transport failed; outcome may be uncertain");}
   if(!response.ok)throw new Error(`Hermes todo bridge rejected request (HTTP ${response.status}); inspect its operator logs`);
   let value:unknown;try{value=await response.json();}catch{throw new Error("Hermes todo bridge returned invalid JSON");}return value;
+ }
+ async status(run_id:string,user_id:string):Promise<any>{return this.post("/plugins/discord-todo/v1/retrospective/status",{run_id,user_id});}
+ async prepareApproval(run_id:string,user_id:string,proposal_hash:string):Promise<any>{return this.post("/plugins/discord-todo/v1/retrospective/prepare-approval",{run_id,user_id,proposal_hash});}
+ async preflightRetrospective(input:{run:any;corrections:any[];context:string}):Promise<void>{
+  await this.ready();const {run,context,corrections}=input;
+  const payload={run_id:run.id,thread_id:run.thread_id??"0".repeat(20),user_id:run.actor,guild_id:run.guild_id,corrections,context};
+  if(Array.from(context).length>60000||Buffer.byteLength(JSON.stringify(payload))>200000)throw Object.assign(new Error("Retrospective evidence exceeds bridge bounds; nothing truncated"),{confirmedNoThread:true});
+  if(!run.thread_id){
+   const forum=await this.client.channels.fetch(TODO_FORUM_ID);
+   if(!forum||forum.type!==ChannelType.GuildForum||forum.guildId!==run.guild_id)throw Object.assign(new Error("Invalid retrospective guild forum"),{confirmedNoThread:true});
+   if(forum.availableTags.filter(t=>t.name.toLowerCase()==="meta").length!==1)throw Object.assign(new Error("Retrospective requires exactly one native Meta forum tag"),{confirmedNoThread:true});
+  }
+ }
+ async approve(run_id:string,user_id:string,proposal_hash:string):Promise<any>{return this.post("/plugins/discord-todo/v1/retrospective/approve",{run_id,user_id,proposal_hash});}
+ async startRetrospective(input:{run:any;corrections:any[];context:string;onThread:(id:string)=>Promise<void>}):Promise<any>{
+  await this.ready();const {run,context,corrections}=input;
+  const payload={run_id:run.id,thread_id:run.thread_id??"0".repeat(20),user_id:run.actor,guild_id:run.guild_id,corrections,context};
+  if(Array.from(context).length>60000||Buffer.byteLength(JSON.stringify(payload))>200000)throw Object.assign(new Error("Retrospective evidence exceeds bridge bounds; nothing truncated"),{confirmedNoThread:true});
+  let threadId=run.thread_id;
+  if(!threadId){
+   // This GET cannot create a thread; its failure is safe to release even after reservation.
+   const forum=await this.client.channels.fetch(TODO_FORUM_ID).catch(error=>{throw Object.assign(new Error(error instanceof Error?error.message:"Could not read retrospective forum"),{confirmedNoThread:true});});
+   if(!forum||forum.type!==ChannelType.GuildForum||forum.guildId!==run.guild_id)throw Object.assign(new Error("Invalid retrospective guild forum"),{confirmedNoThread:true});
+   const tags=forum.availableTags.filter(t=>t.name.toLowerCase()==="meta");if(tags.length!==1)throw Object.assign(new Error("Retrospective requires exactly one native Meta forum tag"),{confirmedNoThread:true});
+   const title=`Assessment retrospective — ${run.id}`;const prefix=`<@${run.actor}>\n**${escapeMarkdown(title)}**\n`;const chunks=splitOpeningPrompt(context,2000-prefix.length);
+   let thread;
+   try{thread=await forum.threads.create({name:title.slice(0,100),appliedTags:[tags[0]!.id],message:{content:prefix+chunks[0],allowedMentions:{parse:[],users:[run.actor]}},reason:`Assessment retrospective ${run.id}`});}
+   catch(error){if(error instanceof DiscordAPIError&&error.status===403)Object.assign(error as object,{confirmedNoThread:true});throw error;}
+   threadId=thread.id;await input.onThread(threadId);
+   for(const content of chunks.slice(1))await thread.send({content,allowedMentions:{parse:[],users:[],roles:[],repliedUser:false}});
+  }else await this.verifyOpeningDisplay({existingThreadId:threadId,guildId:run.guild_id,developerId:run.actor,prompt:context} as ConversationInput);
+  const result=await this.post("/plugins/discord-todo/v1/retrospective/start",{...payload,thread_id:threadId});
+  if(result.status!=="accepted"||result.run_id!==run.id||result.thread_id!==threadId||typeof result.baseline_hash!=="string"||!/^[a-f0-9]{64}$/.test(result.baseline_hash)||result.baseline_version===undefined)throw new Error("Bridge omitted durable retrospective admission/baseline");
+  return result;
  }
  async assess(messages:ReturnType<typeof assessmentPrompt>):Promise<unknown>{
   const supplied=JSON.parse(messages[1].content);

@@ -1,0 +1,38 @@
+# Retrospective backend contract and reviewed migration
+
+## Installation (operator review required; not executed against live PocketBase)
+
+- Fresh disposable databases: import `todo.collections.json` (six private collections).
+- Existing installations with the original four collections: review and create ONLY the two definitions in `todo.retrospective.collections.json`. It references the existing stable todo collection ID `todotodos000001`; do not import the full schema over an existing installation. The original four definitions are unchanged.
+- Back up the database, create the reviewed collections, then install both `pb_hooks/todo.pb.js` and `pb_hooks/todo.lib.js` together and restart through the normal approved deployment process. Bootstrap creates a private SQLite AUTOINCREMENT sequence table. No backfill or live mutation is performed by these artifacts.
+- Existing todo records have no newly invented original assessment evidence. Their report assessment/previous history and current todo audit are frozen on correction. Todos assessed after this hook version additionally retain the exact original decision, rules version, label and report snapshot in the existing creation-audit JSON (`assessment_snapshot`), without changing the todo schema. That snapshot is subject to the existing audit JSON storage limit; an oversized write fails transactionally, never truncates evidence.
+
+## Authentication and classification
+
+Every action is an authenticated superuser `POST /api/shared-todo/{action}`. The bot is the trusted developer-authentication boundary. `actor` is the actual Discord developer identity supplied by that caller, never inferred from the PocketBase superuser. Direct generic HTTP classification changes are rejected with the classification-endpoint instruction, including superuser edits. Generic create/update/delete requests for either history collection are rejected. Collection read/write API rules remain null/private.
+
+`classification {id,actor,guild_id?,label?,kind?,priority?,reason?,expected_revision?}` returns the updated todo. Existing `label {id,actor,label,reason?,expected_revision?,guild_id?}` remains compatible. Kind is bug/feature; priority is red/yellow/blue. Explicit developer feature-priority overrides are allowed; model-created features still require blue. Optional guild is checked when supplied; label references always require the todo's guild. Revision uses audit length. Handoff-phase guards remain. No-ops do not mutate audit or history. Each changed field creates one event sharing an operation ID, with server sequence, exact old/new values, name snapshots, reason, actor/source, original todo snapshot and associated complete report snapshots. Event creation and todo mutation share one transaction; persistence errors roll everything back, including sequence allocation.
+
+## Retrospective actions
+
+All non-begin actions take `id` and `actor`; optional `guild_id` is checked when supplied. Wrong owner always rejects. Non-begin responses are the full run record, not a `{run}` wrapper.
+
+- `retrospective-begin {guild_id,actor}` -> `{run,corrections,reports,labels}`. Empty -> `{run:null,corrections:[],reports:[],labels:[]}`. Run has `id,guild_id,actor,state,correction_ids,upper_sequence` plus durable frozen evidence. Claims the earliest 50 uncovered correction IDs, ascending server sequence; only IDs in completed runs count as covered. Newer events remain pending. Evidence above 2,000,000 serialized JS characters fails explicitly before claiming (the bridge has its own stricter byte bound). Active same-owner calls reuse identical frozen evidence; another owner rejects. A partial unique index enforces one non-completed run per guild. Failed runs keep that slot and retry via begin, resuming `resume_state` on the same run/batch. No expiration silently steals work.
+- `retrospective-stage {id,actor,thread_id,baseline_version,baseline_hash}` -> run. Every supplied identity becomes immutable. For safe pre-admission dispatch, it additionally supports incremental `{id,actor,dispatch_token}` (32 lowercase hex), then `{id,actor,thread_id}`, then the full baseline payload. This matches the bot's reservation-before-forum-write protocol. A lost thread-creation response leaves the reservation intact rather than authorizing replacement creation. Baseline version/hash are supplied together; baseline hash is full lowercase 64-hex. Proposal is impossible until thread and baseline are durable.
+- `retrospective-release-dispatch {id,actor,dispatch_token}` -> run. Release only a matching nonempty 32-hex token, same owner, investigating state, and no thread/baseline version/hash. Trusted bot calls this only after proven no-thread precreation failure; ambiguous Discord writes stay reserved.
+- `retrospective-proposal {id,actor,proposal_hash,proposal}` -> proposed run. Full lowercase 64-hex bridge hash is stored, not recomputed with a different serializer. Proposal is `{rules:[{text,evidence_ids}],memory:[{text,evidence_ids}],summary}`; summary is required, arrays may be empty for an explicit no-change conclusion. New evidence IDs must be in the frozen batch. Exact previously completed same-guild rule/memory entries may retain their historical evidence IDs; the bridge remains authoritative for the active baseline and whether an entry is retained versus visibly removed. Unknown/new unsupported evidence rejects. Same hash cannot bind different content; object-key order does not affect replay comparison. Approval freezes the proposal against replacement.
+- `retrospective-approve-begin {id,actor,proposal_hash}` -> applying run. Requires proposed state and exact hash. Identical applying replay returns the same run. This endpoint must only be called following the authenticated human approval interaction AND successful bridge `prepare-approval` freezing the exact displayed hash before any PB applying write; model investigation does not authorize it.
+- `retrospective-complete {id,actor,proposal_hash,policy_version,policy_hash}` -> completed run. Requires applying state, exact frozen proposal hash, nonempty version and full lowercase 64-hex policy hash. Persists receipt and completion atomically. Exact receipt replay is idempotent; conflicting receipt rejects. The trusted caller must first verify the bridge's matching durable application receipt (including explicit no-change results). Backend never calls the provider or infers success from investigation/proposal.
+- `retrospective-fail {id,actor,error}` -> failed run retaining evidence and pre-failure `resume_state`; error is nonempty and at most 2000 characters. Repeated failure preserves the original resume state. Completed run is returned unchanged. Applying failures resume applying rather than permitting a new proposal or losing approval.
+
+## Verification
+
+Pinned real-server command:
+
+```
+TODO_PB_BINARY=/home/mothermouse/.hermes/cache/scratch/retrospective-pocketbase-0.40.5 npm exec --yes --package=bun@1.3.8 -- bun test tests/TodoPocketBase.test.ts tests/TodoRetrospectivePocketBase.test.ts
+npm run typecheck
+git diff --check
+```
+
+New tests run actual isolated PocketBase processes and persistent SQLite files, exercise real HTTP authentication, concurrent claiming, transaction rollback from a real field-validation failure, restart recovery, receipt/hash fences, legacy handoff guards and 50-event batch boundaries. Schema-mutating fixtures disable automigration and isolate their migration directory to prevent test-generated files contaminating another server.
