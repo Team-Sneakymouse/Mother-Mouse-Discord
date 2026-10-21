@@ -271,5 +271,190 @@
     "indexes": [
       "CREATE UNIQUE INDEX idx_todo_source ON todo_list_reports (source_key)"
     ]
+  },
+  {
+    "id": "todochanges0001",
+    "name": "todo_list_manual_changes",
+    "type": "base",
+    "listRule": null,
+    "viewRule": null,
+    "createRule": null,
+    "updateRule": null,
+    "deleteRule": null,
+    "fields": [
+      {
+        "name": "guild_id",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "todo",
+        "type": "relation",
+        "collectionId": "todotodos000001",
+        "maxSelect": 1,
+        "cascadeDelete": false
+      },
+      {
+        "name": "sequence",
+        "type": "number",
+        "onlyInt": true,
+        "min": 1,
+        "required": true
+      },
+      {
+        "name": "actor",
+        "type": "text"
+      },
+      {
+        "name": "actor_source",
+        "type": "text"
+      },
+      {
+        "name": "at",
+        "type": "text"
+      },
+      {
+        "name": "operation_id",
+        "type": "text"
+      },
+      {
+        "name": "field",
+        "type": "text"
+      },
+      {
+        "name": "old_value",
+        "type": "text"
+      },
+      {
+        "name": "new_value",
+        "type": "text"
+      },
+      {
+        "name": "old_name",
+        "type": "text"
+      },
+      {
+        "name": "new_name",
+        "type": "text"
+      },
+      {
+        "name": "reason",
+        "type": "text"
+      },
+      {
+        "name": "todo_snapshot",
+        "type": "json",
+        "maxSize": 25000000
+      },
+      {
+        "name": "reports",
+        "type": "json",
+        "maxSize": 25000000
+      }
+    ],
+    "indexes": [
+      "CREATE UNIQUE INDEX idx_todo_change_sequence ON todo_list_manual_changes (sequence)"
+    ]
+  },
+  {
+    "id": "todoretroruns01",
+    "name": "todo_list_assessment_retrospectives",
+    "type": "base",
+    "listRule": null,
+    "viewRule": null,
+    "createRule": null,
+    "updateRule": null,
+    "deleteRule": null,
+    "fields": [
+      {
+        "name": "guild_id",
+        "type": "text"
+      },
+      {
+        "name": "actor",
+        "type": "text"
+      },
+      {
+        "name": "state",
+        "type": "text"
+      },
+      {
+        "name": "thread_id",
+        "type": "text"
+      },
+      {
+        "name": "baseline_version",
+        "type": "text"
+      },
+      {
+        "name": "baseline_hash",
+        "type": "text"
+      },
+      {
+        "name": "proposal_hash",
+        "type": "text"
+      },
+      {
+        "name": "policy_version",
+        "type": "text"
+      },
+      {
+        "name": "policy_hash",
+        "type": "text"
+      },
+      {
+        "name": "error",
+        "type": "text"
+      },
+      {
+        "name": "created_at",
+        "type": "text"
+      },
+      {
+        "name": "completed_at",
+        "type": "text"
+      },
+      {
+        "name": "upper_sequence",
+        "type": "number",
+        "onlyInt": true
+      },
+      {
+        "name": "correction_ids",
+        "type": "json",
+        "maxSize": 30000000
+      },
+      {
+        "name": "corrections",
+        "type": "json",
+        "maxSize": 30000000
+      },
+      {
+        "name": "reports",
+        "type": "json",
+        "maxSize": 30000000
+      },
+      {
+        "name": "labels",
+        "type": "json",
+        "maxSize": 30000000
+      },
+      {
+        "name": "proposal",
+        "type": "json",
+        "maxSize": 30000000
+      },
+      {
+        "name": "resume_state",
+        "type": "text"
+      },
+      {
+        "name": "dispatch_token",
+        "type": "text"
+      }
+    ],
+    "indexes": [
+      "CREATE UNIQUE INDEX idx_todo_retro_active ON todo_list_assessment_retrospectives (guild_id) WHERE state != 'completed'"
+    ]
   }
 ]

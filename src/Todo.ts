@@ -1,4 +1,5 @@
 import { ApplicationCommandType, ContextMenuCommandBuilder, MessageFlags, PermissionFlagsBits, SlashCommandBuilder, type AutocompleteInteraction, type ChatInputCommandInteraction, type Client, type Message, type MessageComponentInteraction, type MessageContextMenuCommandInteraction } from "discord.js";
+import { TodoRetrospective, renderRetrospective, type RetrospectiveTransport } from "./todo/retrospective.js";
 import type PocketBase from "pocketbase";
 import { configuredTodoTransports } from "./todo/hermes.js";
 import { collectContext, type ContextMessage } from "./todo/context.js";
@@ -14,6 +15,7 @@ export const data=[
   .addStringOption(o=>o.setName("label").setDescription("Label or group; omitted means all").setAutocomplete(true))
   .addStringOption(o=>o.setName("kind").setDescription("Omitted means bugs and features").addChoices({name:"Bug",value:"bug"},{name:"Feature",value:"feature"}))
   .addStringOption(o=>o.setName("priority").setDescription("Omitted means all priorities").addChoices(...["red","yellow","blue"].map(value=>({name:value,value})))))
+ .addSubcommand(c=>c.setName("retrospective").setDescription("Investigate corrections; review proposed policy diff before approval"))
  .addSubcommand(c=>c.setName("manage").setDescription("Graphically manage labels, nested groups and user assignments"))
  .addSubcommand(c=>c.setName("assess").setDescription("Manually assess pending or failed reports")
   .addStringOption(o=>o.setName("report").setDescription("Report record ID; omitted processes pending/failed reports")))
@@ -27,6 +29,14 @@ export const data=[
   .addIntegerOption(o=>o.setName("id").setDescription("Public todo number").setMinValue(1).setRequired(true))
   .addStringOption(o=>o.setName("label").setDescription("Concrete plugin label").setAutocomplete(true).setRequired(true))
   .addStringOption(o=>o.setName("reason").setDescription("Reason for relabeling")))
+ .addSubcommand(c=>c.setName("kind").setDescription("Manually correct todo kind")
+  .addIntegerOption(o=>o.setName("id").setDescription("Todo number").setRequired(true).setMinValue(1))
+  .addStringOption(o=>o.setName("kind").setDescription("Kind").setRequired(true).addChoices({name:"Bug",value:"bug"},{name:"Feature",value:"feature"}))
+  .addStringOption(o=>o.setName("reason").setDescription("Optional correction reason")))
+ .addSubcommand(c=>c.setName("priority").setDescription("Manually override todo priority")
+  .addIntegerOption(o=>o.setName("id").setDescription("Todo number").setRequired(true).setMinValue(1))
+  .addStringOption(o=>o.setName("priority").setDescription("Priority").setRequired(true).addChoices(...["red","yellow","blue"].map(value=>({name:value,value}))))
+  .addStringOption(o=>o.setName("reason").setDescription("Optional correction reason")))
  .addSubcommand(c=>c.setName("resume").setDescription("Resume admission in an already-created forum post, without creating another")
   .addIntegerOption(o=>o.setName("id").setDescription("Public todo number").setMinValue(1).setRequired(true)))
  .addSubcommand(c=>c.setName("status").setDescription("Record progress; done means PR READY")
@@ -45,7 +55,7 @@ export const data=[
 function snapshot(message:Message):ContextMessage{return {id:message.id,channelId:message.channelId,senderId:message.author.id,senderName:message.author.globalName??message.author.username,timestamp:message.createdTimestamp,content:message.content,attachments:[...message.attachments.values()].map(a=>({url:a.url,name:a.name,contentType:a.contentType})),replyTo:message.reference?.messageId};}
 type ReplyInteraction=ChatInputCommandInteraction|MessageContextMenuCommandInteraction|MessageComponentInteraction;
 export class TodoController {
- constructor(private service:TodoService){}
+ constructor(private service:TodoService,private retrospective?:TodoRetrospective){}
  private async allowed(i:ReplyInteraction):Promise<boolean>{
   // As /plugins update: Discord authorizes slash delivery, including server overrides.
   if(i.guildId===RAWBTV)return true;
@@ -68,6 +78,7 @@ export class TodoController {
   if(!await this.allowed(i))return;await i.deferReply({flags:MessageFlags.Ephemeral});
   try{
    const action=i.options.getSubcommand();
+   if(action==="retrospective"){if(!this.retrospective)throw new Error("Retrospective bridge is not configured");await i.editReply(renderRetrospective(await this.retrospective.open(i.guildId!,i.user.id),i.user.id));return;}
    if(action==="manage"){await i.editReply(await new TodoManagement(this.service.repo).open(i.guildId!,i.user.id));return;}
    if(action==="list"){
     const filters:ListFilters={};for(const key of ["label","kind","priority"] as const){const value=i.options.getString(key);if(value)filters[key]=value;}
@@ -87,6 +98,13 @@ export class TodoController {
    if(action==="reopen"){
     const todo=await this.service.repo.operation("reopen",{number:i.options.getInteger("id",true),guild_id:i.guildId,actor:i.user.id,reason:i.options.getString("reason")??""});
     await i.editReply({content:`Todo #${todo.number}: ${todo.status}. Context, work, PR links and history preserved.`,allowedMentions:{parse:[]}});return;
+   }
+   if(action==="kind"||action==="priority"){
+    const todo=await this.service.repo.byNumber(i.options.getInteger("id",true),i.guildId!);
+    const value=i.options.getString(action,true);
+    if(!(action==="kind"?["bug","feature"]:["red","yellow","blue"]).includes(value))throw new Error("Invalid classification");
+    await this.service.repo.operation("classification",{id:todo.id,guild_id:i.guildId,actor:i.user.id,[action]:value,reason:i.options.getString("reason")??"",expected_revision:todo.audit?.length??0});
+    await i.editReply({content:`Todo #${todo.number}: ${action} updated.`,allowedMentions:{parse:[]}});return;
    }
    if(action==="label"){
     const todo=await this.service.repo.byNumber(i.options.getInteger("id",true),i.guildId!);const value=i.options.getString("label",true);
@@ -116,19 +134,30 @@ export class TodoController {
   try{const [labels,groups]=await Promise.all([this.service.repo.labels(i.guildId),this.service.repo.groups(i.guildId)]);const query=String(i.options.getFocused()).toLowerCase();await i.respond([...(i.options.getSubcommand()==="list"?[{name:"me — my assigned label groups",value:"me"}]:[]),...labels.map(l=>({name:l.name,value:`label:${l.id}`})),...(i.options.getSubcommand()==="label"?[]:groups.map(g=>({name:`${g.name} (group)`,value:`group:${g.id}`})))].filter(c=>c.name.toLowerCase().includes(query)).sort((a,b)=>a.name.localeCompare(b.name)).slice(0,25).map(c=>({...c,name:c.name.slice(0,100)})));}catch{await i.respond([]);}
  }
  async component(i:MessageComponentInteraction):Promise<void>{
-  const [prefix,owner,action,id]=i.customId.split("|");if(prefix!=="todo")return;
+  const [prefix,owner,action,id]=i.customId.split("|");if(prefix!=="todo"&&prefix!=="todo-retro")return;
   if(i.guildId!==RAWBTV||i.message.author.id!==i.client.user.id||owner!==i.user.id){await i.reply({content:"Only the developer who opened this list can use its controls in RAWBTV.",flags:MessageFlags.Ephemeral,allowedMentions:{parse:[]}});return;}
   try{
+   if(prefix==="todo-retro"){
+    if(!this.retrospective)throw new Error("Retrospective bridge is not configured");
+    const footer=i.message.embeds[0]?.footer?.text;if(!footer?.startsWith("todo-retro:"))throw new Error("Retrospective view missing");
+    const view=JSON.parse(footer.slice(11));if(view.owner!==owner||view.id!==id)throw new Error("Retrospective view mismatch");
+    await i.deferUpdate();
+    if(action!=="approve"&&action!=="refresh")throw new Error("Invalid retrospective control");
+    const status=action==="approve"?await this.retrospective.approve(i.guildId!,i.user.id,id,view.hash):await this.retrospective.open(i.guildId!,i.user.id);
+    await i.editReply(renderRetrospective(status,i.user.id));return;
+   }
    const detailMode=i.message.embeds[0]?.footer?.text?.startsWith("todo-detail:");
    const detail=detailMode?readDetailState(i.message):undefined;
    const state=detail?.list??readListState(i.message);if(state.owner!==owner||detail&&detail.owner!==owner)throw new Error("List ownership mismatch");
    if(detail&&detail.todoId!==id)throw new Error("Todo detail mismatch");
    await i.deferUpdate();
-   if(["edit","set-label","set-status","labels-next","labels-previous"].includes(action)){
-    if((action==="set-label"||action==="set-status")){
+   if(["edit","set-label","set-status","set-kind","set-priority","labels-next","labels-previous"].includes(action)){
+    if((action==="set-label"||action==="set-status"||action==="set-kind"||action==="set-priority")){
      if(!detail||!i.isStringSelectMenu()||i.values.length!==1)throw new Error("Invalid edit control");
      const todo=await this.service.repo.todo(id);if(todo.guild_id!==i.guildId)throw new Error("Todo is outside this server");
-     await this.service.repo.operation(action==="set-label"?"label":"status",{id,actor:i.user.id,[action==="set-label"?"label":"status"]:i.values[0],reason:"",expected_revision:detail.revision});
+     const field=action.slice(4);
+     if(field==="kind"&&!["bug","feature"].includes(i.values[0])||field==="priority"&&!["red","yellow","blue"].includes(i.values[0]))throw new Error("Invalid classification");
+     await this.service.repo.operation(field==="label"?"label":field==="status"?"status":"classification",{id,guild_id:i.guildId,actor:i.user.id,[field]:i.values[0],reason:"",expected_revision:detail.revision});
     }
     const [todo,labels,origins]=await Promise.all([this.service.repo.todo(id),this.service.repo.labels(i.guildId!),this.service.repo.origins(i.guildId!)]);
     if(todo.guild_id!==i.guildId)throw new Error("Todo is outside this server");
@@ -148,16 +177,16 @@ export class TodoController {
   }catch(error){await this.error(i,error);}
  }
 }
-export default function TodoList(client:Client,pb:PocketBase,transports:{assessment?:AssessmentTransport;conversation?:ConversationTransport}=configuredTodoTransports(client)):void{
+export default function TodoList(client:Client,pb:PocketBase,transports:{assessment?:AssessmentTransport;conversation?:ConversationTransport;retrospective?:RetrospectiveTransport}=configuredTodoTransports(client)):void{
  const controllerRepo=new TodoRepository(pb);
- const controller=new TodoController(new TodoService(controllerRepo,transports.assessment,transports.conversation));
+ const controller=new TodoController(new TodoService(controllerRepo,transports.assessment,transports.conversation),new TodoRetrospective(controllerRepo,transports.retrospective));
  client.on("interactionCreate",async i=>{
   try{if(i.isMessageContextMenuCommand()&&i.commandName==="Create report")await controller.capture(i);
   else if(i.isChatInputCommand()&&i.commandName==="todo")await controller.command(i);
   else if(i.isAutocomplete()&&i.commandName==="todo")await controller.autocomplete(i);
   else if(i.isMessageComponent()&&i.customId.startsWith("todo-manage|"))await new TodoManagement(controllerRepo).component(i);
   else if(i.isModalSubmit()&&i.customId.startsWith("todo-manage|"))await new TodoManagement(controllerRepo).modal(i);
-  else if(i.isMessageComponent()&&i.customId.startsWith("todo|"))await controller.component(i);
+  else if(i.isMessageComponent()&&(i.customId.startsWith("todo|")||i.customId.startsWith("todo-retro|")))await controller.component(i);
   }catch{console.error("Todo: interaction response failed");}
  });
 }
