@@ -155,7 +155,12 @@ export class TodoController {
     const chunks=splitOpeningPrompt(await this.service.previewPrompt(id,i.guildId!),2000);
     const allowedMentions={parse:[] as [],repliedUser:false};
     await i.editReply({content:chunks[0],allowedMentions});
-    for(const content of chunks.slice(1))await i.followUp({content,flags:MessageFlags.Ephemeral,allowedMentions});
+    try{
+     for(const content of chunks.slice(1))await i.followUp({content,flags:MessageFlags.Ephemeral,allowedMentions});
+    }catch{
+     // Never overwrite already-delivered prompt text on a partial send.
+     await i.followUp({content:"Prompt delivery is incomplete because a continuation failed. Use Show prompt again to retry; previous chunks are preserved.",flags:MessageFlags.Ephemeral,allowedMentions}).catch(()=>{});
+    }
     return;
    }
    await i.deferUpdate();

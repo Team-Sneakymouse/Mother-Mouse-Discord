@@ -23,6 +23,13 @@ test("Show prompt replies privately with the exact full Unicode opening prompt w
  expect(reads).toEqual(["t"]);expect(JSON.stringify(i.message)).toBe(before);
  for(const p of messages){expect(p.content.length).toBeLessThanOrEqual(2000);expect(p.allowedMentions).toEqual({parse:[],repliedUser:false});expect(p.content.isWellFormed()).toBe(true);if(p.method==="follow")expect(p.flags).toBe(MessageFlags.Ephemeral);}
 });
+test("failed prompt continuation preserves the first chunk and reports incomplete delivery privately",async()=>{
+ const i=interaction();let follows=0;i.followUp=async(p:any)=>{if(++follows===1)throw new Error("Discord unavailable");i.sent.push({method:"follow",...p});};
+ await new TodoController({previewPrompt:async()=>"x".repeat(5000)} as any).component(i);
+ expect(i.sent.filter((p:any)=>p.method==="edit")).toHaveLength(1);
+ expect(i.sent.find((p:any)=>p.method==="edit").content).toBe("x".repeat(2000));
+ expect(i.sent.at(-1)).toMatchObject({method:"follow",flags:MessageFlags.Ephemeral});expect(i.sent.at(-1).content).toContain("incomplete");
+});
 test("Show prompt rejects foreign users, authors and guilds before reading context",async()=>{
  let reads=0;const controller=new TodoController({previewPrompt:async()=>{reads++;return "secret";}} as any);
  for(const overrides of [{user:{id:"other"}},{message:{author:{id:"forged"}}},{guildId:"foreign"}]){
