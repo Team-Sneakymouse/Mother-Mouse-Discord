@@ -1,7 +1,7 @@
 import { ApplicationCommandType, ContextMenuCommandBuilder, MessageFlags, PermissionFlagsBits, SlashCommandBuilder, type AutocompleteInteraction, type ChatInputCommandInteraction, type Client, type Message, type MessageComponentInteraction, type MessageContextMenuCommandInteraction } from "discord.js";
 import { TodoRetrospective, renderRetrospective, type RetrospectiveTransport } from "./todo/retrospective.js";
 import type PocketBase from "pocketbase";
-import { configuredTodoTransports } from "./todo/hermes.js";
+import { configuredTodoTransports, splitOpeningPrompt } from "./todo/hermes.js";
 import { collectContext, type ContextMessage } from "./todo/context.js";
 import { TodoManagement } from "./todo/management.js";
 import { readDetailState, renderDetail } from "./todo/detail.js";
@@ -150,6 +150,14 @@ export class TodoController {
    const detail=detailMode?readDetailState(i.message):undefined;
    const state=detail?.list??readListState(i.message);if(state.owner!==owner||detail&&detail.owner!==owner)throw new Error("List ownership mismatch");
    if(detail&&detail.todoId!==id)throw new Error("Todo detail mismatch");
+   if(action==="prompt"){
+    await i.deferReply({flags:MessageFlags.Ephemeral});
+    const chunks=splitOpeningPrompt(await this.service.previewPrompt(id,i.guildId!),2000);
+    const allowedMentions={parse:[] as [],repliedUser:false};
+    await i.editReply({content:chunks[0],allowedMentions});
+    for(const content of chunks.slice(1))await i.followUp({content,flags:MessageFlags.Ephemeral,allowedMentions});
+    return;
+   }
    await i.deferUpdate();
    if(["edit","set-label","set-status","set-kind","set-priority","labels-next","labels-previous"].includes(action)){
     if((action==="set-label"||action==="set-status"||action==="set-kind"||action==="set-priority")){

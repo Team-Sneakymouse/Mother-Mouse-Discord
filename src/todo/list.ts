@@ -37,7 +37,7 @@ export function renderList(todos:TodoView[],labels:{id:string;name:string}[],req
   return {name:"Reports",value};
  };
  const embeds=visible.map(t=>{
-  const controls:{type:2;style:1|2;label:string;custom_id:string}[]=[{type:2,style:2,label:"Edit",custom_id:`todo|${state.owner}|edit|${t.id}`}];
+  const controls:{type:2;style:1|2;label:string;custom_id:string}[]=[{type:2,style:2,label:"Show prompt",custom_id:`todo|${state.owner}|prompt|${t.id}`},{type:2,style:2,label:"Edit",custom_id:`todo|${state.owner}|edit|${t.id}`}];
   if(t.status==="open"&&!t.claim?.token&&!t.claim?.developer)controls.unshift({type:2,style:1,label:"Start",custom_id:`todo|${state.owner}|start|${t.id}`});
   components.push({type:1,components:controls});
   return {title:`#${t.number} · ${escapeMarkdown(t.title)}`.slice(0,256),description:escapeMarkdown(t.description.length>600?t.description.slice(0,600)+"… (preview)":t.description),color:({red:0xed4245,yellow:0xfee75c,blue:0x5865f2} as Record<string,number>)[t.priority],fields:[{name:"Label",value:escapeMarkdown(labels.find(l=>l.id===t.label)?.name??"Untriaged"),inline:true},{name:"Kind / Priority / Status",value:`${t.kind} / ${t.priority} / ${t.status}`,inline:true},reportFields(t)]};
