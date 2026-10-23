@@ -236,7 +236,11 @@ exports.execute=function(app,action,b){
  if(action==="capture"){
   for(const key of ["guild_id","channel_id","message_id"])if(typeof b[key]!=="string" || !b[key])fail("Missing source identity");
   const key=b.guild_id+":"+b.channel_id+":"+b.message_id;
-  const existing=find(app,"todo_list_reports","source_key = {:key}",{key});if(existing.length)return existing[0];
+  const existing=find(app,"todo_list_reports","source_key = {:key}",{key});
+  if(existing.length){
+   const r=existing[0];
+   fail("Already reported: report "+r.id+" · "+r.getString("state")+". No new report was created; the original snapshot is unchanged. Review the existing report: https://discord.com/channels/"+r.getString("guild_id")+"/"+r.getString("channel_id")+"/"+r.getString("message_id"));
+  }
   const r=new Record(app.findCollectionByNameOrId("todo_list_reports"));r.set("source_key",key);
   for(const field of ["guild_id","channel_id","message_id","source","context","context_text"])r.set(field,b[field]);
   r.set("state","pending");r.set("todos",[]);r.set("assessment",{});app.save(r);return r;

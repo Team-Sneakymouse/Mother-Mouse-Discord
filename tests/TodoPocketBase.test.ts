@@ -4,6 +4,9 @@ import { mkdtemp, rm, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import PocketBase from "pocketbase";
+import { MessageFlags } from "discord.js";
+import { TodoController } from "../src/Todo.js";
+import { TodoRepository, TodoService } from "../src/todo/service.js";
 import { renderManagement } from "../src/todo/management.js";
 const binary = process.env.TODO_PB_BINARY;
 const integration = binary ? test : test.skip;
@@ -25,10 +28,15 @@ beforeAll(async()=>{
 },20000);
 afterAll(async()=>{processPB?.kill();if(directory)await rm(directory,{recursive:true,force:true});});
 async function api(action:string,body:unknown){return pb.send<any>(`/api/shared-todo/${action}`,{method:"POST",body});}
-integration("private report capture is idempotent and stores complete source snapshots",async()=>{
+integration("concurrent capture rejects duplicates with existing identity and preserves complete source snapshots",async()=>{
  const body={guild_id:"g",channel_id:"c",message_id:"m",source:{url:"https://discord.com/channels/g/c/m",sender_id:"u",created_by:"a"},context:{complete:true,messages:[]},context_text:"context"};
- const [a,b]=await Promise.all([api("capture",body),api("capture",body)]);
- expect(a.id).toBe(b.id);report=a.id;
+ const results=await Promise.allSettled([api("capture",body),api("capture",body)]);
+ expect(results.filter(r=>r.status==="fulfilled")).toHaveLength(1);
+ const a=(results.find(r=>r.status==="fulfilled") as PromiseFulfilledResult<any>).value;report=a.id;
+ const failure=(results.find(r=>r.status==="rejected") as PromiseRejectedResult).reason;
+ expect(failure.message).toContain(`Already reported: report ${a.id} · pending`);
+ expect(failure.message).toContain(body.source.url);
+ expect(await pb.collection("todo_list_reports").getFullList()).toHaveLength(1);
  expect((await pb.collection("todo_list_reports").getOne(a.id)).source.created_by).toBe("a");
  const guest=new PocketBase(pb.baseURL);
  await expect(guest.collection("todo_list_reports").getOne(a.id)).rejects.toThrow();
@@ -224,4 +232,36 @@ integration("failed assessment is retryable; ambiguous handoff is blocked with a
  const blocked=await api("claim-fail",{id:t.id,token:claimed.claim.token,definitive:false,error:"Timeout"});expect(blocked.status).toBe("blocked");
  await expect(api("claim",{id:t.id,actor:"other"})).rejects.toThrow();
  const recovered=await api("recover",{id:t.id,actor:"dev",message_id:"existing-session",reason:"Verified destination"});expect(recovered.status).toBe("in_progress");expect(recovered.claim.message_id).toBe("existing-session");
+});
+
+integration("Create report surfaces real HTTP duplicate errors privately in every report state without mutation",async()=>{
+ const guild="391355330241757205",channelId="duplicate-channel",messageId="duplicate-message";
+ const body={guild_id:guild,channel_id:channelId,message_id:messageId,source:{content:"Original evidence"},context:{complete:true,messages:[]},context_text:"Original context"};
+ const r=await api("capture",body);
+ const controller=new TodoController(new TodoService(new TodoRepository(pb)));
+ const original={id:messageId,guildId:guild,channelId,createdTimestamp:1000,author:{id:"sender",username:"alice"},content:"Changed evidence",attachments:new Map(),reference:null,url:`https://discord.com/channels/${guild}/${channelId}/${messageId}`};
+ const channel={id:channelId,name:"bugs",isThread:()=>false,messages:{fetch:async()=>new Map([[messageId,original]])}};
+ const ownLabel=await pb.collection("todo_list_labels").create({guild_id:guild,name:"Duplicate regression",description:"Test"});
+ const begin=await api("assess-begin",{id:r.id,actor:"123"});
+ const assessed=await api("assess-commit",{id:r.id,token:begin.token,rules_version:"test",decisions:[{action:"create",label:ownLabel.id,kind:"bug",priority:"yellow",title:"Duplicate",description:"Evidence",confidence:1,reason:"Confirmed"}]});
+ const activeTodo=await pb.collection("todo_list_todos").getOne(assessed.todos[0]);
+ expect(activeTodo.status).toBe("open");
+ for(const state of ["pending","failed","assessing","needs_clarification","assessed","dismissed"]){
+  await pb.collection("todo_list_reports").update(r.id,{state,todos:[activeTodo.id]});
+  const before=await pb.collection("todo_list_reports").getOne(r.id);
+  const count=(await pb.collection("todo_list_reports").getFullList()).length;
+  const sent:any[]=[];let deferred=false;
+  const interaction={guildId:guild,user:{id:"123",username:"dev"},targetMessage:{...original,channel},get deferred(){return deferred;},replied:false,
+   deferReply:async(p:any)=>{expect(p.flags).toBe(MessageFlags.Ephemeral);deferred=true;},
+   editReply:async(p:any)=>{expect(deferred).toBe(true);sent.push(p);},
+   reply:async()=>{throw new Error("Must edit the private deferred reply");}};
+  await controller.capture(interaction as any);
+  expect(sent).toHaveLength(1);
+  expect(sent[0].content).toContain(`Todo operation failed: Already reported: report ${r.id} · ${state}`);
+  expect(sent[0].content).toContain("No new report was created");
+  expect(sent[0].content).toContain(original.url);
+  expect(sent[0].allowedMentions).toEqual({parse:[]});
+  expect(await pb.collection("todo_list_reports").getOne(r.id)).toEqual(before);
+  expect(await pb.collection("todo_list_reports").getFullList()).toHaveLength(count);
+ }
 });
