@@ -11,6 +11,8 @@ The integration is restricted to RAWBTV guild `391355330241757205`.
 
 `Create report` also defaults to Administrator. Review Discord application-command overrides for `/todo` and the context menu separately before rollout: shared defaults do not imply shared overrides. Node relies on Discord-authorized command delivery plus owner-bound component controls, not an independent Developer-role lookup. Hermes independently authorizes the actual human user through host policy.
 
+**Show prompt** beside **Start** displays the complete opening prompt (including repository, original-report links and captured context) privately in the same channel as the list. Long prompts continue in ephemeral messages without truncation or mention notifications; the list stays unchanged. This read-only preview does not claim the todo, write records, create a thread or contact Hermes, and is also available for already-claimed todos. It uses the same prompt builder as Start with current records; later edits can change what Start sends.
+
 ### 1. Capture evidence
 
 Right-click a message → Apps → **Create report**. This scripts capture; it does not call a model or start work.

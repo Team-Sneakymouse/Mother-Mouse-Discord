@@ -7,7 +7,7 @@ export function configuredTodoTransports(client:Client,env:NodeJS.ProcessEnv=pro
  const bridge=new HermesTodoBridge(client,env.HERMES_TODO_BRIDGE_URL,env.HERMES_TODO_BRIDGE_TOKEN);return {assessment:bridge,conversation:bridge,retrospective:bridge};
 }
 /** Lossless Discord-sized slices; prefer paragraph/line boundaries without tiny fragments. */
-function splitOpeningPrompt(prompt:string,firstLimit:number):string[]{
+export function splitOpeningPrompt(prompt:string,firstLimit:number):string[]{
  const chunks:string[]=[];let remaining=prompt;let limit=firstLimit;
  do{
   let end=Math.min(limit,remaining.length);

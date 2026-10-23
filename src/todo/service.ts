@@ -55,6 +55,12 @@ export function openingPrompt(todo:Todo,label:Label,reports:Report[]):string{
 export class TodoService {
  constructor(readonly repo:TodoRepository,private assessment:AssessmentTransport=new UnconfiguredAssessmentTransport(),private conversation:ConversationTransport=new UnconfiguredConversationTransport(),private rulesPath:string|URL=process.env.TODO_GUIDANCE_FILE??new URL("../../docs/todo-assessment-guidance.md",import.meta.url)){}
  async list(guild:string,filters:ListFilters){const [todos,labels,groups,origins]=await Promise.all([this.repo.todos(guild),this.repo.labels(guild),this.repo.groups(guild),this.repo.origins(guild)]);return {todos:attachReportLinks(filterTodos(todos,labels,groups,filters),origins),labels,groups};}
+ async previewPrompt(id:string,guild:string):Promise<string>{
+  const todo=await this.repo.todo(id);if(todo.guild_id!==guild)throw new Error("Todo is outside this server");
+  const [label,reports]=await Promise.all([this.repo.label(todo.label),this.repo.reportsFor(id)]);
+  if(label.guild_id!==guild||reports.some(r=>r.guild_id!==guild))throw new Error("Prompt context is outside this server");
+  return openingPrompt(todo,label,reports);
+ }
  async assess(id:string,actor:string,guild:string):Promise<Report>{
   const original=await this.repo.report(id);if(original.guild_id!==guild)throw new Error("Report is outside this server");
   await this.repo.ensureUntriaged(guild);
