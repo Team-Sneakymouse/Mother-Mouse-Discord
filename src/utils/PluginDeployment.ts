@@ -162,7 +162,14 @@ export class PluginDeployment {
 		const jar = await (await this.get(artifact.url)).arrayBuffer();
 		const bytes = new Uint8Array(jar);
 		if (bytes.length < 4 || bytes[0] !== 0x50 || bytes[1] !== 0x4b) throw new Error("Release is not a JAR archive");
-		const directory = artifact.type === "paper-plugin" ? "/plugins/.update" : "/mods";
+		let directory = "/mods";
+		if (artifact.type === "paper-plugin") {
+			await this.ensureDirectory(server, "/plugins");
+			const installed = await this.files(server, "/plugins");
+			const hasInstalledVersion = oldFiles(installed, artifact).length > 0
+				|| installed.some((file) => file.is_file && file.name === artifact.filename);
+			directory = hasInstalledVersion ? "/plugins/.update" : "/plugins";
+		}
 		await this.ensureDirectory(server, directory);
 		const signed = await this.api<{ attributes: { url: string } }>(`/servers/${encodeURIComponent(server)}/files/upload`);
 		const upload = new URL(signed.attributes.url);

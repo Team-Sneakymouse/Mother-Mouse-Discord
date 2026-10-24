@@ -16,10 +16,13 @@ artifacts without a supported property are ignored immediately.
 
 Targets must contain both case-sensitive phrases `Lords of Minecraft` and
 `Dev Server` in their application API description. The client API description is
-checked again immediately before each upload. Paper updates go to
-`plugins/.update/`, Ignite mods go to `mods/`. Old published copies in the
-destination are deleted only after verifying the new upload. Installed Paper JARs
-remain for Paper's update mechanism. Configure Paper's update folder as `.update`.
+checked again immediately before each upload. Paper plugins with an installed JAR
+in `plugins/` go to `plugins/.update/`; new plugins go directly to `plugins/`.
+Installed JARs are recognized by exact published artifact/version filenames
+(including the version being uploaded), not prefixes or classifier JARs.
+Ignite mods go to `mods/`. Old published copies in the destination are deleted
+only after verifying the new upload. Installed Paper JARs remain for Paper's
+update mechanism. Configure Paper's update folder as `.update`.
 No server is restarted.
 
 Events are queued and deduplicated by ID in memory. Accepted events receive 202;
