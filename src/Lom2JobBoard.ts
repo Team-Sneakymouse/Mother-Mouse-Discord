@@ -211,15 +211,8 @@ export default function Lom2JobBoard(client: Client, env: NodeJS.ProcessEnv = pr
 		stopped = true;
 		abort.abort();
 		client.off("clientReady", start);
-		process.off("SIGINT", onSignal);
-		process.off("SIGTERM", onSignal);
 		await startup;
 		await stopPolling?.();
 	};
-	const onSignal = () => {
-		void stop();
-	};
-	process.once("SIGINT", onSignal);
-	process.once("SIGTERM", onSignal);
 	return stop;
 }
