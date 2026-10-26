@@ -9,11 +9,12 @@ const owner = "123456789012345678";
 const artifacts: Artifact[] = Array.from({ length: 30 }, (_, index) => ({
 	id: `Plugin${index}`,
 	version: "2026.10.12",
-	type: "paper-plugin",
+	types: ["paper-plugin"],
 	versions: ["2026.10.12"],
 	filename: `Plugin${index}.jar`,
 	url: "https://example.test/plugin.jar",
 }));
+const backend = { identifier: "abcdefgh", name: "Test server", description: "Lords of Minecraft" };
 function state(): UpdateState {
 	return { owner, server: { identifier: "abcdefgh", name: "Test server" }, stage: "select", page: 0, selected: [], completed: [] };
 }
@@ -210,7 +211,7 @@ test("a new controller continues an old message and preserves selections while p
 	const selection = state();
 	selection.selected = ["Plugin0"];
 	const target = message(renderState(selection, [], artifacts));
-	const service = { catalog: async () => ({ artifacts, failures: [] }) } as unknown as PluginDeployment;
+	const service = { servers: async () => [backend], catalog: async () => ({ artifacts, failures: [] }) } as unknown as PluginDeployment;
 	await new PluginUpdatesController(() => service).component(click(target.result, customId(selection, "next")).interaction);
 	const restored = readState(target.result);
 	assert.equal(restored.page, 1);
@@ -329,7 +330,7 @@ test("unchanged controls remain usable when fetched message JSON has different p
 	fetched.result.components = fetched.result.components.map((row) => new ActionRow(reorder(row.toJSON())));
 	clicked.result.fetch = async () => fetched.result;
 	const event = click(clicked.result, customId(selection, "next"));
-	const service = { catalog: async () => ({ artifacts, failures: [] }) } as unknown as PluginDeployment;
+	const service = { servers: async () => [backend], catalog: async () => ({ artifacts, failures: [] }) } as unknown as PluginDeployment;
 	await new PluginUpdatesController(() => service).component(event.interaction);
 	assert.deepEqual(event.replies, []);
 	assert.equal(readState(fetched.result).page, 1);
@@ -456,7 +457,7 @@ test("message lock rejects concurrent retries and server lock rejects another me
 test("a fresh controller accepts persistent controls from the non-admin owner", async () => {
 	const selection = state();
 	const target = message(renderState(selection, [], artifacts));
-	const service = { catalog: async () => ({ artifacts, failures: [] }) } as unknown as PluginDeployment;
+	const service = { servers: async () => [backend], catalog: async () => ({ artifacts, failures: [] }) } as unknown as PluginDeployment;
 	const event = click(target.result, customId(selection, "next"), [], owner, { has: () => false });
 	await new PluginUpdatesController(() => service).component(event.interaction);
 	assert.deepEqual(event.replies, []);
@@ -514,4 +515,31 @@ test("Discord component IDs and persisted embed fields stay within API limits", 
 		() => renderState({ ...selection, selected: [...selection.selected, "OneMore"] }, [], artifacts),
 		/separate batches/,
 	);
+});
+
+test("the release menu only offers releases compatible with the selected server", async () => {
+	const mixed: Artifact[] = [
+		{ ...artifacts[0], id: "PaperPlugin", types: ["paper-plugin"] },
+		{ ...artifacts[0], id: "IgniteMod", types: ["ignite-mod"] },
+		{ ...artifacts[0], id: "VelocityPlugin", types: ["velocity-plugin"] },
+		{ ...artifacts[0], id: "BothPlugin", types: ["paper-plugin", "velocity-plugin"] },
+	];
+	for (const [description, expected] of [
+		["Lords of Minecraft", ["PaperPlugin", "IgniteMod", "BothPlugin"]],
+		["Lords of Minecraft Proxy", ["VelocityPlugin", "BothPlugin"]],
+	] as const) {
+		const target = message(renderState(state()));
+		const service = {
+			servers: async () => [{ ...backend, description }],
+			catalog: async () => ({ artifacts: mixed, failures: [] }),
+		} as unknown as PluginDeployment;
+		const event = click(target.result, customId(state(), "next"));
+		await new PluginUpdatesController(() => service).component(event.interaction);
+		assert.deepEqual(event.replies, []);
+		const menu = target.edits.at(-1)!.components[0].toJSON() as any;
+		assert.deepEqual(
+			menu.components[0].options.map((option: { value: string }) => option.value),
+			expected,
+		);
+	}
 });

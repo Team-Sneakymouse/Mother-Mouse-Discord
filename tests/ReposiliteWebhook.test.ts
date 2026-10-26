@@ -63,7 +63,7 @@ function fakeService() {
 		async artifact(id: string, version: string) {
 			assert.equal(id, "Example");
 			assert.equal(version, "1.0");
-			return { type: "paper-plugin" };
+			return { types: ["paper-plugin"] };
 		},
 		async servers(scope: string[]) {
 			assert.deepEqual(scope, DEV_SCOPE);
@@ -206,6 +206,29 @@ test("offline announcement failures complete deployments without retrying upload
 	assert.equal(announced.length, 2);
 });
 
+test("Velocity plugins are not deployed automatically and proxies are never automatic targets", async () => {
+	const store = memoryStore();
+	await store.accept(event);
+	const { service, calls } = fakeService();
+	service.artifact = async () => ({ types: ["velocity-plugin"] });
+	await new ReposiliteWorker(store, () => service as unknown as PluginDeployment, async () => {}, () => now).tick();
+	assert.equal(store.jobs[0].status, "ignored");
+	assert.deepEqual(calls, []);
+
+	// Dual-platform JARs still reach Paper dev servers, but never a proxy.
+	const second = memoryStore();
+	await second.accept(event);
+	const backend = fakeService();
+	backend.service.artifact = async () => ({ types: ["paper-plugin", "velocity-plugin"] }) as any;
+	backend.service.servers = async () => [
+		{ identifier: "dev-one", name: "Dev one", description: "Lords of Minecraft Dev Server" },
+		{ identifier: "dev-proxy", name: "Dev proxy", description: "Lords of Minecraft Dev Server Proxy" },
+	] as any;
+	await new ReposiliteWorker(second, () => backend.service as unknown as PluginDeployment, async () => {}, () => now).tick();
+	assert.equal(second.jobs[0].status, "completed");
+	assert.deepEqual(backend.calls.map((call) => call.server), ["dev-one"]);
+});
+
 test("missing POM is retried later and unsupported deployment properties are ignored", async () => {
 	const store = memoryStore();
 	await store.accept(event);
@@ -213,7 +236,7 @@ test("missing POM is retried later and unsupported deployment properties are ign
 	let available = false;
 	(service as any).artifact = async () => {
 		if (!available) throw new Error("HTTP 404");
-		return { type: "ignite-mod" };
+		return { types: ["ignite-mod"] };
 	};
 	const worker = new ReposiliteWorker(
 		store,
@@ -477,7 +500,7 @@ test("each uploaded version gets one thread message edited across retries and ne
 	assert.match(discord.edits.at(-1)!.content, /Uploaded.*Fix a bug/s);
 	const nextEvent = { ...event, id: "e4fa61fb-1eb1-45e2-9c58-70d4af566431", path: event.path.replaceAll("1.0", "2.0") };
 	await store.accept(nextEvent);
-	(service as any).artifact = async () => ({ type: "paper-plugin" });
+	(service as any).artifact = async () => ({ types: ["paper-plugin"] });
 	await new ReposiliteWorker(
 		store,
 		() => service as unknown as PluginDeployment,

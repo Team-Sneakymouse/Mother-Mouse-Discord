@@ -46,7 +46,7 @@ export function readState(message: Pick<Message, "components" | "embeds">): Upda
 			}
 		} else if (field.name === "Uploaded releases") {
 			for (const line of field.value.split("\n")) {
-				const match = /^`([^ ]+) ([^ ]+) (paper-plugin|ignite-mod)`$/.exec(line);
+				const match = /^`([^ ]+) ([^ ]+) (paper-plugin|ignite-mod|velocity-plugin)`$/.exec(line);
 				if (!match || !artifactId.test(match[1])) throw new Error("Invalid upload result in deployment message");
 				completed.push({ id: match[1] });
 			}
@@ -126,7 +126,7 @@ export function renderState(state: UpdateState, servers: Server[] = [], artifact
 						visible.map((artifact) => ({
 							label: artifact.id,
 							value: artifact.id,
-							description: `${artifact.version} · ${artifact.type}`.slice(0, 100),
+							description: `${artifact.version} · ${artifact.types.join(", ")}`.slice(0, 100),
 							default: state.selected.includes(artifact.id),
 						})),
 					);

@@ -3,7 +3,7 @@ import { type Client, MessageFlags } from "discord.js";
 import express, { type Express } from "express";
 import { z } from "zod";
 import { acquireDeploymentLock } from "./utils/DeploymentLock.js";
-import { type Artifact, PluginDeployment, type Server } from "./utils/PluginDeployment.js";
+import { type Artifact, isProxy, PluginDeployment, type Server } from "./utils/PluginDeployment.js";
 import { type DeploymentChangelog, PluginChangelog } from "./utils/PluginChangelog.js";
 
 export const DEV_UPDATE_THREAD = "1561330944395313255";
@@ -142,12 +142,13 @@ export class ReposiliteWorker {
 		const service = this.service();
 		// A missing POM or metadata throws and gets retried; an explicit unsupported/missing property is ignored.
 		const artifact = await service.artifact(uploaded.id, uploaded.version);
-		if (!artifact) {
+		// Velocity plugins are deployed manually until there is a dev proxy; dual-platform JARs still reach Paper dev servers.
+		if (!artifact || artifact.types.every((type) => type === "velocity-plugin")) {
 			await this.store.update(job.id, { status: "ignored" });
 			return;
 		}
 		if (job.targets === null) {
-			job.targets = (await service.servers(DEV_SCOPE)).map(({ identifier, name }) => ({ identifier, name }));
+			job.targets = (await service.servers(DEV_SCOPE)).filter((server) => !isProxy(server)).map(({ identifier, name }) => ({ identifier, name }));
 			await this.store.update(job.id, { targets: job.targets });
 		}
 		if (job.changelog === undefined) {
@@ -163,7 +164,7 @@ export class ReposiliteWorker {
 		if (!job.notified) {
 			job.notified = true;
 			await this.store.update(job.id, { notified: true });
-			await this.safeNotify(`Deploying **${uploaded.id}** \`${uploaded.version}\` (${artifact.type}) to ${job.targets.length} dev server(s).`, job);
+			await this.safeNotify(`Deploying **${uploaded.id}** \`${uploaded.version}\` (${artifact.types.join(", ")}) to ${job.targets.length} dev server(s).`, job);
 		}
 		const failures: string[] = [];
 		for (const server of job.targets) {

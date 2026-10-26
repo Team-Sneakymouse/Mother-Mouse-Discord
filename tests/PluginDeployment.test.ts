@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { data } from "../src/PluginUpdates.ts";
-import { type Artifact, deploymentType, oldFiles, PluginDeployment } from "../src/utils/PluginDeployment.ts";
+import { type Artifact, deploymentTypes, oldFiles, PluginDeployment } from "../src/utils/PluginDeployment.ts";
 
 const metadata = `<metadata><versioning><release>2.0</release><latest>3.0-SNAPSHOT</latest><versions><version>1.0</version><version>2.0</version></versions></versioning></metadata>`;
 const pom = (type: string) => `<project><properties><sneakyrp.deployment.type>${type}</sneakyrp.deployment.type></properties></project>`;
@@ -24,7 +24,7 @@ test("catalog sorts same-day releases by precise Maven update time before versio
 	]);
 });
 
-function setup(type = "paper-plugin", failUpload = false, failCleanup = false, badSize = false) {
+function setup(type = "paper-plugin", failUpload = false, failCleanup = false, badSize = false, description = "Lords of Minecraft - test") {
 	const events: { url: string; method: string; body?: any; headers: Headers }[] = [];
 	let uploaded = false;
 	const request: typeof fetch = async (input, init) => {
@@ -57,7 +57,7 @@ function setup(type = "paper-plugin", failUpload = false, failCleanup = false, b
 					...(uploaded ? [file("Example-2.0.jar", badSize ? 0 : 4)] : []),
 				]);
 		} else if (url.endsWith("/files/delete")) return new Response(null, { status: failCleanup ? 500 : 204 });
-		else if (url.endsWith("/client/servers/server")) result = { attributes: { description: "Lords of Minecraft - test" } };
+		else if (url.endsWith("/client/servers/server")) result = { attributes: { description } };
 		else throw new Error(`Unexpected request ${url}`);
 		return Response.json(result);
 	};
@@ -65,20 +65,36 @@ function setup(type = "paper-plugin", failUpload = false, failCleanup = false, b
 }
 
 test("only explicit supported deployment properties qualify, including namespaced Maven POMs", () => {
-	assert.equal(deploymentType(pom("paper-plugin")), "paper-plugin");
-	assert.equal(deploymentType(pom("ignite-mod")), "ignite-mod");
-	assert.equal(
-		deploymentType(
+	assert.deepEqual(deploymentTypes(pom("paper-plugin")), ["paper-plugin"]);
+	assert.deepEqual(deploymentTypes(pom("ignite-mod")), ["ignite-mod"]);
+	assert.deepEqual(deploymentTypes(pom("velocity-plugin")), ["velocity-plugin"]);
+	assert.deepEqual(
+		deploymentTypes(
 			'<project xmlns="http://maven.apache.org/POM/4.0.0"><properties><sneakyrp.deployment.type>paper-plugin</sneakyrp.deployment.type></properties></project>',
 		),
-		"paper-plugin",
+		["paper-plugin"],
 	);
 	assert.equal(
-		deploymentType("<project><!-- <properties><sneakyrp.deployment.type>paper-plugin</sneakyrp.deployment.type></properties> --></project>"),
+		deploymentTypes("<project><!-- <properties><sneakyrp.deployment.type>paper-plugin</sneakyrp.deployment.type></properties> --></project>"),
 		undefined,
 	);
-	assert.equal(deploymentType(pom("library")), undefined);
-	assert.throws(() => deploymentType('<!DOCTYPE project [<!ENTITY type "paper-plugin">]><project/>'));
+	assert.equal(deploymentTypes(pom("library")), undefined);
+	assert.throws(() => deploymentTypes('<!DOCTYPE project [<!ENTITY type "paper-plugin">]><project/>'));
+});
+
+test("deployment properties accept comma-separated lists but reject unknown entries and ambiguous Paper destinations", () => {
+	assert.deepEqual(deploymentTypes(pom(" paper-plugin , velocity-plugin ")), ["paper-plugin", "velocity-plugin"]);
+	assert.deepEqual(deploymentTypes(pom("velocity-plugin,velocity-plugin")), ["velocity-plugin"]);
+	assert.equal(deploymentTypes(pom("paper-plugin,library")), undefined);
+	assert.equal(deploymentTypes(pom("paper-plugin,")), undefined);
+	assert.equal(deploymentTypes(pom("paper-plugin,ignite-mod")), undefined);
+	// Repeated tags are not a supported list format.
+	assert.equal(
+		deploymentTypes(
+			"<project><properties><sneakyrp.deployment.type>paper-plugin</sneakyrp.deployment.type><sneakyrp.deployment.type>velocity-plugin</sneakyrp.deployment.type></properties></project>",
+		),
+		undefined,
+	);
 });
 
 test("cleanup matches exact published old JAR names and leaves classifiers, directories and other artifacts alone", () => {
@@ -148,6 +164,39 @@ test("Ignite mods upload and clean up exclusively in mods", async () => {
 		events.filter((event) => event.url.endsWith("/delete")).map((event) => event.body.root),
 		["/mods"],
 	);
+});
+
+test("Velocity plugins replace older copies directly in plugins on proxies", async () => {
+	const { service, events } = setup("velocity-plugin", false, false, false, "Lords of Minecraft Proxy");
+	await service.deploy("server", "Example");
+	assert.equal(new URL(events.find((event) => event.url.includes("/upload/file"))!.url).searchParams.get("directory"), "/plugins");
+	assert.deepEqual(
+		events.filter((event) => event.url.endsWith("/delete")).map((event) => event.body),
+		[{ root: "/plugins", files: ["Example-1.0.jar"] }],
+	);
+});
+
+test("dual-platform JARs go to the update folder on Paper servers and plugins on proxies", async () => {
+	for (const [description, directory] of [
+		["Lords of Minecraft - test", "/plugins/.update"],
+		["Lords of Minecraft Proxy", "/plugins"],
+	]) {
+		const { service, events } = setup("paper-plugin,velocity-plugin", false, false, false, description);
+		await service.deploy("server", "Example");
+		assert.equal(new URL(events.find((event) => event.url.includes("/upload/file"))!.url).searchParams.get("directory"), directory);
+	}
+});
+
+test("releases are rejected before upload when the server type does not match", async () => {
+	for (const [type, description] of [
+		["velocity-plugin", "Lords of Minecraft - test"],
+		["paper-plugin", "Lords of Minecraft Proxy"],
+		["ignite-mod", "Lords of Minecraft Proxy"],
+	]) {
+		const { service, events } = setup(type, false, false, false, description);
+		await assert.rejects(service.deploy("server", "Example"), /cannot be deployed/);
+		assert.equal(events.some((event) => event.url.includes("/files/")), false);
+	}
 });
 
 test("failed uploads and failed verification preserve all previous versions", async () => {
@@ -227,7 +276,7 @@ test("exact-version resolution reads the uploaded version's POM and JAR even whe
 	};
 	const artifact = await new PluginDeployment("https://panel.example/api", "application", "client", request).artifact("Example", "1.0");
 	assert.equal(artifact?.version, "1.0");
-	assert.equal(artifact?.type, "ignite-mod");
+	assert.deepEqual(artifact?.types, ["ignite-mod"]);
 	assert.ok(artifact?.url.endsWith("/Example/1.0/Example-1.0.jar"));
 	assert.equal(urls.length, 2);
 });

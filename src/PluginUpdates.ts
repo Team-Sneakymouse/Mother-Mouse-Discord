@@ -9,7 +9,7 @@ import {
 	PermissionFlagsBits,
 	SlashCommandBuilder,
 } from "discord.js";
-import { PluginDeployment } from "./utils/PluginDeployment.js";
+import { compatible, PluginDeployment } from "./utils/PluginDeployment.js";
 import { acquireDeploymentLock } from "./utils/DeploymentLock.js";
 import { parseRoute, pending, PREFIX, readState, renderState, selectArtifacts, type UpdateState } from "./utils/PluginUpdateMessage.js";
 
@@ -138,12 +138,14 @@ export class PluginUpdatesController {
 						interaction.values,
 					);
 				} else this.navigate(state, route.action);
-				const catalog = await service.catalog();
+				const [servers, catalog] = await Promise.all([service.servers(), service.catalog()]);
+				const server = servers.find((item) => item.identifier === state.server?.identifier);
+				if (!server) throw new Error("Selected server is no longer in scope");
 				await message.edit(
 					renderState(
 						state,
 						[],
-						catalog.artifacts,
+						catalog.artifacts.filter((artifact) => compatible(artifact.types, server)),
 						catalog.failures.length ? `${catalog.failures.length} artifacts could not be read and are omitted.` : undefined,
 					),
 				);

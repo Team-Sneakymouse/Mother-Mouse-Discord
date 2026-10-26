@@ -10,14 +10,21 @@ Only main unclassified JARs in repository `releases`, group
 `io.github.team-sneakymouse`, are queued. Checksums, signatures, POMs, metadata,
 sources, javadoc, other groups, and snapshots receive 204 and are ignored.
 The exact uploaded version's POM must explicitly declare
-`sneakyrp.deployment.type` as `paper-plugin` or `ignite-mod`.
+`sneakyrp.deployment.type` as a comma-separated list of `paper-plugin`,
+`ignite-mod` and `velocity-plugin`, for example `paper-plugin,velocity-plugin`
+for a JAR that runs on both. Unknown entries, empty entries, and combining
+`paper-plugin` with `ignite-mod` make the whole property unsupported.
 Exact-version events check this POM before fetching Maven version metadata;
 artifacts without a supported property are ignored immediately.
+Artifacts that are only `velocity-plugin` are also ignored here because there is
+no dev proxy yet; deploy them manually (see [Velocity plugins](#velocity-plugins)).
+Dual-platform artifacts are still deployed to Paper dev servers.
 
 Targets must contain both case-sensitive phrases `Lords of Minecraft` and
-`Dev Server` in their application API description. The client API description is
-checked again immediately before each upload. Paper updates go to
-`plugins/.update/`, Ignite mods go to `mods/`. Old published copies in the
+`Dev Server` in their application API description. Servers that also contain
+`Proxy` are never automatic targets. The client API description is
+checked again immediately before each upload. Artifacts deployed to a
+Paper server go to `plugins/.update/`, and Ignite mods go to `mods/`. Old published copies in the
 destination are deleted only after verifying the new upload. Installed Paper JARs
 remain for Paper's update mechanism. Configure Paper's update folder as `.update`.
 No server is restarted.
@@ -48,6 +55,22 @@ errors never prevent deployment. Message IDs are retained with the in-memory
 queue, so replaying an event after a bot restart can create another message.
 Terminal failures are logged. Use `/plugins update` to deploy manually after
 fixing a failed delivery, or publish a new artifact event.
+
+## Velocity plugins
+
+`/plugins update` also deploys POMs whose type list includes `velocity-plugin`.
+Pelican servers whose description contains the case-sensitive phrase `Proxy`
+(plus `Lords of Minecraft`) are treated as Velocity proxies. They only list and
+accept releases that include `velocity-plugin`. Other servers only list and
+accept releases that include `paper-plugin` or `ignite-mod`, so Velocity-only
+releases never appear there. Dual-platform releases appear on both. The client
+API description is checked again before each upload.
+
+Velocity has no update folder, so artifacts deployed to a proxy go straight
+into `plugins/`, and older published copies there are deleted after the upload
+is verified. The
+running proxy keeps using the JAR it already loaded. The new version is used
+after you restart the proxy yourself. No restart is performed.
 
 ## Commit messages
 

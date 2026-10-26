@@ -3,9 +3,12 @@ import { XMLParser, XMLValidator } from "fast-xml-parser";
 const MAVEN = "https://maven.sneakyrp.com";
 const GROUP = "io/github/team-sneakymouse";
 const parser = new XMLParser({ ignoreAttributes: true, parseTagValue: false, processEntities: false });
-export type DeploymentType = "paper-plugin" | "ignite-mod";
+export type DeploymentType = "paper-plugin" | "ignite-mod" | "velocity-plugin";
+const TYPES: DeploymentType[] = ["paper-plugin", "ignite-mod", "velocity-plugin"];
+// Velocity proxies are identified by this case-sensitive phrase in their panel description.
+export const PROXY_PHRASE = "Proxy";
 export type ArtifactSource = { repository: string; commit: string };
-export type Artifact = { id: string; version: string; type: DeploymentType; versions: string[]; url: string; filename: string; source?: ArtifactSource; lastUpdated?: string };
+export type Artifact = { id: string; version: string; types: DeploymentType[]; versions: string[]; url: string; filename: string; source?: ArtifactSource; lastUpdated?: string };
 export type Server = { identifier: string; name: string; description: string };
 export type DeploymentOptions = { version?: string; scope?: string[] };
 type Listing<T> = { data: { attributes: T }[]; meta?: { pagination?: { current_page: number; total_pages: number } } };
@@ -21,9 +24,39 @@ export function parseXml(xml: string): any {
 	return parser.parse(xml);
 }
 
-export function deploymentType(pom: string): DeploymentType | undefined {
-	const type = parseXml(pom).project?.properties?.["sneakyrp.deployment.type"]?.trim();
-	return type === "paper-plugin" || type === "ignite-mod" ? type : undefined;
+// The property is a comma-separated list, e.g. "paper-plugin,velocity-plugin" for a JAR that runs on both.
+export function deploymentTypes(pom: string): DeploymentType[] | undefined {
+	const value = parseXml(pom).project?.properties?.["sneakyrp.deployment.type"];
+	if (typeof value !== "string") return;
+	const types = [...new Set(value.split(",").map((type) => type.trim()))];
+	if (!types.every((type): type is DeploymentType => TYPES.includes(type as DeploymentType))) return;
+	// A Paper server needs exactly one destination for the JAR.
+	if (types.includes("paper-plugin") && types.includes("ignite-mod")) return;
+	return types;
+}
+
+export function isProxy(server: Pick<Server, "description">): boolean {
+	return server.description?.includes(PROXY_PHRASE) ?? false;
+}
+
+// Proxies only take Velocity plugins; other servers only take Paper plugins and Ignite mods.
+function typeFor(types: DeploymentType[], server: Pick<Server, "description">): DeploymentType | undefined {
+	return types.find((type) => (type === "velocity-plugin") === isProxy(server));
+}
+
+export function compatible(types: DeploymentType[], server: Pick<Server, "description">): boolean {
+	return typeFor(types, server) !== undefined;
+}
+
+// The destination depends on the server being deployed to, not on the artifact.
+export function destination(types: DeploymentType[], server: Pick<Server, "description">): string {
+	const type = typeFor(types, server);
+	if (!type) throw new Error(`${types.join(", ")} releases cannot be deployed to ${isProxy(server) ? "a proxy" : "a non-proxy server"}`);
+	if (type === "ignite-mod") return "/mods";
+	// Velocity has no update folder; the new JAR loads on the next proxy restart.
+	if (type === "velocity-plugin") return "/plugins";
+	// Paper consumes staged updates on startup and needs the installed JAR to find them.
+	return "/plugins/.update";
 }
 
 export function artifactSource(pom: string, version: string): ArtifactSource | undefined {
@@ -93,8 +126,8 @@ export class PluginDeployment {
 		const filename = `${id}-${version}.jar`;
 		const release = `${base}/${segment(version)}/${segment(id)}-${segment(version)}`;
 		const pom = await (await this.get(`${release}.pom`)).text();
-		const type = deploymentType(pom);
-		if (!type) return;
+		const types = deploymentTypes(pom);
+		if (!types) return;
 		// Exact-version webhooks can reject libraries before metadata is published or readable.
 		metadata ??= await readMetadata();
 		const published = metadata.versions?.version ?? [];
@@ -103,7 +136,7 @@ export class PluginDeployment {
 		const source = artifactSource(pom, version);
 		const lastUpdated = metadata.lastUpdated?.trim();
 		return {
-			id, version, type, versions, filename, url: `${release}.jar`, ...(source ? { source } : {}),
+			id, version, types, versions, filename, url: `${release}.jar`, ...(source ? { source } : {}),
 			...(typeof lastUpdated === "string" && /^\d{14}$/.test(lastUpdated) ? { lastUpdated } : {}),
 		};
 	}
@@ -159,10 +192,11 @@ export class PluginDeployment {
 			throw new Error("Client server description does not confirm deployment scope");
 		const artifact = await this.artifact(id, options.version);
 		if (!artifact) throw new Error("Latest release is no longer eligible for deployment");
+		// Checked before downloading or touching any server files.
+		const directory = destination(artifact.types, current.attributes);
 		const jar = await (await this.get(artifact.url)).arrayBuffer();
 		const bytes = new Uint8Array(jar);
 		if (bytes.length < 4 || bytes[0] !== 0x50 || bytes[1] !== 0x4b) throw new Error("Release is not a JAR archive");
-		const directory = artifact.type === "paper-plugin" ? "/plugins/.update" : "/mods";
 		await this.ensureDirectory(server, directory);
 		const signed = await this.api<{ attributes: { url: string } }>(`/servers/${encodeURIComponent(server)}/files/upload`);
 		const upload = new URL(signed.attributes.url);
@@ -176,7 +210,6 @@ export class PluginDeployment {
 			throw new Error("Upload could not be verified; previous versions were kept");
 		}
 		try {
-			// Paper needs the installed JAR to discover and consume its staged update on startup.
 			const previous = oldFiles(uploaded, artifact);
 			if (previous.length) await this.api(`/servers/${encodeURIComponent(server)}/files/delete`, { root: directory, files: previous });
 		} catch {
