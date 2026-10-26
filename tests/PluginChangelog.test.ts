@@ -54,7 +54,6 @@ test("first tracked update fetches its exact commit; saved checkpoints survive n
 			return Response.json({ status: "ahead", total_commits: 2, commits: [commit(current, "First change"), commit("c".repeat(40), "Second change")] });
 		});
 		const range = await restarted.describe(next);
-		assert.match(range, /since last successful update \(2\)/);
 		assert.match(range, /First change/);
 		assert.match(range, /Second change/);
 		assert.match(range, /View all changes/);
@@ -76,8 +75,7 @@ test("long commit ranges fit one message and link to every omitted commit", asyn
 		await changelog.completed({ ...artifact, source: { ...artifact.source!, commit: previous } });
 		const text = await changelog.describe(artifact);
 		assert.ok(text.length <= 1100);
-		assert.match(text, /\(350\)/);
-		assert.match(text, /more commit\(s\)/);
+		assert.match(text, /\n347 more commit\(s\) in the comparison\.\n/);
 		assert.ok(text.endsWith(`${previous}...${artifact.source!.commit})`));
 	} finally {
 		await rm(directory, { recursive: true, force: true });

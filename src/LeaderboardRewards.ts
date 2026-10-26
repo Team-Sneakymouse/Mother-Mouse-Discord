@@ -141,6 +141,7 @@ export class LeaderboardRewardsManager {
 	}
 
 	async fetchLeaderboardScores(leaderboards: LeaderboardId[], date: Date): Promise<Record<LeaderboardId, LeaderboardRecord[]>> {
+		if (leaderboards.length === 0) return {};
 		const leaderboardsFilter = leaderboards.map((lb) => `leaderboard="${lb}"`).join(" || ");
 		const dateStr = date.toISOString().split("T")[0];
 		const dateFilter = `date ~ "${dateStr}"`;
@@ -148,7 +149,8 @@ export class LeaderboardRewardsManager {
 		return await this.db
 			.collection("lom2_leaderboards")
 			.getFullList<LeaderboardRecord>({
-				filter: `${leaderboardsFilter} && ${dateFilter} && value > 0`,
+				// PocketBase binds && tighter than ||, so the leaderboard alternatives need their own group.
+				filter: `(${leaderboardsFilter}) && ${dateFilter} && value > 0`,
 			})
 			.catch((e: any) => {
 				console.error("Failed to fetch leaderboard scores", e);

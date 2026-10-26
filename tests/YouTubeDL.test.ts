@@ -6,6 +6,9 @@ import { join } from "node:path";
 import { test } from "node:test";
 import YouTubeDL from "../src/utils/youtube-dl.ts";
 
+// The fake yt-dlp is a shebang script, which Windows cannot execute.
+const posixTest = process.platform === "win32" ? test.skip : test;
+
 async function withDownloader(body: (dir: string) => Promise<void>, script: string) {
 	const dir = mkdtempSync(join(tmpdir(), "youtube-dl-test-"));
 	const oldPath = process.env.PATH;
@@ -24,7 +27,7 @@ async function withDownloader(body: (dir: string) => Promise<void>, script: stri
 	}
 }
 
-test("reports silent subprocess failures with an exit code", async () => {
+posixTest("reports silent subprocess failures with an exit code", async () => {
 	await withDownloader(async () => {
 		await assert.rejects(new YouTubeDL().download("https://example.com/video", () => {}), (error: unknown) => {
 			assert.match(String(error), /yt-dlp.*exit code 2/i);
@@ -33,7 +36,7 @@ test("reports silent subprocess failures with an exit code", async () => {
 	}, "process.exit(2);");
 });
 
-test("parses split UTF-8 output and progress while forcing progress with --print", async () => {
+posixTest("parses split UTF-8 output and progress while forcing progress with --print", async () => {
 	const oldRandom = Math.random;
 	Math.random = () => 0;
 	try {
@@ -49,7 +52,7 @@ let i = 0; const timer = setInterval(() => { process.stdout.write(output.subarra
 	} finally { Math.random = oldRandom; }
 });
 
-test("rejects successful subprocesses that never report a final file", async () => {
+posixTest("rejects successful subprocesses that never report a final file", async () => {
 	await withDownloader(async () => {
 		await assert.rejects(new YouTubeDL().download("https://youtu.be/J2JPiQ2aEBc", () => {}), (error: unknown) => {
 			assert.match(String(error), /final.*file/i);
@@ -58,7 +61,7 @@ test("rejects successful subprocesses that never report a final file", async () 
 	}, `console.log('[download] Destination: ffmpeg/source.webm');`);
 });
 
-test("fails early with installation guidance when yt-dlp is missing", async () => {
+posixTest("fails early with installation guidance when yt-dlp is missing", async () => {
 	await withDownloader(async (dir) => {
 		rmSync(join(dir, "yt-dlp"));
 		await assert.rejects(new YouTubeDL().download("https://youtu.be/J2JPiQ2aEBc", () => {}), (error: unknown) => {
@@ -68,7 +71,7 @@ test("fails early with installation guidance when yt-dlp is missing", async () =
 	}, "");
 });
 
-test("explains YouTube bot verification without returning raw authentication diagnostics", async () => {
+posixTest("explains YouTube bot verification without returning raw authentication diagnostics", async () => {
 	await withDownloader(async () => {
 		await assert.rejects(new YouTubeDL().download("https://youtu.be/J2JPiQ2aEBc", () => {}), (error) => {
 			assert.equal(typeof error, "string");
@@ -79,7 +82,7 @@ test("explains YouTube bot verification without returning raw authentication dia
 	}, `console.error("ERROR: Sign in to confirm you’re not a bot. sensitive-diagnostic"); process.exit(1);`);
 });
 
-test("passes only an explicitly configured operator cookie file as one argument", async () => {
+posixTest("passes only an explicitly configured operator cookie file as one argument", async () => {
 	await withDownloader(async (dir) => {
 		const cookieFile = join(dir, "operator cookies.txt");
 		writeFileSync(cookieFile, "# Netscape HTTP Cookie File\n");
@@ -92,7 +95,7 @@ test("passes only an explicitly configured operator cookie file as one argument"
 console.log(JSON.stringify('ffmpeg/A title.mp3'));`);
 });
 
-test("downloads with yt-dlp and returns the final MP3 path instead of the source destination", async () => {
+posixTest("downloads with yt-dlp and returns the final MP3 path instead of the source destination", async () => {
 	await withDownloader(async (dir) => {
 		const url = "https://youtu.be/J2JPiQ2aEBc?si=BjCc9_q9_MEdy_8H";
 		const file = await new YouTubeDL().download(url, () => {});

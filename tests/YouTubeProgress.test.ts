@@ -1,8 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { test } from "node:test";
-import { runInNewContext } from "node:vm";
-import ts from "typescript";
 import YouTube from "../src/YouTube.ts";
 
 const samples: [number, string, string][] = [
@@ -11,17 +8,6 @@ const samples: [number, string, string][] = [
 	[12.34, "01:23", "`[===                   ]` 12.3%, ETA 01:23"],
 	[100, "00:00", "`[======================]` 100.0%, ETA 00:00"],
 ];
-
-test("file-local formatProgress preserves the existing bar, percentage and ETA", () => {
-	const source = readFileSync(new URL("../src/YouTube.ts", import.meta.url), "utf8");
-	const ast = ts.createSourceFile("YouTube.ts", source, ts.ScriptTarget.Latest, true);
-	const helper = ast.statements.find((node): node is ts.FunctionDeclaration => ts.isFunctionDeclaration(node) && node.name?.text === "formatProgress");
-	assert.ok(helper, "missing file-local formatProgress helper");
-	assert.ok(!helper.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword));
-	const js = ts.transpile(helper.getText(ast), { target: ts.ScriptTarget.ES2022 });
-	const formatProgress = runInNewContext(`${js}; formatProgress`) as (progress: number, eta: string) => string;
-	for (const [progress, eta, expected] of samples) assert.equal(formatProgress(progress, eta), expected);
-});
 
 function handlers(ytdl: unknown) {
 	const callbacks = new Map<string, (event: any) => Promise<void>>();

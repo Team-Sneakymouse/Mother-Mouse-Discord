@@ -148,7 +148,7 @@ test("runRewards queries only valid parsed leaderboards and preserves invalid-ra
 	} as unknown as PocketBase;
 	await captureLogs(async (logs, errors) => {
 		await manager.runRewards();
-		assert.deepEqual(queries, [{ filter: 'leaderboard="leaderboard" || leaderboard="reversed" && date ~ "2026-10-07" && value > 0' }]);
+		assert.deepEqual(queries, [{ filter: '(leaderboard="leaderboard" || leaderboard="reversed") && date ~ "2026-10-07" && value > 0' }]);
 		assert.deepEqual(
 			errors,
 			Array.from({ length: 2 }, () => ['Parsed invalid range "nope" for leaderboard "broken" with spell "bad"']),
