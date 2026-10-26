@@ -1,27 +1,8 @@
 import { Client, EmbedBuilder, TextChannel, ChannelType } from "discord.js";
-import PocketBase, { RecordModel } from "pocketbase";
-import EventSource from "eventsource";
-
-(global as any).EventSource = EventSource;
+import { hooksConfig, hooksApi, type JobData, type Claim } from "./JobHooks.js";
+import { deliver, deliveryStore, startPolling, type DeliveryStore } from "./JobDelivery.js";
 
 const jobChannelId = "1233508899630481408";
-
-type JobData = {
-	id: string;
-	serverPort?: number;
-	category: string;
-	posterDisplayString: string;
-	posterIconBase64: string;
-	location: string;
-	locationDisplayString: string;
-	startTime: number;
-	name: string;
-	description: string;
-	discordEmbedIcon: string;
-	discordMessageId: string;
-	endTime: number;
-	endReason: string;
-};
 
 function decodeBase64Image(base64String: string, fileName: string) {
 	// Remove the prefix if present
@@ -74,158 +55,171 @@ function buildMapUrl(location: string): string | undefined {
 	const mapName = parseFloat(y) < 215 ? "surface2" : "surface";
 
 	return `https://lords.rawb.tv/map/#?worldname=${world}&mapname=${mapName}&zoom=4&x=${Math.round(parseFloat(x))}&y=${Math.round(
-		parseFloat(y)
+		parseFloat(y),
 	)}&z=${Math.round(parseFloat(z))}`;
 }
 
-export default function Lom2JobBoard(client: Client, pocketBase: PocketBase) {
-	const readyPromise = client.isReady() ? Promise.resolve() : new Promise<void>((resolve) => client.once("clientReady", () => resolve()));
-
-	client.once("clientReady", () => {
-		pocketBase
-			.collection("lom2_listed_jobs")
-			.subscribe("*", (e) => {
-				// Zero/missing ports are legacy records; only 50001 is live otherwise.
-				const serverPort = e.record.serverPort ?? 0;
-				if (serverPort !== 0 && serverPort !== 50001) return;
-
-				console.log(`LoM2 job board: ${e.action} ${e.record.id}`);
-				if (e.action === "create") void postJob(e.record);
-				else if (e.action === "update") void expireJob(e.record);
-			})
-			.then(() => console.log("LoM2 job board: subscribed to lom2_listed_jobs"))
-			.catch((error) => console.error("LoM2 job board subscribe failed:", error));
-	});
-
-	async function getJobChannel(): Promise<TextChannel | null> {
-		await readyPromise;
-
-		console.log(
-			`LoM2 job board: resolving channel ${jobChannelId}; guilds=[${[...client.guilds.cache.values()]
-				.map((g) => `${g.name}:${g.id}`)
-				.join(", ")}]; cached=${client.channels.cache.has(jobChannelId)}`
-		);
-
-		let channel = client.channels.cache.get(jobChannelId) ?? null;
-		if (!channel) {
-			try {
-				channel = await client.channels.fetch(jobChannelId);
-			} catch (error) {
-				console.error(`LoM2 job board: failed to fetch channel ${jobChannelId}:`, error);
-				return null;
-			}
-		}
-
-		if (!channel || channel.isDMBased() || !channel.isTextBased() || channel.type === ChannelType.GuildVoice || channel.type === ChannelType.GuildStageVoice) {
-			console.error(
-				`LoM2 job board: channel ${jobChannelId} unusable (present=${Boolean(channel)}, type=${channel?.type})`
-			);
-			return null;
-		}
-
-		return channel as TextChannel;
+const marker = (id: string) => `[lom-job:${id}]`;
+/** Bound Discord waits. A timed-out send remains reserved; never retry it blindly. */
+async function bounded<T>(work: () => Promise<T>): Promise<T> {
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	try {
+		return await Promise.race([
+			work(),
+			new Promise<never>((_, reject) => {
+				timer = setTimeout(() => reject(Error("Job-board Discord deadline")), 15000);
+			}),
+		]);
+	} finally {
+		if (timer) clearTimeout(timer);
 	}
-
-	async function postJob(record: RecordModel) {
-		try {
-			const {
-				id,
-				category,
-				posterDisplayString,
-				posterIconBase64,
-				location,
-				locationDisplayString,
-				startTime,
-				name,
-				description,
-				discordEmbedIcon,
-			} = record as unknown as JobData;
-
-			const jobChannel = await getJobChannel();
-			if (!jobChannel) return;
-
-			if (!posterIconBase64) {
-				console.error(`LoM2 job board: job ${id} missing posterIconBase64`);
-				return;
-			}
-
-			const posterIconData = decodeBase64Image(posterIconBase64, "posterIcon.png");
-			const url = buildMapUrl(location ?? "");
-			if (!url) {
-				console.warn(`LoM2 job board: job ${id} location did not match map regex: ${location}`);
-			}
-
-			const embedBuilder = new EmbedBuilder()
-				.setTitle(name)
-				.addFields({ name: posterDisplayString, value: description })
-				.setColor(0x247db9)
-				.setTimestamp(startTime)
-				.setThumbnail("attachment://posterIcon.png")
-				.setAuthor({ iconURL: discordEmbedIcon, name: category })
-				.setFooter({ text: locationDisplayString });
-
-			// discord.js rejects empty URLs — only set when we parsed a map link
-			if (url) embedBuilder.setURL(url);
-
-			const message = await jobChannel.send({
-				embeds: [embedBuilder],
-				files: [{ attachment: posterIconData.data, name: "posterIcon.png" }],
-			});
-
-			await pocketBase.collection("lom2_listed_jobs").update(id, { discordMessageId: message.id });
-			console.log(`LoM2 job board: posted job ${id} as message ${message.id}`);
-		} catch (error) {
-			console.error("LoM2 job board: error posting job:", error);
+}
+export async function processJobClaim(
+	item: Claim,
+	channel: TextChannel,
+	store: DeliveryStore,
+	ack: (item: Claim, id?: string) => Promise<void>,
+	botId: string,
+	guard: () => void = () => {},
+) {
+	guard();
+	if (item.job.serverPort !== 50001) throw Error("Non-live job rejected");
+	const job = item.job;
+	const known = async () => job.discordMessageId || (await store.lookup(job.id));
+	const lookup = async () => {
+		const id = await known();
+		if (id) return id;
+		guard();
+		const messages = await bounded(() => channel.messages.fetch({ limit: 100 }));
+		const matches = [...messages.values()].filter((message) => message.author.id === botId && message.content === marker(job.id));
+		if (matches.length > 1) throw Error("Multiple job markers: manual reconciliation required");
+		const recovered = matches[0]?.id;
+		if (recovered) {
+			guard();
+			await store.reserve(job.id);
+			await store.save(job.id, recovered);
 		}
+		return recovered;
+	};
+	const acknowledge = async (id?: string) => {
+		guard();
+		await ack(item, id);
+	};
+	if (item.kind === "create") {
+		await deliver({
+			lookup,
+			reserve: async () => {
+				guard();
+				return store.reserve(job.id);
+			},
+			send: async () => {
+				guard();
+				if (!job.posterIconBase64) throw Error("Missing job poster image");
+				const icon = decodeBase64Image(job.posterIconBase64, "posterIcon.png");
+				const embed = new EmbedBuilder()
+					.setTitle(job.name)
+					.addFields({ name: job.posterDisplayString, value: job.description })
+					.setColor(0x247db9)
+					.setTimestamp(job.startTime)
+					.setThumbnail("attachment://posterIcon.png")
+					.setAuthor({ iconURL: job.discordEmbedIcon, name: job.category })
+					.setFooter({ text: job.locationDisplayString });
+				const url = buildMapUrl(job.location);
+				if (url) embed.setURL(url);
+				const message = await bounded(() =>
+					channel.send({
+						content: marker(job.id),
+						embeds: [embed],
+						files: [{ attachment: icon.data, name: "posterIcon.png" }],
+						allowedMentions: { parse: [] },
+					}),
+				);
+				await store.save(job.id, message.id);
+				return message.id;
+			},
+			ack: acknowledge,
+		});
+		return;
 	}
-
-	async function expireJob(record: RecordModel) {
-		try {
-			const {
-				category,
-				posterDisplayString,
-				locationDisplayString,
-				startTime,
-				description,
-				discordEmbedIcon,
-				discordMessageId,
-				endTime,
-				endReason,
-			} = record as unknown as JobData;
-
-			// Ignore the update that only stores discordMessageId after a create
-			if (!discordMessageId || !endTime || endTime <= 0) return;
-
-			const jobChannel = await getJobChannel();
-			if (!jobChannel) return;
-
-			const message = await jobChannel.messages.fetch(discordMessageId);
-
-			if (endReason == "deleted") {
-				await message.delete();
-				console.log(`LoM2 job board: deleted message ${discordMessageId}`);
-				return;
-			}
-
-			const oldEmbed = message.embeds[0];
-			if (!oldEmbed) return;
-
-			const embedBuilder = new EmbedBuilder()
-				.setTitle(oldEmbed.title)
-				.addFields({ name: posterDisplayString, value: description })
+	if (job.endTime <= 0) throw Error("Invalid end event");
+	const id = await lookup();
+	if (!id) {
+		await acknowledge();
+		return;
+	}
+	guard();
+	try {
+		const message = await bounded(() => channel.messages.fetch(id));
+		if (message.author.id !== botId) throw Error("Job message is not owned by this bot");
+		guard();
+		if (job.endReason === "deleted") await bounded(() => message.delete());
+		else {
+			const old = message.embeds[0];
+			if (!old) throw Error("Job message has no embed");
+			const embed = new EmbedBuilder()
+				.setTitle(old.title)
+				.addFields({ name: job.posterDisplayString, value: job.description })
 				.setColor(0x808080)
-				.setTimestamp(startTime)
-				// Keep attachment:// so Discord continues to treat the file as embed-only.
-				// Using the CDN https URL makes the original upload show as a visible attachment.
+				.setTimestamp(job.startTime)
 				.setThumbnail("attachment://posterIcon.png")
-				.setAuthor({ iconURL: discordEmbedIcon, name: `${category} (Expired)` })
-				.setFooter({ text: locationDisplayString })
-				.setURL(null); // drop the dynmap link on expire
-
-			await message.edit({ embeds: [embedBuilder] });
-			console.log(`LoM2 job board: expired message ${discordMessageId}`);
-		} catch (error) {
-			console.error("LoM2 job board: error expiring job:", error);
+				.setAuthor({ iconURL: job.discordEmbedIcon, name: `${job.category} (Expired)` })
+				.setFooter({ text: job.locationDisplayString });
+			await bounded(() => message.edit({ embeds: [embed], allowedMentions: { parse: [] } }));
 		}
+	} catch (error) {
+		if ((error as { code?: number }).code !== 10008) throw error;
 	}
+	await acknowledge();
+}
+
+export default function Lom2JobBoard(client: Client, env: NodeJS.ProcessEnv = process.env) {
+	const config = hooksConfig(env); // Fail visibly rather than silently retaining PocketBase.
+	const abort = new AbortController();
+	const api = hooksApi(config, abort.signal);
+	let stopPolling: (() => Promise<void>) | undefined;
+	let startup: Promise<void> | undefined;
+	let stopped = false;
+	const start = () => {
+		if (startup || stopped) return;
+		startup = (async () => {
+			const store = await deliveryStore(config.stateDir);
+			if (stopped) return;
+			stopPolling = startPolling(
+				async () => {
+					if (stopped) return;
+					const batch = await api.claim();
+					if (stopped) return;
+					for (const item of batch.items) {
+						const deadline = Date.now() + 90000;
+						const guard = () => {
+							if (stopped || Date.now() >= deadline) throw Error("Job-board stopped or event deadline exceeded");
+						};
+						guard();
+						const channel = client.channels.cache.get(jobChannelId) ?? (await bounded(() => client.channels.fetch(jobChannelId)));
+						if (!channel || channel.type !== ChannelType.GuildText) throw Error("Job-board channel is unavailable or not guild text");
+						if (!client.user) throw Error("Job-board bot identity unavailable");
+						await processJobClaim(item, channel as TextChannel, store, api.ack, client.user.id, guard);
+					}
+				},
+				(error) => console.error("LoM2 job board delivery failed:", error),
+			);
+		})().catch((error) => console.error("LoM2 job board startup failed:", error));
+	};
+	if (client.isReady()) start();
+	else client.once("clientReady", start);
+	const stop = async () => {
+		stopped = true;
+		abort.abort();
+		client.off("clientReady", start);
+		process.off("SIGINT", onSignal);
+		process.off("SIGTERM", onSignal);
+		await startup;
+		await stopPolling?.();
+	};
+	const onSignal = () => {
+		void stop();
+	};
+	process.once("SIGINT", onSignal);
+	process.once("SIGTERM", onSignal);
+	return stop;
 }

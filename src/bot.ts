@@ -123,7 +123,7 @@ import DeleteHate from "./DeleteHate.js";
 // Convert Twitter links to FxTwitter
 import TwitterFix from "./TwitterFix.js";
 
-// Manage pocketbase listeners for the LoM2 Job Board
+// Consume committed PostgreSQL Job Board events through authenticated hooks
 import Lom2JobBoard from "./Lom2JobBoard.js";
 
 // Faq
@@ -227,7 +227,7 @@ if (process.env.PRODUCTION === "TRUE") {
 	DeleteHate(client);
 	tfcSolver(client);
 	TwitterFix(client);
-	Lom2JobBoard(client, pocketbase);
+	Lom2JobBoard(client);
 	Faq(client, pocketbase);
 	Uuid(client);
 	ChannelFilters(client);
