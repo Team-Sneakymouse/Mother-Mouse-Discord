@@ -11,8 +11,9 @@ missed runs while offline. No LLM or external/Hermes cron is involved.
   [Docker runtime secrets](docker-secrets.md)); local runs use dotenv. Never commit
   the token. A missing/blank token disables the digest and logs a configuration error.
 - Prefer a fine-grained PAT owned by an account with access to Team-Sneakymouse,
-  resource owner **Team-Sneakymouse**, **all repositories**, **Pull requests: Read**
-  and the automatically included **Metadata: Read** permission. Obtain organization
+  resource owner **Team-Sneakymouse**, **all repositories**, **Pull requests: Read
+  and write** (write is needed for the Merge buttons), **Contents: Read and write**
+  (merging requires it) and the automatically included **Metadata: Read** permission. Obtain organization
   approval where required. A classic PAT needs `repo` for private repositories and
   SSO authorization if the organization requires it.
 - The bot enumerates every repository GitHub exposes to that token, including
@@ -25,9 +26,11 @@ missed runs while offline. No LLM or external/Hermes cron is involved.
 ## Behavior and failures
 
 Results are sorted by repository name and PR number and grouped by repository.
-Drafts are marked, mentions are disabled, and link previews are suppressed. Long
-text is safely shortened; complete PR links are retained. Messages respect the
-2,000-character content limit and repeat repository headings across chunks.
+Each PR is a Components V2 section with its link on the left and a **Merge** button
+on the right (disabled for drafts). Mentions are disabled. Long text is safely
+shortened; complete PR links are retained. Messages respect the Components V2 limits
+(40 components, 4,000 characters of text), so about 12 PRs fit per message, and
+repository headings repeat across messages.
 Unchanged PRs are included again each day; an empty snapshot sends nothing.
 
 Every repository/PR page is fetched and validated before sending anything. Any
@@ -43,6 +46,21 @@ retries that might duplicate messages; the next day collects a fresh snapshot.
 An in-process guard prevents overlapping runs. Run one production bot instance;
 there is no distributed scheduler lock. GitHub pagination is not an atomic snapshot
 if repositories/PRs change during collection.
+
+## Merge buttons
+
+The button custom id is `ghpr-merge:<repo>:<number>` (the organization is implied);
+the bot keeps no state, so buttons keep working across restarts. A repository name
+too long for the 100-character custom id is cut and marked `~`; on click the bot
+looks up the organization's repositories and merges only if exactly one name
+starts with that prefix, otherwise it refuses and says so.
+
+Members with the **Tech Team** role (`816744626751799366`) or the Administrator
+permission may merge. Clicking merges the PR with GitHub's default merge method and
+edits the digest message in place: only that button is replaced by a grey, disabled
+**Merged by <user>**. Other PRs in the digest are not refreshed, so a button can be
+stale. Failures (not mergeable, conflicts, missing token permission, already
+merged) are reported privately to the clicker and leave the message unchanged.
 
 ## Verification
 

@@ -3,7 +3,14 @@ import { readFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { test } from "node:test";
 import { Client } from "discord.js";
-import GithubPrStatus, { collectOpenPullRequests, createDigestRunner, createGithubApi, formatDigest } from "../src/GithubPrStatus.ts";
+import GithubPrStatus, {
+	collectOpenPullRequests,
+	createDigestRunner,
+	createGithubApi,
+	formatDigest,
+	handleMergeButton,
+	markMerged,
+} from "../src/GithubPrStatus.ts";
 
 test("real HTTP authentication, rate-limit, server and timeout failures are logged without posting or leaking credentials", async () => {
 	let status = 401;
@@ -162,7 +169,9 @@ test("runner is silent for no PRs and reports unchanged PRs on successive days w
 	await run();
 	assert.equal(sent.length, 2);
 	assert.deepEqual(sent[0], sent[1]);
-	assert.deepEqual(sent[0], { content: formatDigest(entries)[0], allowedMentions: { parse: [], users: [], roles: [], repliedUser: false }, flags: 4 });
+	assert.deepEqual(sent[0], formatDigest(entries)[0]);
+	assert.deepEqual(JSON.parse(JSON.stringify(sent[0])).allowedMentions, { parse: [], users: [], roles: [], repliedUser: false });
+	assert.equal((sent[0] as { flags: number }).flags, 1 << 15);
 	assert.deepEqual(errors, []);
 });
 
@@ -232,17 +241,39 @@ test("send failures stop remaining parts, log delivery stage, and allow the next
 	assert.ok(errors.every((message) => message.includes("delivery failed (0/") && !message.includes("denied")));
 });
 
-test("formats deterministic repository groups, safe titles/authors, draft labels and complete links within Discord limits", () => {
+// Flatten a built message into its text contents and buttons.
+function inspect(message: unknown) {
+	const json = JSON.parse(JSON.stringify(message)) as { components: unknown[] };
+	const texts: string[] = [];
+	const buttons: { custom_id?: string; url?: string; label: string; disabled?: boolean; style: number }[] = [];
+	let count = 0;
+	const walk = (node: unknown) => {
+		if (Array.isArray(node)) return node.forEach(walk);
+		if (!node || typeof node !== "object") return;
+		count++;
+		const record = node as Record<string, unknown>;
+		if (record.type === 10) texts.push(record.content as string);
+		if (record.type === 2) buttons.push(record as never);
+		walk(record.components);
+		walk(record.accessory);
+	};
+	walk(json.components);
+	return { texts, buttons, count };
+}
+
+test("formats deterministic repository groups, safe titles/authors, draft labels, complete links and a merge button per PR", () => {
 	const entries = [
 		{ repository: "Team-Sneakymouse/z", ...pr(8), draft: false },
 		{ repository: "Team-Sneakymouse/a", ...pr(2), title: "@everyone **hi**\n<@123>", user: null },
 		{ repository: "Team-Sneakymouse/a", ...pr(1), title: "😀".repeat(2000) },
 	];
 	const messages = formatDigest(entries);
-	assert.deepEqual(messages, formatDigest([...entries].reverse()));
+	assert.deepEqual(JSON.parse(JSON.stringify(messages)), JSON.parse(JSON.stringify(formatDigest([...entries].reverse()))));
 	assert.deepEqual(formatDigest([]), []);
-	assert.ok(messages.every((message) => message.length <= 2000));
-	const text = messages.join("\n");
+	assert.equal(messages.length, 1);
+	assert.equal(messages[0].content, undefined);
+	const { texts, buttons } = inspect(messages[0]);
+	const text = texts.join("\n");
 	assert.ok(text.indexOf("Team-Sneakymouse/a") < text.indexOf("Team-Sneakymouse/z"));
 	assert.ok(text.indexOf("/a/pull/1") < text.indexOf("/a/pull/2"));
 	assert.ok(text.includes("[DRAFT]"));
@@ -251,9 +282,189 @@ test("formats deterministic repository groups, safe titles/authors, draft labels
 	assert.ok(!text.includes("<@123>"));
 	assert.ok(!text.includes("**hi**"));
 	for (const entry of entries) assert.ok(text.includes(`https://github.com/${entry.repository}/pull/${entry.number}`));
+	assert.deepEqual(
+		buttons.map((button) => [button.custom_id, button.disabled ?? false]),
+		[
+			["ghpr-merge:a:1", true],
+			["ghpr-merge:a:2", true],
+			["ghpr-merge:z:8", false],
+		],
+	);
+});
+
+test("splits into messages within Discord's Components V2 limits without splitting a PR", () => {
 	const many = formatDigest(Array.from({ length: 100 }, (_, i) => ({ repository: "Team-Sneakymouse/a", ...pr(i + 1) })));
 	assert.ok(many.length > 1);
-	assert.ok(many.every((message, i) => message.length <= 2000 && message.includes(`Part ${i + 1}/${many.length}`) && message.includes("Team-Sneakymouse/a")));
+	let buttons = 0;
+	many.forEach((message, i) => {
+		const view = inspect(message);
+		assert.ok(view.count <= 40);
+		assert.ok(view.texts.join("").length <= 4000);
+		assert.ok(view.texts[0].includes(`Part ${i + 1}/${many.length}`));
+		assert.ok(view.texts[1].includes("Team-Sneakymouse/a"));
+		buttons += view.buttons.length;
+	});
+	assert.equal(buttons, 100);
+	const long = formatDigest(Array.from({ length: 12 }, (_, i) => ({ repository: "Team-Sneakymouse/a", ...pr(i + 1), title: "x".repeat(1000) })));
+	assert.ok(long.every((message) => inspect(message).texts.join("").length <= 4000));
+});
+
+test("repository names that overflow the custom id are truncated, keeping the merge button", () => {
+	const name = "r".repeat(100);
+	const { buttons } = inspect(formatDigest([{ repository: `Team-Sneakymouse/${name}`, ...pr(12345), draft: false }])[0]);
+	const id = buttons[0].custom_id as string;
+	assert.equal(id.length, 100);
+	assert.ok(id.endsWith("~:12345"));
+	assert.ok(`Team-Sneakymouse/${name}`.toLowerCase().startsWith(`team-sneakymouse/${id.slice("ghpr-merge:".length, -"~:12345".length)}`));
+	assert.equal(buttons[0].label, "Merge");
+	assert.equal(buttons[0].url, undefined);
+});
+
+function clickHarness(options: { admin?: boolean; roles?: unknown; customId?: string; repos?: string[]; put?: () => Promise<{ data: unknown }> } = {}) {
+	const message = formatDigest([
+		{ repository: "Team-Sneakymouse/a", ...pr(1), draft: false },
+		{ repository: "Team-Sneakymouse/a", ...pr(2), draft: false },
+	])[0];
+	const wire = JSON.parse(JSON.stringify(message)).components as unknown[];
+	const calls: string[] = [];
+	const puts: string[] = [];
+	const gets: string[] = [];
+	const interaction = {
+		customId: options.customId ?? "ghpr-merge:a:2",
+		memberPermissions: { has: () => options.admin ?? true },
+		member: { roles: options.roles ?? [] },
+		user: { username: "dani" },
+		message: { components: wire.map((component) => ({ toJSON: () => component })) },
+		reply: async (payload: unknown) => calls.push(`reply:${JSON.stringify(payload)}`),
+		deferUpdate: async () => calls.push("deferUpdate"),
+		followUp: async (payload: { content: string }) => calls.push(`followUp:${payload.content}`),
+		editReply: async (payload: unknown) => calls.push(`editReply:${JSON.stringify(payload)}`),
+	};
+	const api = {
+		get: async (path: string) => {
+			gets.push(path);
+			return { data: (options.repos ?? []).map((full_name) => ({ full_name })) };
+		},
+		put: async (path: string) => {
+			puts.push(path);
+			return options.put ? options.put() : { data: { merged: true } };
+		},
+	};
+	return { interaction, api, calls, puts, gets, wire };
+}
+
+test("merge button merges using only the custom id and greys out just that button in place", async () => {
+	const { interaction, api, calls, puts, wire } = clickHarness();
+	await handleMergeButton(interaction as never, api);
+	assert.deepEqual(puts, ["/repos/Team-Sneakymouse/a/pulls/2/merge"]);
+	assert.equal(calls[0], "deferUpdate");
+	assert.equal(calls.length, 2);
+	const edited = JSON.parse(calls[1].slice("editReply:".length)).components;
+	const before = inspect({ components: wire });
+	const after = inspect({ components: edited });
+	assert.deepEqual(after.buttons[0], before.buttons[0]);
+	assert.equal(after.buttons[1].disabled, true);
+	assert.equal(after.buttons[1].style, 2);
+	assert.equal(after.buttons[1].label, "Merged by dani");
+	assert.deepEqual(after.texts, before.texts);
+});
+
+test("merge button refuses members who are neither Tech Team nor administrators without calling GitHub", async () => {
+	for (const roles of [[], ["1"], { cache: new Map() }]) {
+		const { interaction, api, calls, puts } = clickHarness({ admin: false, roles });
+		await handleMergeButton(interaction as never, api);
+		assert.deepEqual(puts, []);
+		assert.equal(calls.length, 1);
+		assert.ok(calls[0].startsWith("reply:") && calls[0].includes("Tech Team"));
+	}
+});
+
+test("the Tech Team role may merge, whether roles arrive as ids or as a cached manager", async () => {
+	for (const roles of [["1", "816744626751799366"], { cache: new Map([["816744626751799366", {}]]) }]) {
+		const { interaction, api, puts } = clickHarness({ admin: false, roles });
+		await handleMergeButton(interaction as never, api);
+		assert.deepEqual(puts, ["/repos/Team-Sneakymouse/a/pulls/2/merge"]);
+	}
+});
+
+test("a truncated id is resolved to the single matching repository before merging", async () => {
+	const full = `Team-Sneakymouse/${"r".repeat(100)}`;
+	const { interaction, api, puts, gets } = clickHarness({ customId: `ghpr-merge:${"r".repeat(80)}~:7`, repos: ["Team-Sneakymouse/other", full] });
+	await handleMergeButton(interaction as never, api);
+	assert.deepEqual(gets, ["/orgs/Team-Sneakymouse/repos"]);
+	assert.deepEqual(puts, [`/repos/${full}/pulls/7/merge`]);
+});
+
+test("an ambiguous or unknown truncated id merges nothing and says why", async () => {
+	for (const repos of [[], ["Team-Sneakymouse/rrrr-1", "Team-Sneakymouse/rrrr-2"]]) {
+		const { interaction, api, calls, puts } = clickHarness({ customId: "ghpr-merge:rrrr~:7", repos });
+		const originalError = console.error;
+		console.error = () => {};
+		try {
+			await handleMergeButton(interaction as never, api);
+		} finally {
+			console.error = originalError;
+		}
+		assert.deepEqual(puts, []);
+		assert.ok(calls.at(-1)?.startsWith("followUp:") && calls.at(-1)?.includes(`matches ${repos.length} repositories`));
+		assert.ok(calls.every((call) => !call.startsWith("editReply:")));
+	}
+});
+
+test("failed merges leave the message untouched and report privately without leaking credentials", async () => {
+	const server = createServer((_request, response) => {
+		response.writeHead(405, { "Content-Type": "application/json" });
+		response.end(JSON.stringify({ message: "Pull Request is not mergeable" }));
+	});
+	await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+	const address = server.address();
+	assert.ok(address && typeof address !== "string");
+	const real = createGithubApi("test-only-not-a-real-token");
+	real.defaults.baseURL = `http://127.0.0.1:${address.port}`;
+	real.defaults.proxy = false;
+	const { interaction, calls } = clickHarness();
+	const originalError = console.error;
+	const logged: string[] = [];
+	console.error = (...args) => {
+		logged.push(args.join(" "));
+	};
+	try {
+		await handleMergeButton(interaction as never, { get: (path, options) => real.get(path, options), put: (path) => real.put(path) });
+	} finally {
+		console.error = originalError;
+		await new Promise<void>((resolve, reject) => {
+			server.close((error) => (error ? reject(error) : resolve()));
+			server.closeAllConnections();
+		});
+	}
+	assert.equal(calls.length, 2);
+	assert.equal(calls[0], "deferUpdate");
+	assert.ok(calls[1].startsWith("followUp:") && calls[1].includes("Pull Request is not mergeable") && calls[1].includes("405"));
+	assert.ok([...calls, ...logged].every((entry) => !entry.includes("test-only")));
+});
+
+test("a 200 response that did not merge is treated as a failure", async () => {
+	const { interaction, api, calls } = clickHarness({ put: async () => ({ data: { merged: false } }) });
+	const originalError = console.error;
+	console.error = () => {};
+	try {
+		await handleMergeButton(interaction as never, api);
+	} finally {
+		console.error = originalError;
+	}
+	assert.ok(calls.every((call) => !call.startsWith("editReply:")));
+});
+
+test("markMerged only touches the matching button", () => {
+	const tree = {
+		components: [
+			{ type: 9, accessory: { type: 2, custom_id: "a", label: "Merge", style: 3 } },
+			{ type: 9, accessory: { type: 2, custom_id: "b", label: "Merge", style: 3 } },
+		],
+	};
+	const result = markMerged(tree, "a", "x") as typeof tree;
+	assert.equal((result.components[0].accessory as { disabled?: boolean }).disabled, true);
+	assert.deepEqual(result.components[1], tree.components[1]);
 });
 
 const repo = (name: string) => ({ full_name: `Team-Sneakymouse/${name}`, private: true });
