@@ -283,11 +283,11 @@ test("formats deterministic repository groups, safe titles/authors, draft labels
 	assert.ok(!text.includes("**hi**"));
 	for (const entry of entries) assert.ok(text.includes(`https://github.com/${entry.repository}/pull/${entry.number}`));
 	assert.deepEqual(
-		buttons.map((button) => [button.custom_id, button.disabled ?? false]),
+		buttons.map((button) => [button.custom_id, button.url, button.label, button.style, button.disabled ?? false]),
 		[
-			["ghpr-merge:a:1", true],
-			["ghpr-merge:a:2", true],
-			["ghpr-merge:z:8", false],
+			[undefined, "https://github.com/Team-Sneakymouse/a/pull/1", "Open draft", 5, false],
+			[undefined, "https://github.com/Team-Sneakymouse/a/pull/2", "Open draft", 5, false],
+			["ghpr-merge:z:8", undefined, "Merge", 3, false],
 		],
 	);
 });

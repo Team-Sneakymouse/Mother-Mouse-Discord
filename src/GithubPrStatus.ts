@@ -81,11 +81,14 @@ function parseMergeId(customId: string): { name: string; truncated: boolean; num
 }
 
 function pullButton(pull: OpenPullRequest): ButtonBuilder {
+	if (pull.draft) {
+		return new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel("Open draft").setURL(`https://github.com/${pull.repository}/pull/${pull.number}`);
+	}
 	const suffix = `:${pull.number}`;
 	const budget = 100 - MERGE_PREFIX.length - suffix.length;
 	const name = pull.repository.slice(pull.repository.indexOf("/") + 1);
 	const id = MERGE_PREFIX + (name.length > budget ? `${name.slice(0, budget - 1)}~` : name) + suffix;
-	return new ButtonBuilder().setCustomId(id).setStyle(ButtonStyle.Success).setLabel("Merge").setDisabled(pull.draft);
+	return new ButtonBuilder().setCustomId(id).setStyle(ButtonStyle.Success).setLabel("Merge");
 }
 
 export function formatDigest(pulls: readonly OpenPullRequest[]): MessageCreateOptions[] {
