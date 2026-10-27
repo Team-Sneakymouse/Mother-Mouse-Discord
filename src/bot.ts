@@ -123,7 +123,7 @@ import DeleteHate from "./DeleteHate.js";
 // Convert Twitter links to FxTwitter
 import TwitterFix from "./TwitterFix.js";
 
-// Manage pocketbase listeners for the LoM2 Job Board
+// Consume committed PostgreSQL Job Board events through authenticated hooks
 import Lom2JobBoard from "./Lom2JobBoard.js";
 
 // Faq
@@ -199,6 +199,8 @@ import GithubPrStatus from "./GithubPrStatus.js";
 import TodoList from "./Todo.js";
 import ReleaseChecklist from "./ReleaseChecklist/index.js";
 
+let stopJobBoard: (() => Promise<void>) | undefined;
+
 if (process.env.PRODUCTION === "TRUE") {
 	client.setMaxListeners(Infinity);
 	console.log("Registering production plugins");
@@ -227,7 +229,7 @@ if (process.env.PRODUCTION === "TRUE") {
 	DeleteHate(client);
 	tfcSolver(client);
 	TwitterFix(client);
-	Lom2JobBoard(client, pocketbase);
+	stopJobBoard = Lom2JobBoard(client);
 	Faq(client, pocketbase);
 	Uuid(client);
 	ChannelFilters(client);
@@ -261,7 +263,26 @@ if (process.env.PRODUCTION === "TRUE") {
 }
 
 server.get("/", (req, res) => res.send("ok"));
-server.listen(process.env.HTTP_PORT || 80, () => console.log("Listening on port " + process.env.HTTP_PORT));
+const httpServer = server.listen(process.env.HTTP_PORT || 80, () => console.log("Listening on port " + process.env.HTTP_PORT));
+
+import { installProcessShutdown } from "./utils/ProcessShutdown.js";
+installProcessShutdown({
+	signals: process,
+	stopWork: async () => {
+		await stopJobBoard?.();
+	},
+	close: [
+		() => new Promise<void>((resolve, reject) => httpServer.close((error) => (error ? reject(error) : resolve()))),
+		async () => {
+			await client.destroy();
+		},
+		async () => {
+			await pocketbase.realtime.unsubscribe();
+		},
+	],
+	exit: (code) => process.exit(code),
+	onError: (error) => console.error("Bot shutdown failed:", error),
+});
 
 const token = process.env.DISCORD_TOKEN;
 if (!token) throw new Error("No token found!");
