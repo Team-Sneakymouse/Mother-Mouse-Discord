@@ -1,0 +1,33 @@
+services:
+  mother-mouse-discord:
+    image: ${REGISTRY_HOST}/mother-mouse-discord
+    container_name: mother-mouse-discord
+    restart: unless-stopped
+    # env_file: .env
+    secrets:
+      - infisical
+    networks:
+      - web
+    volumes:
+      - ./share:/app/share
+      - ./youtube-auth:/run/youtube-auth
+    environment:
+      PRODUCTION: "TRUE"
+      HTTP_PORT: 80
+      YTDLP_COOKIES_FILE: /run/youtube-auth/cookies.txt
+      INFISICAL_DOMAIN: ${INFISICAL_DOMAIN}
+      INFISICAL_PROJECT_ID: e0747d6a-bd93-448b-8d3b-1a71a57a0170 # lords-of-minecraft
+      INFISICAL_ENVIRONMENT: prod
+    labels:
+      com.centurylinklabs.watchtower.enable: true
+      traefik.enable: true
+      traefik.http.routers.mother-mouse-discord.rule: Host(`mm-discord.rawb.tv`)
+      traefik.http.services.mother-mouse-discord.loadbalancer.server.port: 80
+
+secrets:
+  infisical:
+    file: ./infisical-creds.env
+
+networks:
+  web:
+    external: true
