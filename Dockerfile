@@ -28,5 +28,9 @@ COPY ./static/ ./static/
 COPY ./docs/todo-assessment-guidance.md ./docs/todo-assessment-guidance.md
 COPY --chmod=755 ./docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
+# Set by the shared CI workflow; lets the bot report its own deployed commit on startup.
+ARG GIT_SHA
+ENV GIT_SHA=$GIT_SHA
+
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 CMD ["bun", "src/bot.ts"]

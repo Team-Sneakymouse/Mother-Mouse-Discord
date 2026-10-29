@@ -3,8 +3,7 @@ import { type Client, MessageFlags } from "discord.js";
 import express, { type Express } from "express";
 import { z } from "zod";
 import { acquireDeploymentLock } from "./utils/DeploymentLock.js";
-import { type Artifact, isProxy, PluginDeployment, type Server } from "./utils/PluginDeployment.js";
-import { type DeploymentChangelog, PluginChangelog } from "./utils/PluginChangelog.js";
+import { type Artifact, type ArtifactSource, isProxy, PluginDeployment, type Server } from "./utils/PluginDeployment.js";
 
 export const DEV_UPDATE_THREAD = "1561330944395313255";
 export const DEV_SCOPE = ["Lords of Minecraft", "Dev Server"];
@@ -29,8 +28,15 @@ export type WebhookJob = {
 	notified: boolean;
 	last_error: string;
 	message_id?: string;
-	changelog?: string;
+	/** GitHub origin of the uploaded artifact; null when its POM has none. Undefined until resolved. */
+	source?: ArtifactSource | null;
 };
+export type DeploymentStatus = "running" | "success" | "failure" | "skipped";
+/** Shows deployment progress on the message of the push that produced the artifact. */
+export interface DeploymentTracker {
+	/** Returns false when no tracked push matches; the worker then posts its own message. */
+	artifact(source: ArtifactSource, update: { id: string; status: DeploymentStatus; text: string }): Promise<boolean>;
+}
 export interface EventStore {
 	accept(event: UploadEvent): Promise<boolean>;
 	next(): Promise<WebhookJob | undefined>;
@@ -92,7 +98,7 @@ export class ReposiliteWorker {
 		private service: () => PluginDeployment,
 		private notify: (content: string, job: WebhookJob) => Promise<void>,
 		private now: () => number = Date.now,
-		private changelog?: DeploymentChangelog,
+		private tracker?: DeploymentTracker,
 	) {}
 	async tick(): Promise<void> {
 		if (this.running) return;
@@ -116,16 +122,18 @@ export class ReposiliteWorker {
 				if (terminal) {
 					console.error(`Reposilite: deployment failed for ${job.payload.path}: ${lastError}`);
 					if (job.notified) {
-						await this.safeNotify(
-							`Automatic deployment failed for \`${job.payload.path}\` after ${attempts} attempts. ${job.completed.length} server(s) completed. Check the bot logs before retrying.`,
+						await this.report(
 							job,
+							"failure",
+							`Automatic deployment failed for \`${job.payload.path}\` after ${attempts} attempts. ${job.completed.length} server(s) completed. Check the bot logs before retrying.`,
 						);
 					}
 				} else if (job.notified) {
 					// Eligibility checks also retry; only update Discord after deployment preparation succeeded.
-					await this.safeNotify(
-						`Automatic deployment of \`${job.payload.path}\` is waiting to retry (attempt ${attempts}/12). ${job.completed.length}/${job.targets?.length ?? "?"} dev server(s) completed.`,
+					await this.report(
 						job,
+						"running",
+						`Automatic deployment of \`${job.payload.path}\` is waiting to retry (attempt ${attempts}/12). ${job.completed.length}/${job.targets?.length ?? "?"} dev server(s) completed.`,
 					);
 				}
 			}
@@ -151,20 +159,14 @@ export class ReposiliteWorker {
 			job.targets = (await service.servers(DEV_SCOPE)).filter((server) => !isProxy(server)).map(({ identifier, name }) => ({ identifier, name }));
 			await this.store.update(job.id, { targets: job.targets });
 		}
-		if (job.changelog === undefined) {
-			let changelog = "Commit history unavailable.";
-			try {
-				changelog = (await this.changelog?.describe(artifact)) ?? changelog;
-			} catch {
-				console.error("Reposilite: commit history lookup failed; deployment processing continues");
-			}
-			job.changelog = changelog;
-			await this.store.update(job.id, { changelog });
+		if (job.source === undefined) {
+			job.source = artifact.source ?? null;
+			await this.store.update(job.id, { source: job.source });
 		}
 		if (!job.notified) {
 			job.notified = true;
 			await this.store.update(job.id, { notified: true });
-			await this.safeNotify(`Deploying **${uploaded.id}** \`${uploaded.version}\` (${artifact.types.join(", ")}) to ${job.targets.length} dev server(s).`, job);
+			await this.report(job, "running", `Deploying **${uploaded.id}** \`${uploaded.version}\` (${artifact.types.join(", ")}) to ${job.targets.length} dev server(s).`);
 		}
 		const failures: string[] = [];
 		for (const server of job.targets) {
@@ -194,24 +196,27 @@ export class ReposiliteWorker {
 			}
 		}
 		if (failures.length) throw new Error(failures.join("; "));
-		if (job.targets.length) {
-			try {
-				await this.changelog?.completed(artifact);
-			} catch {
-				console.error("Reposilite: commit checkpoint could not be saved; deployment processing continues");
-			}
-		}
 		await this.store.update(job.id, { status: "completed", last_error: "" });
-		await this.safeNotify(
+		await this.report(
+			job,
+			job.targets.length ? "success" : "skipped",
 			job.targets.length
 				? `Uploaded **${uploaded.id}** \`${uploaded.version}\` to ${job.targets.map((server) => server.name).join(", ")}.`
 				: `Skipped **${uploaded.id}** \`${uploaded.version}\`: no matching dev servers.`,
-			job,
 		);
 	}
-	private async safeNotify(content: string, job: WebhookJob): Promise<void> {
+	/** Updates the tracked push's message, or this upload's own message when no push matches. */
+	private async report(job: WebhookJob, status: DeploymentStatus, content: string): Promise<void> {
+		const uploaded = uploadedArtifact(job.payload);
+		if (this.tracker && job.source && uploaded) {
+			try {
+				if (await this.tracker.artifact(job.source, { id: uploaded.id, status, text: content.slice(0, 600) })) return;
+			} catch {
+				console.error("Reposilite: push tracking update failed; posting a separate message instead");
+			}
+		}
 		try {
-			await this.notify(`${content.slice(0, 850)}${job.changelog ? `\n${job.changelog}` : ""}`.slice(0, 2000), job);
+			await this.notify(content.slice(0, 2000), job);
 		} catch {
 			console.error("Reposilite: Discord notification failed; deployment processing continues");
 		}
@@ -274,7 +279,7 @@ export function registerReposiliteRoute(
 	});
 }
 
-export default function ReposiliteWebhook(client: Client, server: Express): void {
+export default function ReposiliteWebhook(client: Client, server: Express, tracker?: DeploymentTracker): void {
 	const store = new MemoryEventStore();
 	registerReposiliteRoute(server, store);
 	if (!process.env.REPOSILITE_WEBHOOK_TOKEN) {
@@ -292,7 +297,7 @@ export default function ReposiliteWebhook(client: Client, server: Express): void
 		},
 		createDevUpdateNotifier(client, store),
 		Date.now,
-		new PluginChangelog(),
+		tracker,
 	);
 	const tick = () => {
 		void worker.tick().catch(() => console.error("Reposilite: queue processing failed; will retry"));
