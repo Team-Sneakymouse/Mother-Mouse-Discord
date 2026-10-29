@@ -124,6 +124,19 @@ test("workflow runs may arrive before the push and update the same message throu
 	assert.equal(discord.sent.length, 1, "Only runs for pushes to the default branch are tracked");
 });
 
+test("a workflow completing after its deployment does not replace the deployment status", async () => {
+	const { tracker, discord } = setup();
+	await tracker.push(pushEvent(sha(1), sha(0)));
+	await tracker.workflowRun(runEvent(sha(1), "in_progress"));
+	await tracker.flush();
+	assert.match(discord.messages.get("m1")!, /🔄 CI .* — running$/, "CI is shown until a deployment starts");
+	await tracker.container(REPO, sha(1), "sneakymail", "success");
+	await tracker.workflowRun(runEvent(sha(1), "completed", "success"));
+	await tracker.flush();
+	assert.match(discord.messages.get("m1")!, /\n✅ 🐳 `sneakymail` — container updated$/);
+	assert.equal(discord.colors.get("m1"), COLOR.success);
+});
+
 test("deployments match release commit prefixes and include earlier pushes that never deployed", async () => {
 	const { tracker, discord, store } = setup();
 	await tracker.push(pushEvent(sha(1), sha(0)));

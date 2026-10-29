@@ -54,10 +54,14 @@ function stageLine(stage: Stage): string {
 	return `${emoji} 🐳 \`${plain(stage.key, 100)}\` — ${state}${error ? `: ${plain(error, 300)}` : ""}`;
 }
 
-/** `stages` must be ordered by last update; only the latest one is shown. */
+/**
+ * `stages` must be ordered by last update; only the latest one is shown.
+ * Deployments outrank CI: a workflow often reports completion after its deployment already started or finished.
+ */
 export function renderPush(push: Push, stages: Stage[], deployedVia?: { link: string | null }): PushMessage {
 	const root = `https://github.com/${push.repo}`;
-	const latest = stages.at(-1);
+	const deployments = stages.filter((stage) => stage.kind !== "workflow");
+	const latest = (deployments.length ? deployments : stages).at(-1);
 	const color = push.superseded ? COLOR.superseded : deployedVia ? COLOR.success : latest ? COLOR[latest.status] : COLOR.pushed;
 
 	const name = push.repo.split("/").at(-1)!;
