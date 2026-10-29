@@ -35,11 +35,14 @@ export async function deliveryStore(dir: string) {
 		} finally {
 			await handle.close();
 		}
-		const directory = await open(dir, "r");
-		try {
-			await directory.sync();
-		} finally {
-			await directory.close();
+		// Windows can't fsync a directory (EPERM); production runs on Linux.
+		if (process.platform !== "win32") {
+			const directory = await open(dir, "r");
+			try {
+				await directory.sync();
+			} finally {
+				await directory.close();
+			}
 		}
 		return true;
 	}
