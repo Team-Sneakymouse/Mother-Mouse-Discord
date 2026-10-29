@@ -4,8 +4,6 @@ import { Client, GatewayIntentBits, Partials } from "discord.js";
 // @ts-ignore: no types for gitbeaker/node
 import { Gitlab } from "@gitbeaker/node";
 import RssParser from "rss-parser";
-import { config } from "dotenv";
-config();
 import YouTubeDL from "./utils/youtube-dl.js";
 
 const gitlab = new Gitlab({

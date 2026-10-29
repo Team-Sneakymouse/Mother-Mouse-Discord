@@ -1,7 +1,5 @@
 #! /usr/bin/env bun
 import { REST, Routes } from "discord.js";
-import { config } from "dotenv";
-config();
 
 enum GuildIds {
 	TEST = "155020885521203200",
