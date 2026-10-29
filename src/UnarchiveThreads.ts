@@ -58,9 +58,7 @@ export default function UnarchiveThreads(client: Client, db: PocketBase, gitlab:
 		// Prevent auto-archive
 		if (!thread.locked && thread.archived) {
 			if (thread.autoArchiveDuration && thread.autoArchiveDuration <= ThreadAutoArchiveDuration.OneHour) return;
-			const ids = await db
-				.collection("settings")
-				.getFirstListItem<RecordModel & { value: string[] }>('key="discord_threads_no_autoclose"');
+			const ids = await db.collection("settings").getFirstListItem<RecordModel & { value: string[] }>('key="discord_threads_no_autoclose"');
 			const hasThread = ids && ids.value.includes(thread.id);
 			const hasParent = thread.parentId && ids && ids.value.includes(thread.parentId);
 			if (hasThread || hasParent) {

@@ -8,7 +8,16 @@ const TYPES: DeploymentType[] = ["paper-plugin", "ignite-mod", "velocity-plugin"
 // Velocity proxies are identified by this case-sensitive phrase in their panel description.
 export const PROXY_PHRASE = "Proxy";
 export type ArtifactSource = { repository: string; commit: string };
-export type Artifact = { id: string; version: string; types: DeploymentType[]; versions: string[]; url: string; filename: string; source?: ArtifactSource; lastUpdated?: string };
+export type Artifact = {
+	id: string;
+	version: string;
+	types: DeploymentType[];
+	versions: string[];
+	url: string;
+	filename: string;
+	source?: ArtifactSource;
+	lastUpdated?: string;
+};
 export type Server = { identifier: string; name: string; description: string };
 export type DeploymentOptions = { version?: string; scope?: string[] };
 type Listing<T> = { data: { attributes: T }[]; meta?: { pagination?: { current_page: number; total_pages: number } } };
@@ -136,7 +145,13 @@ export class PluginDeployment {
 		const source = artifactSource(pom, version);
 		const lastUpdated = metadata.lastUpdated?.trim();
 		return {
-			id, version, types, versions, filename, url: `${release}.jar`, ...(source ? { source } : {}),
+			id,
+			version,
+			types,
+			versions,
+			filename,
+			url: `${release}.jar`,
+			...(source ? { source } : {}),
 			...(typeof lastUpdated === "string" && /^\d{14}$/.test(lastUpdated) ? { lastUpdated } : {}),
 		};
 	}
@@ -160,7 +175,9 @@ export class PluginDeployment {
 			);
 		}
 		return {
-			artifacts: artifacts.sort((a, b) => (b.lastUpdated ?? "").localeCompare(a.lastUpdated ?? "") || b.version.localeCompare(a.version) || a.id.localeCompare(b.id)),
+			artifacts: artifacts.sort(
+				(a, b) => (b.lastUpdated ?? "").localeCompare(a.lastUpdated ?? "") || b.version.localeCompare(a.version) || a.id.localeCompare(b.id),
+			),
 			failures,
 		};
 	}

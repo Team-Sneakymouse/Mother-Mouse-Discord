@@ -14,14 +14,19 @@ test("catalog sorts same-day releases by precise Maven update time before versio
 		if (url.includes("/api/maven/details/")) return Response.json({ files: ["Older", "Newer"].map((name) => ({ name, type: "DIRECTORY" })) });
 		if (url.endsWith(".pom")) return new Response(pom("paper-plugin"));
 		const newer = url.includes("/Newer/");
-		return new Response(`<metadata><versioning><release>2026.10.18-${newer ? "aaaa" : "ffff"}</release><lastUpdated>20261018${newer ? "140000" : "130000"}</lastUpdated></versioning></metadata>`);
+		return new Response(
+			`<metadata><versioning><release>2026.10.18-${newer ? "aaaa" : "ffff"}</release><lastUpdated>20261018${newer ? "140000" : "130000"}</lastUpdated></versioning></metadata>`,
+		);
 	};
 	const catalog = await new PluginDeployment("https://panel.example", "application", "client", request).catalog();
 	assert.deepEqual(catalog.failures, []);
-	assert.deepEqual(catalog.artifacts.map(({ id, lastUpdated }) => ({ id, lastUpdated })), [
-		{ id: "Newer", lastUpdated: "20261018140000" },
-		{ id: "Older", lastUpdated: "20261018130000" },
-	]);
+	assert.deepEqual(
+		catalog.artifacts.map(({ id, lastUpdated }) => ({ id, lastUpdated })),
+		[
+			{ id: "Newer", lastUpdated: "20261018140000" },
+			{ id: "Older", lastUpdated: "20261018130000" },
+		],
+	);
 });
 
 function setup(type = "paper-plugin", failUpload = false, failCleanup = false, badSize = false, description = "Lords of Minecraft - test") {
@@ -195,7 +200,10 @@ test("releases are rejected before upload when the server type does not match", 
 	]) {
 		const { service, events } = setup(type, false, false, false, description);
 		await assert.rejects(service.deploy("server", "Example"), /cannot be deployed/);
-		assert.equal(events.some((event) => event.url.includes("/files/")), false);
+		assert.equal(
+			events.some((event) => event.url.includes("/files/")),
+			false,
+		);
 	}
 });
 

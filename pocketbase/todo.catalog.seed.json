@@ -1,314 +1,301 @@
 {
-  "guild_id": "391355330241757205",
-  "labels": [
-    {
-      "name": "BubbleChat",
-      "url": "https://github.com/Team-Sneakymouse/Bungo-BubbleChat",
-      "explanation": "Shows nearby player chat as floating speech bubbles above their heads for immersive LoM roleplay chat."
-    },
-    {
-      "name": "CallBells",
-      "url": "https://github.com/Team-Sneakymouse/CallBells",
-      "explanation": "Lets players opt into chat alerts when specific in-world bells are rung (e.g. calling staff/paladins)."
-    },
-    {
-      "name": "MagicSpells",
-      "url": "https://github.com/Team-Sneakymouse/MagicSpells-Workspace",
-      "explanation": "Fork of the MagicSpells Bukkit/Paper engine that powers LoM spells, items, and scripted mechanics."
-    },
-    {
-      "name": "SlashMe",
-      "url": "https://github.com/Team-Sneakymouse/SlashMe-Paper",
-      "explanation": "Visual /me emote plugin so roleplay actions appear in-world (used on DvZ and LoM)."
-    },
-    {
-      "name": "SneakyAIController",
-      "url": "https://github.com/Team-Sneakymouse/SneakyAIController",
-      "explanation": "Tweaks mob pathfinding AI (e.g. zombies float vs drown) so hostile mobs behave better in LoM RP worlds."
-    },
-    {
-      "name": "SneakyBagOfHolding",
-      "url": "https://github.com/Team-Sneakymouse/SneakyBagOfHolding",
-      "explanation": "Virtual bag-of-holding storage for MagicSpells items with category GUIs, capacity, and autopickup."
-    },
-    {
-      "name": "SneakyCCTV",
-      "url": "https://github.com/Team-Sneakymouse/SneakyCCTV",
-      "explanation": "In-game CCTV camera system for LoM surveillance/roleplay scenes."
-    },
-    {
-      "name": "SneakyCasino",
-      "url": "https://github.com/Team-Sneakymouse/SneakyCasino",
-      "explanation": "Runs LoM casino minigames and related gambling mechanics."
-    },
-    {
-      "name": "SneakyCastBar",
-      "url": "https://github.com/Team-Sneakymouse/SneakyCastBar",
-      "explanation": "Displays casting progress bars for LoM spells and channeled abilities."
-    },
-    {
-      "name": "SneakyCellPhones",
-      "url": "https://github.com/Team-Sneakymouse/SneakyCellPhones",
-      "explanation": "In-world cellphone logic for LoM (calls/apps bridging into the phone companion ecosystem)."
-    },
-    {
-      "name": "SneakyCharacterManager",
-      "url": "https://github.com/Team-Sneakymouse/SneakyCharacterManager-Paper",
-      "explanation": "Lets players switch between multiple characters/identities on DvZ and LoM."
-    },
-    {
-      "name": "SneakyConfigurableVoice",
-      "url": "https://github.com/Team-Sneakymouse/SneakyConfigurableVoice",
-      "explanation": "Simple Voice Chat addon that sets voice hear-distance by permission (for races, roles, scenes)."
-    },
-    {
-      "name": "SneakyDiscordLink",
-      "url": "https://github.com/Team-Sneakymouse/SneakyDiscordLink",
-      "explanation": "Links Minecraft accounts to Discord for community identity and Discord-gated features."
-    },
-    {
-      "name": "SneakyDispatch",
-      "url": "https://github.com/Team-Sneakymouse/SneakyDispatch",
-      "explanation": "Dispatch/call system for sending Paladins to incidents on LoM2."
-    },
-    {
-      "name": "SneakyJobBoard",
-      "url": "https://github.com/Team-Sneakymouse/SneakyJobBoard",
-      "explanation": "Manages the LoM2 job board where players pick up and track available jobs."
-    },
-    {
-      "name": "SneakyMail",
-      "url": "https://github.com/Team-Sneakymouse/SneakyMail",
-      "explanation": "Player mail system for sending/receiving messages and item parcels."
-    },
-    {
-      "name": "SneakyMannequins",
-      "url": "https://github.com/Team-Sneakymouse/SneakyMannequins",
-      "explanation": "Interactive mannequin/skin customizer (layered outfits, hologram HUD) for LoM character looks."
-    },
-    {
-      "name": "SneakyMisc",
-      "url": "https://github.com/Team-Sneakymouse/SneakyMisc",
-      "explanation": "Catch-all Paper plugin for small LoM mechanics that do not warrant their own plugin."
-    },
-    {
-      "name": "SneakyNPCs",
-      "url": "https://github.com/Team-Sneakymouse/HoloUX-Workspace",
-      "explanation": "Configurable NPC interaction layer: shops, quests, reputation, taxes, tailor menus, and more."
-    },
-    {
-      "name": "SneakyNamegenerator",
-      "url": "https://github.com/Team-Sneakymouse/SneakyNamegenerator",
-      "explanation": "Fantasy name generator for creating character/NPC names from templateable syllable lists."
-    },
-    {
-      "name": "SneakyNotes",
-      "url": "https://github.com/Team-Sneakymouse/SneakyNotes",
-      "explanation": "Temporary floating TextDisplay notes players can place in the world for RP/signage."
-    },
-    {
-      "name": "SneakyPersonalization",
-      "url": "https://github.com/Team-Sneakymouse/SneakyPersonalization",
-      "explanation": "Config-driven player preference dialogs exposed via PlaceholderAPI for personalized UX."
-    },
-    {
-      "name": "SneakyPocketbase",
-      "url": "https://github.com/Team-Sneakymouse/SneakyPocketbase",
-      "explanation": "Paper bridge to PocketBase for persisting/syncing server data to the backend."
-    },
-    {
-      "name": "SneakyPoses",
-      "url": "https://github.com/Team-Sneakymouse/SneakyPoses",
-      "explanation": "Sit/crawl/sleep pose commands with synced fake-player rendering for roleplay posing."
-    },
-    {
-      "name": "SneakyPrototypeKit",
-      "url": "https://github.com/Team-Sneakymouse/SneakyPrototypeKit",
-      "explanation": "Admin toolkit to quickly prototype custom items/consumables with abilities without new plugins."
-    },
-    {
-      "name": "SneakyRacials",
-      "url": "https://github.com/Team-Sneakymouse/SneakyRacials",
-      "explanation": "Implements LoM character racial abilities and race-specific mechanics."
-    },
-    {
-      "name": "SneakyResourcePacks",
-      "url": "https://github.com/Team-Sneakymouse/SneakyResourcePacks",
-      "explanation": "Server plugin that serves/manages multiple resource packs to connecting players."
-    },
-    {
-      "name": "SneakySTTEvents",
-      "url": "https://github.com/Team-Sneakymouse/SneakySTTEvents",
-      "explanation": "Speech-to-text via Vosk + Simple Voice Chat that fires game events from spoken phrases."
-    },
-    {
-      "name": "SneakyVaults",
-      "url": "https://github.com/Team-Sneakymouse/SneakyVaults",
-      "explanation": "Personal player vault inventories for storing items outside the main inventory."
-    },
-    {
-      "name": "SneakyWantedPosters",
-      "url": null,
-      "explanation": null
-    },
-    {
-      "name": "SneakyEntityTweaks",
-      "url": "https://github.com/Team-Sneakymouse/SneakyEntityTweaks",
-      "explanation": "Adjusts default entity behaviors for a roleplay environment."
-    },
-    {
-      "name": "dippgen",
-      "url": "https://github.com/Team-Sneakymouse/DippGen",
-      "explanation": "Manages regenerating blocks and ore veins so gatherable resources respawn on the server."
-    },
-    {
-      "name": "Resourcepack",
-      "url": "https://github.com/Team-Sneakymouse/craftengine-resources",
-      "explanation": "Git-managed Minecraft resource pack assets shipped to players on Sneakymouse servers."
-    },
-    {
-      "name": "Configuration",
-      "url": null,
-      "explanation": "No code change required. This is a config change in a plugin that we do not maintain."
-    },
-    {
-      "name": "MagicSpells scripting",
-      "url": null,
-      "explanation": "YAML spell/item/script data that drives LoM MagicSpells content (skills, races, jobs, items, etc.)."
-    },
-    {
-      "name": "Navigation",
-      "url": null,
-      "explanation": "Quests/scrying/guide/navigation paths that did not show up (in specific areas)."
-    },
-    {
-      "name": "Mother Mouse Discord",
-      "url": "https://github.com/Team-Sneakymouse/Mother-Mouse-Discord",
-      "explanation": "Community discord bot."
-    }
-  ],
-  "groups": [
-    {
-      "name": "Paper plugins",
-      "labels": [
-        "BubbleChat",
-        "CallBells",
-        "MagicSpells",
-        "SlashMe",
-        "SneakyAIController",
-        "SneakyBagOfHolding",
-        "SneakyCCTV",
-        "SneakyCasino",
-        "SneakyCastBar",
-        "SneakyCellPhones",
-        "SneakyCharacterManager",
-        "SneakyConfigurableVoice",
-        "SneakyDiscordLink",
-        "SneakyDispatch",
-        "SneakyJobBoard",
-        "SneakyMail",
-        "SneakyMannequins",
-        "SneakyMisc",
-        "SneakyNPCs",
-        "SneakyNamegenerator",
-        "SneakyNotes",
-        "SneakyPersonalization",
-        "SneakyPocketbase",
-        "SneakyPoses",
-        "SneakyPrototypeKit",
-        "SneakyRacials",
-        "SneakySTTEvents",
-        "SneakyVaults",
-        "SneakyWantedPosters",
-        "SneakyEntityTweaks",
-        "dippgen",
-        "Mother Mouse Discord"
-      ],
-      "child_groups": [],
-      "assigned_user_id": ""
-    },
-    {
-      "name": "Velocity plugins",
-      "labels": [
-        "SneakyCharacterManager"
-      ],
-      "child_groups": [],
-      "assigned_user_id": ""
-    },
-    {
-      "name": "Momo",
-      "labels": [
-        "Configuration",
-        "Navigation",
-        "CallBells",
-        "MagicSpells",
-        "SneakyBagOfHolding",
-        "SneakyCharacterManager",
-        "SneakyDispatch",
-        "SneakyJobBoard",
-        "SneakyMannequins",
-        "SneakyNamegenerator",
-        "SneakyNotes",
-        "SneakyPoses",
-        "SneakyPrototypeKit"
-      ],
-      "child_groups": [
-        "Oakley",
-        "Bungo"
-      ],
-      "assigned_user_id": "108296164599734272"
-    },
-    {
-      "name": "Dani",
-      "labels": [
-        "Mother Mouse Discord",
-        "Resourcepack",
-        "SneakyDiscordLink",
-        "SneakyMail",
-        "SneakyMisc",
-        "SneakyNPCs",
-        "SneakyPersonalization",
-        "SneakyPocketbase",
-        "SneakyResourcePacks",
-        "dippgen"
-      ],
-      "child_groups": [],
-      "assigned_user_id": "138345057072840704"
-    },
-    {
-      "name": "Oakley",
-      "labels": [
-        "SneakyCCTV",
-        "SneakyCasino",
-        "SneakyCastBar",
-        "SneakyRacials",
-        "SneakyWantedPosters"
-      ],
-      "child_groups": [],
-      "assigned_user_id": "132478335530958849"
-    },
-    {
-      "name": "Bungo",
-      "labels": [
-        "BubbleChat",
-        "SlashMe",
-        "SneakyConfigurableVoice",
-        "SneakyAIController",
-        "SneakyCellPhones",
-        "SneakySTTEvents",
-        "SneakyVaults",
-        "SneakyEntityTweaks"
-      ],
-      "child_groups": [],
-      "assigned_user_id": "146065389460127745"
-    },
-    {
-      "name": "rawb",
-      "labels": [
-        "MagicSpells scripting"
-      ],
-      "child_groups": [],
-      "assigned_user_id": "90956966947467264"
-    }
-  ]
+	"guild_id": "391355330241757205",
+	"labels": [
+		{
+			"name": "BubbleChat",
+			"url": "https://github.com/Team-Sneakymouse/Bungo-BubbleChat",
+			"explanation": "Shows nearby player chat as floating speech bubbles above their heads for immersive LoM roleplay chat."
+		},
+		{
+			"name": "CallBells",
+			"url": "https://github.com/Team-Sneakymouse/CallBells",
+			"explanation": "Lets players opt into chat alerts when specific in-world bells are rung (e.g. calling staff/paladins)."
+		},
+		{
+			"name": "MagicSpells",
+			"url": "https://github.com/Team-Sneakymouse/MagicSpells-Workspace",
+			"explanation": "Fork of the MagicSpells Bukkit/Paper engine that powers LoM spells, items, and scripted mechanics."
+		},
+		{
+			"name": "SlashMe",
+			"url": "https://github.com/Team-Sneakymouse/SlashMe-Paper",
+			"explanation": "Visual /me emote plugin so roleplay actions appear in-world (used on DvZ and LoM)."
+		},
+		{
+			"name": "SneakyAIController",
+			"url": "https://github.com/Team-Sneakymouse/SneakyAIController",
+			"explanation": "Tweaks mob pathfinding AI (e.g. zombies float vs drown) so hostile mobs behave better in LoM RP worlds."
+		},
+		{
+			"name": "SneakyBagOfHolding",
+			"url": "https://github.com/Team-Sneakymouse/SneakyBagOfHolding",
+			"explanation": "Virtual bag-of-holding storage for MagicSpells items with category GUIs, capacity, and autopickup."
+		},
+		{
+			"name": "SneakyCCTV",
+			"url": "https://github.com/Team-Sneakymouse/SneakyCCTV",
+			"explanation": "In-game CCTV camera system for LoM surveillance/roleplay scenes."
+		},
+		{
+			"name": "SneakyCasino",
+			"url": "https://github.com/Team-Sneakymouse/SneakyCasino",
+			"explanation": "Runs LoM casino minigames and related gambling mechanics."
+		},
+		{
+			"name": "SneakyCastBar",
+			"url": "https://github.com/Team-Sneakymouse/SneakyCastBar",
+			"explanation": "Displays casting progress bars for LoM spells and channeled abilities."
+		},
+		{
+			"name": "SneakyCellPhones",
+			"url": "https://github.com/Team-Sneakymouse/SneakyCellPhones",
+			"explanation": "In-world cellphone logic for LoM (calls/apps bridging into the phone companion ecosystem)."
+		},
+		{
+			"name": "SneakyCharacterManager",
+			"url": "https://github.com/Team-Sneakymouse/SneakyCharacterManager-Paper",
+			"explanation": "Lets players switch between multiple characters/identities on DvZ and LoM."
+		},
+		{
+			"name": "SneakyConfigurableVoice",
+			"url": "https://github.com/Team-Sneakymouse/SneakyConfigurableVoice",
+			"explanation": "Simple Voice Chat addon that sets voice hear-distance by permission (for races, roles, scenes)."
+		},
+		{
+			"name": "SneakyDiscordLink",
+			"url": "https://github.com/Team-Sneakymouse/SneakyDiscordLink",
+			"explanation": "Links Minecraft accounts to Discord for community identity and Discord-gated features."
+		},
+		{
+			"name": "SneakyDispatch",
+			"url": "https://github.com/Team-Sneakymouse/SneakyDispatch",
+			"explanation": "Dispatch/call system for sending Paladins to incidents on LoM2."
+		},
+		{
+			"name": "SneakyJobBoard",
+			"url": "https://github.com/Team-Sneakymouse/SneakyJobBoard",
+			"explanation": "Manages the LoM2 job board where players pick up and track available jobs."
+		},
+		{
+			"name": "SneakyMail",
+			"url": "https://github.com/Team-Sneakymouse/SneakyMail",
+			"explanation": "Player mail system for sending/receiving messages and item parcels."
+		},
+		{
+			"name": "SneakyMannequins",
+			"url": "https://github.com/Team-Sneakymouse/SneakyMannequins",
+			"explanation": "Interactive mannequin/skin customizer (layered outfits, hologram HUD) for LoM character looks."
+		},
+		{
+			"name": "SneakyMisc",
+			"url": "https://github.com/Team-Sneakymouse/SneakyMisc",
+			"explanation": "Catch-all Paper plugin for small LoM mechanics that do not warrant their own plugin."
+		},
+		{
+			"name": "SneakyNPCs",
+			"url": "https://github.com/Team-Sneakymouse/HoloUX-Workspace",
+			"explanation": "Configurable NPC interaction layer: shops, quests, reputation, taxes, tailor menus, and more."
+		},
+		{
+			"name": "SneakyNamegenerator",
+			"url": "https://github.com/Team-Sneakymouse/SneakyNamegenerator",
+			"explanation": "Fantasy name generator for creating character/NPC names from templateable syllable lists."
+		},
+		{
+			"name": "SneakyNotes",
+			"url": "https://github.com/Team-Sneakymouse/SneakyNotes",
+			"explanation": "Temporary floating TextDisplay notes players can place in the world for RP/signage."
+		},
+		{
+			"name": "SneakyPersonalization",
+			"url": "https://github.com/Team-Sneakymouse/SneakyPersonalization",
+			"explanation": "Config-driven player preference dialogs exposed via PlaceholderAPI for personalized UX."
+		},
+		{
+			"name": "SneakyPocketbase",
+			"url": "https://github.com/Team-Sneakymouse/SneakyPocketbase",
+			"explanation": "Paper bridge to PocketBase for persisting/syncing server data to the backend."
+		},
+		{
+			"name": "SneakyPoses",
+			"url": "https://github.com/Team-Sneakymouse/SneakyPoses",
+			"explanation": "Sit/crawl/sleep pose commands with synced fake-player rendering for roleplay posing."
+		},
+		{
+			"name": "SneakyPrototypeKit",
+			"url": "https://github.com/Team-Sneakymouse/SneakyPrototypeKit",
+			"explanation": "Admin toolkit to quickly prototype custom items/consumables with abilities without new plugins."
+		},
+		{
+			"name": "SneakyRacials",
+			"url": "https://github.com/Team-Sneakymouse/SneakyRacials",
+			"explanation": "Implements LoM character racial abilities and race-specific mechanics."
+		},
+		{
+			"name": "SneakyResourcePacks",
+			"url": "https://github.com/Team-Sneakymouse/SneakyResourcePacks",
+			"explanation": "Server plugin that serves/manages multiple resource packs to connecting players."
+		},
+		{
+			"name": "SneakySTTEvents",
+			"url": "https://github.com/Team-Sneakymouse/SneakySTTEvents",
+			"explanation": "Speech-to-text via Vosk + Simple Voice Chat that fires game events from spoken phrases."
+		},
+		{
+			"name": "SneakyVaults",
+			"url": "https://github.com/Team-Sneakymouse/SneakyVaults",
+			"explanation": "Personal player vault inventories for storing items outside the main inventory."
+		},
+		{
+			"name": "SneakyWantedPosters",
+			"url": null,
+			"explanation": null
+		},
+		{
+			"name": "SneakyEntityTweaks",
+			"url": "https://github.com/Team-Sneakymouse/SneakyEntityTweaks",
+			"explanation": "Adjusts default entity behaviors for a roleplay environment."
+		},
+		{
+			"name": "dippgen",
+			"url": "https://github.com/Team-Sneakymouse/DippGen",
+			"explanation": "Manages regenerating blocks and ore veins so gatherable resources respawn on the server."
+		},
+		{
+			"name": "Resourcepack",
+			"url": "https://github.com/Team-Sneakymouse/craftengine-resources",
+			"explanation": "Git-managed Minecraft resource pack assets shipped to players on Sneakymouse servers."
+		},
+		{
+			"name": "Configuration",
+			"url": null,
+			"explanation": "No code change required. This is a config change in a plugin that we do not maintain."
+		},
+		{
+			"name": "MagicSpells scripting",
+			"url": null,
+			"explanation": "YAML spell/item/script data that drives LoM MagicSpells content (skills, races, jobs, items, etc.)."
+		},
+		{
+			"name": "Navigation",
+			"url": null,
+			"explanation": "Quests/scrying/guide/navigation paths that did not show up (in specific areas)."
+		},
+		{
+			"name": "Mother Mouse Discord",
+			"url": "https://github.com/Team-Sneakymouse/Mother-Mouse-Discord",
+			"explanation": "Community discord bot."
+		}
+	],
+	"groups": [
+		{
+			"name": "Paper plugins",
+			"labels": [
+				"BubbleChat",
+				"CallBells",
+				"MagicSpells",
+				"SlashMe",
+				"SneakyAIController",
+				"SneakyBagOfHolding",
+				"SneakyCCTV",
+				"SneakyCasino",
+				"SneakyCastBar",
+				"SneakyCellPhones",
+				"SneakyCharacterManager",
+				"SneakyConfigurableVoice",
+				"SneakyDiscordLink",
+				"SneakyDispatch",
+				"SneakyJobBoard",
+				"SneakyMail",
+				"SneakyMannequins",
+				"SneakyMisc",
+				"SneakyNPCs",
+				"SneakyNamegenerator",
+				"SneakyNotes",
+				"SneakyPersonalization",
+				"SneakyPocketbase",
+				"SneakyPoses",
+				"SneakyPrototypeKit",
+				"SneakyRacials",
+				"SneakySTTEvents",
+				"SneakyVaults",
+				"SneakyWantedPosters",
+				"SneakyEntityTweaks",
+				"dippgen",
+				"Mother Mouse Discord"
+			],
+			"child_groups": [],
+			"assigned_user_id": ""
+		},
+		{
+			"name": "Velocity plugins",
+			"labels": ["SneakyCharacterManager"],
+			"child_groups": [],
+			"assigned_user_id": ""
+		},
+		{
+			"name": "Momo",
+			"labels": [
+				"Configuration",
+				"Navigation",
+				"CallBells",
+				"MagicSpells",
+				"SneakyBagOfHolding",
+				"SneakyCharacterManager",
+				"SneakyDispatch",
+				"SneakyJobBoard",
+				"SneakyMannequins",
+				"SneakyNamegenerator",
+				"SneakyNotes",
+				"SneakyPoses",
+				"SneakyPrototypeKit"
+			],
+			"child_groups": ["Oakley", "Bungo"],
+			"assigned_user_id": "108296164599734272"
+		},
+		{
+			"name": "Dani",
+			"labels": [
+				"Mother Mouse Discord",
+				"Resourcepack",
+				"SneakyDiscordLink",
+				"SneakyMail",
+				"SneakyMisc",
+				"SneakyNPCs",
+				"SneakyPersonalization",
+				"SneakyPocketbase",
+				"SneakyResourcePacks",
+				"dippgen"
+			],
+			"child_groups": [],
+			"assigned_user_id": "138345057072840704"
+		},
+		{
+			"name": "Oakley",
+			"labels": ["SneakyCCTV", "SneakyCasino", "SneakyCastBar", "SneakyRacials", "SneakyWantedPosters"],
+			"child_groups": [],
+			"assigned_user_id": "132478335530958849"
+		},
+		{
+			"name": "Bungo",
+			"labels": [
+				"BubbleChat",
+				"SlashMe",
+				"SneakyConfigurableVoice",
+				"SneakyAIController",
+				"SneakyCellPhones",
+				"SneakySTTEvents",
+				"SneakyVaults",
+				"SneakyEntityTweaks"
+			],
+			"child_groups": [],
+			"assigned_user_id": "146065389460127745"
+		},
+		{
+			"name": "rawb",
+			"labels": ["MagicSpells scripting"],
+			"child_groups": [],
+			"assigned_user_id": "90956966947467264"
+		}
+	]
 }

@@ -6,7 +6,7 @@ type CommandRecord = { server: string; command: string; response: string };
 export default function TextCommands(client: Client, pocketbase: PocketBase) {
 	client.on("messageCreate", async (message): Promise<any> => {
 		if (!message.guild) return;
-		
+
 		const args = message.content.split(" ");
 		const command = args
 			.find((arg) => arg.startsWith("!"))

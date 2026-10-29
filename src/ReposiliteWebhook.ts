@@ -166,7 +166,11 @@ export class ReposiliteWorker {
 		if (!job.notified) {
 			job.notified = true;
 			await this.store.update(job.id, { notified: true });
-			await this.report(job, "running", `Deploying **${uploaded.id}** \`${uploaded.version}\` (${artifact.types.join(", ")}) to ${job.targets.length} dev server(s).`);
+			await this.report(
+				job,
+				"running",
+				`Deploying **${uploaded.id}** \`${uploaded.version}\` (${artifact.types.join(", ")}) to ${job.targets.length} dev server(s).`,
+			);
 		}
 		const failures: string[] = [];
 		for (const server of job.targets) {

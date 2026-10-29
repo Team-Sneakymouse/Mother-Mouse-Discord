@@ -22,9 +22,7 @@ export default function ThreadPins(client: Client, db: PocketBase) {
 		}
 
 		let allowed = false;
-		const allowedChannels = await db
-			.collection("settings")
-			.getFirstListItem<RecordModel & { value: string[] }>('key="discord_channels_user_pins"');
+		const allowedChannels = await db.collection("settings").getFirstListItem<RecordModel & { value: string[] }>('key="discord_channels_user_pins"');
 		if (!allowedChannels) {
 			interaction.reply({
 				content: "Failed looking up `discord_channels_user_pins`. Please tell Dani.",

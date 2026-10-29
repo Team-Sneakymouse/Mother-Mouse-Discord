@@ -29,48 +29,44 @@ type TwitchUserResponse = {
 };
 
 export default class TwitchLink {
-	constructor(public buttonIds: ButtonIds, public db: PocketBase, public server: Express) {
+	constructor(
+		public buttonIds: ButtonIds,
+		public db: PocketBase,
+		public server: Express,
+	) {
 		server.get("/link/twitch", (req, res) => this.handleAuthCallback(req, res));
 	}
 	interactionCache = new Map<string, ButtonInteraction>();
 	timeoutList = new Map<string, NodeJS.Timeout>();
 
 	async HandleButton(interaction: ButtonInteraction) {
-		if (interaction.customId === this.buttonIds.TWITCH_ADD)
-			return interaction.update({ components: await this.linkTwitch(interaction) });
-		if (interaction.customId === this.buttonIds.TWITCH_REMOVE)
-			return interaction.update({ components: await this.removeTwitch(interaction) });
+		if (interaction.customId === this.buttonIds.TWITCH_ADD) return interaction.update({ components: await this.linkTwitch(interaction) });
+		if (interaction.customId === this.buttonIds.TWITCH_REMOVE) return interaction.update({ components: await this.removeTwitch(interaction) });
 	}
 
 	async linkTwitch(interaction: ButtonInteraction) {
-		const userRecord = await this.getUserRecord(
-			interaction.user.id,
-			(interaction.member as GuildMember)?.displayName ?? interaction.user.username
-		);
+		const userRecord = await this.getUserRecord(interaction.user.id, (interaction.member as GuildMember)?.displayName ?? interaction.user.username);
 
 		this.interactionCache.set(interaction.id, interaction);
 		this.timeoutList.set(
 			interaction.id,
-			setTimeout(() => {
-				if (this.interactionCache.has(interaction.id)) {
-					this.interactionCache.delete(interaction.id);
-					interaction.editReply({
-						components: [
-							new TextDisplayBuilder().setContent("Linking process timed out. Please try again."),
-							new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
-								new ButtonBuilder()
-									.setCustomId(this.buttonIds.TWITCH_ADD)
-									.setStyle(ButtonStyle.Success)
-									.setLabel("Link Twitch Account"),
-								new ButtonBuilder()
-									.setCustomId(this.buttonIds.TWITCH_REMOVE)
-									.setStyle(ButtonStyle.Secondary)
-									.setLabel("Back to Account Management")
-							),
-						],
-					});
-				}
-			}, 15 * 60 * 1000) // 15 minutes timeout
+			setTimeout(
+				() => {
+					if (this.interactionCache.has(interaction.id)) {
+						this.interactionCache.delete(interaction.id);
+						interaction.editReply({
+							components: [
+								new TextDisplayBuilder().setContent("Linking process timed out. Please try again."),
+								new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
+									new ButtonBuilder().setCustomId(this.buttonIds.TWITCH_ADD).setStyle(ButtonStyle.Success).setLabel("Link Twitch Account"),
+									new ButtonBuilder().setCustomId(this.buttonIds.TWITCH_REMOVE).setStyle(ButtonStyle.Secondary).setLabel("Back to Account Management"),
+								),
+							],
+						});
+					}
+				},
+				15 * 60 * 1000,
+			), // 15 minutes timeout
 		);
 
 		const authParams = new URLSearchParams({
@@ -85,9 +81,7 @@ export default class TwitchLink {
 		return [
 			new SectionBuilder()
 				.addTextDisplayComponents(
-					new TextDisplayBuilder().setContent(
-						`To ${userRecord.twitch_id ? "replace your linked" : "link your"} Twitch account, please click here:`
-					)
+					new TextDisplayBuilder().setContent(`To ${userRecord.twitch_id ? "replace your linked" : "link your"} Twitch account, please click here:`),
 				)
 				.setButtonAccessory(new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel("Link Twitch").setURL(authUrl)),
 		];
@@ -104,10 +98,7 @@ export default class TwitchLink {
 		if (!interaction) return res.status(400).send("Invalid or expired interaction state.");
 
 		try {
-			const userRecord = await this.getUserRecord(
-				interaction.user.id,
-				(interaction.member as GuildMember)?.displayName ?? interaction.user.username
-			);
+			const userRecord = await this.getUserRecord(interaction.user.id, (interaction.member as GuildMember)?.displayName ?? interaction.user.username);
 
 			const tokenRequestParams = new URLSearchParams({
 				client_id: process.env["TWITCH_CLIENT_ID"]!,
@@ -126,7 +117,7 @@ export default class TwitchLink {
 				console.error("Twitch token request failed:", errorText);
 				return res.status(500).send("Failed to obtain access token from Twitch.");
 			}
-			const tokenData = await tokenResponse.json() as TwitchTokenResponse;
+			const tokenData = (await tokenResponse.json()) as TwitchTokenResponse;
 			if (!tokenData.access_token) {
 				console.error("Twitch token response did not contain access_token:", tokenData);
 				return res.status(500).send("Failed to obtain access token from Twitch.");
@@ -138,7 +129,7 @@ export default class TwitchLink {
 					Authorization: `Bearer ${tokenData.access_token}`,
 				},
 			});
-			const userData = await userResponse.json() as TwitchUserResponse;
+			const userData = (await userResponse.json()) as TwitchUserResponse;
 
 			if (!userData.data || userData.data.length === 0) {
 				return res.status(500).send("Failed to obtain user data from Twitch.");
@@ -171,10 +162,7 @@ export default class TwitchLink {
 				components: [
 					new TextDisplayBuilder().setContent("Twitch account linked successfully!"),
 					new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
-						new ButtonBuilder()
-							.setCustomId(this.buttonIds.ACCOUNT_MANAGEMENT)
-							.setStyle(ButtonStyle.Secondary)
-							.setLabel("Back to Account Management")
+						new ButtonBuilder().setCustomId(this.buttonIds.ACCOUNT_MANAGEMENT).setStyle(ButtonStyle.Secondary).setLabel("Back to Account Management"),
 					),
 				],
 			});
@@ -186,14 +174,8 @@ export default class TwitchLink {
 				components: [
 					new TextDisplayBuilder().setContent("An error occurred while linking your Twitch account. Please try again."),
 					new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
-						new ButtonBuilder()
-							.setCustomId(this.buttonIds.TWITCH_ADD)
-							.setStyle(ButtonStyle.Success)
-							.setLabel("Link Twitch Account"),
-						new ButtonBuilder()
-							.setCustomId(this.buttonIds.ACCOUNT_MANAGEMENT)
-							.setStyle(ButtonStyle.Secondary)
-							.setLabel("Back to Account Management")
+						new ButtonBuilder().setCustomId(this.buttonIds.TWITCH_ADD).setStyle(ButtonStyle.Success).setLabel("Link Twitch Account"),
+						new ButtonBuilder().setCustomId(this.buttonIds.ACCOUNT_MANAGEMENT).setStyle(ButtonStyle.Secondary).setLabel("Back to Account Management"),
 					),
 				],
 			});
@@ -201,23 +183,14 @@ export default class TwitchLink {
 	}
 
 	async removeTwitch(interaction: Interaction) {
-		const userRecord = await this.getUserRecord(
-			interaction.user.id,
-			(interaction.member as GuildMember)?.displayName ?? interaction.user.username
-		);
+		const userRecord = await this.getUserRecord(interaction.user.id, (interaction.member as GuildMember)?.displayName ?? interaction.user.username);
 
 		if (!userRecord.twitch)
 			return [
 				new TextDisplayBuilder().setContent("You have no Twitch account linked."),
 				new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
-					new ButtonBuilder()
-						.setCustomId(this.buttonIds.TWITCH_ADD)
-						.setStyle(ButtonStyle.Success)
-						.setLabel("Link Twitch Account"),
-					new ButtonBuilder()
-						.setCustomId(this.buttonIds.ACCOUNT_MANAGEMENT)
-						.setStyle(ButtonStyle.Secondary)
-						.setLabel("Back to Account Management")
+					new ButtonBuilder().setCustomId(this.buttonIds.TWITCH_ADD).setStyle(ButtonStyle.Success).setLabel("Link Twitch Account"),
+					new ButtonBuilder().setCustomId(this.buttonIds.ACCOUNT_MANAGEMENT).setStyle(ButtonStyle.Secondary).setLabel("Back to Account Management"),
 				),
 			];
 
@@ -228,10 +201,7 @@ export default class TwitchLink {
 		return [
 			new TextDisplayBuilder().setContent("Twitch account unlinked successfully!"),
 			new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
-				new ButtonBuilder()
-					.setCustomId(this.buttonIds.ACCOUNT_MANAGEMENT)
-					.setStyle(ButtonStyle.Secondary)
-					.setLabel("Back to Account Management")
+				new ButtonBuilder().setCustomId(this.buttonIds.ACCOUNT_MANAGEMENT).setStyle(ButtonStyle.Secondary).setLabel("Back to Account Management"),
 			),
 		];
 	}

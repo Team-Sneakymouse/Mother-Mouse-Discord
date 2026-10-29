@@ -23,7 +23,10 @@ import PocketBase, { ClientResponseError } from "pocketbase";
 import { AccountRecord, ButtonIds, LinkRecord, UserRecord } from "./types.js";
 
 export default class MinecraftLink {
-	constructor(public customIds: ButtonIds, public db: PocketBase) {}
+	constructor(
+		public customIds: ButtonIds,
+		public db: PocketBase,
+	) {}
 	inFlight = new Set<string>();
 
 	async HandleButton(interaction: ButtonInteraction) {
@@ -45,9 +48,9 @@ export default class MinecraftLink {
 								.setRequired(true)
 								.setStyle(TextInputStyle.Short)
 								.setMinLength(5)
-								.setMaxLength(5)
-						)
-					)
+								.setMaxLength(5),
+						),
+					),
 			);
 		if (interaction.customId.startsWith(this.customIds.MINECRAFT_REMOVE)) {
 			const accountUuid = interaction.customId.split(":")[1];
@@ -71,10 +74,7 @@ export default class MinecraftLink {
 				components: [
 					new TextDisplayBuilder().setContent("Invalid link token. Please make sure you entered a 5-digit token."),
 					new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
-						new ButtonBuilder()
-							.setCustomId(this.customIds.ACCOUNT_MANAGEMENT)
-							.setStyle(ButtonStyle.Secondary)
-							.setLabel("Back to Account Management")
+						new ButtonBuilder().setCustomId(this.customIds.ACCOUNT_MANAGEMENT).setStyle(ButtonStyle.Secondary).setLabel("Back to Account Management"),
 					),
 				],
 			});
@@ -98,18 +98,12 @@ export default class MinecraftLink {
 			return [
 				new TextDisplayBuilder().setContent("You're already in the process if linking your account. Please wait."),
 				new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
-					new ButtonBuilder()
-						.setCustomId(this.customIds.ACCOUNT_MANAGEMENT)
-						.setStyle(ButtonStyle.Secondary)
-						.setLabel("Back to Account Management")
+					new ButtonBuilder().setCustomId(this.customIds.ACCOUNT_MANAGEMENT).setStyle(ButtonStyle.Secondary).setLabel("Back to Account Management"),
 				),
 			];
 		this.inFlight.add(interaction.user.id);
 		try {
-			const userRecord = await this.getUserRecord(
-				interaction.user.id,
-				(interaction.member as GuildMember)?.displayName ?? interaction.user.username
-			);
+			const userRecord = await this.getUserRecord(interaction.user.id, (interaction.member as GuildMember)?.displayName ?? interaction.user.username);
 
 			// check if a token already exists
 			const linkRecord = await this.db
@@ -118,14 +112,9 @@ export default class MinecraftLink {
 				.catch(() => null);
 			if (linkRecord)
 				return [
-					new TextDisplayBuilder().setContent(
-						"In Minecraft, please run this command to link your account:```/link " + linkRecord.link_token + "```"
-					),
+					new TextDisplayBuilder().setContent("In Minecraft, please run this command to link your account:```/link " + linkRecord.link_token + "```"),
 					new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
-						new ButtonBuilder()
-							.setCustomId(this.customIds.ACCOUNT_MANAGEMENT)
-							.setStyle(ButtonStyle.Secondary)
-							.setLabel("Back to Account Management")
+						new ButtonBuilder().setCustomId(this.customIds.ACCOUNT_MANAGEMENT).setStyle(ButtonStyle.Secondary).setLabel("Back to Account Management"),
 					),
 				];
 
@@ -148,10 +137,7 @@ export default class MinecraftLink {
 					new TextDisplayBuilder().setContent("Failed to generate a unique link token. Please tell Dani."),
 					new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
 						new ButtonBuilder().setCustomId(this.customIds.MINECRAFT_ADD).setStyle(ButtonStyle.Success).setLabel("Try Again"),
-						new ButtonBuilder()
-							.setCustomId(this.customIds.ACCOUNT_MANAGEMENT)
-							.setStyle(ButtonStyle.Secondary)
-							.setLabel("Back to Account Management")
+						new ButtonBuilder().setCustomId(this.customIds.ACCOUNT_MANAGEMENT).setStyle(ButtonStyle.Secondary).setLabel("Back to Account Management"),
 					),
 				];
 
@@ -168,20 +154,14 @@ export default class MinecraftLink {
 					new TextDisplayBuilder().setContent("Failed to save link record. Please tell Dani."),
 					new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
 						new ButtonBuilder().setCustomId(this.customIds.MINECRAFT_ADD).setStyle(ButtonStyle.Success).setLabel("Try Again"),
-						new ButtonBuilder()
-							.setCustomId(this.customIds.ACCOUNT_MANAGEMENT)
-							.setStyle(ButtonStyle.Secondary)
-							.setLabel("Back to Account Management")
+						new ButtonBuilder().setCustomId(this.customIds.ACCOUNT_MANAGEMENT).setStyle(ButtonStyle.Secondary).setLabel("Back to Account Management"),
 					),
 				];
 			// Send token to user
 			return [
 				new TextDisplayBuilder().setContent("In Minecraft, please run this command to link your account:```/link " + token + "```"),
 				new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
-					new ButtonBuilder()
-						.setCustomId(this.customIds.ACCOUNT_MANAGEMENT)
-						.setStyle(ButtonStyle.Secondary)
-						.setLabel("Back to Account Management")
+					new ButtonBuilder().setCustomId(this.customIds.ACCOUNT_MANAGEMENT).setStyle(ButtonStyle.Secondary).setLabel("Back to Account Management"),
 				),
 			];
 		} finally {
@@ -193,32 +173,20 @@ export default class MinecraftLink {
 			return [
 				new TextDisplayBuilder().setContent("You're already in the process of linking your account. Please wait."),
 				new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
-					new ButtonBuilder()
-						.setCustomId(this.customIds.ACCOUNT_MANAGEMENT)
-						.setStyle(ButtonStyle.Secondary)
-						.setLabel("Back to Account Management")
+					new ButtonBuilder().setCustomId(this.customIds.ACCOUNT_MANAGEMENT).setStyle(ButtonStyle.Secondary).setLabel("Back to Account Management"),
 				),
 			];
 		}
 		this.inFlight.add(interaction.user.id);
 		try {
-			const userRecord = await this.getUserRecord(
-				interaction.user.id,
-				(interaction.member as GuildMember)?.displayName ?? interaction.user.username
-			);
+			const userRecord = await this.getUserRecord(interaction.user.id, (interaction.member as GuildMember)?.displayName ?? interaction.user.username);
 
 			if (linkToken.length !== 5) {
 				return [
 					new TextDisplayBuilder().setContent("Invalid link token. Please make sure you entered a 5-digit token."),
 					new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
-						new ButtonBuilder()
-							.setCustomId(this.customIds.MINECRAFT_LINK_MODAL)
-							.setStyle(ButtonStyle.Success)
-							.setLabel("Try Again"),
-						new ButtonBuilder()
-							.setCustomId(this.customIds.ACCOUNT_MANAGEMENT)
-							.setStyle(ButtonStyle.Secondary)
-							.setLabel("Back to Account Management")
+						new ButtonBuilder().setCustomId(this.customIds.MINECRAFT_LINK_MODAL).setStyle(ButtonStyle.Success).setLabel("Try Again"),
+						new ButtonBuilder().setCustomId(this.customIds.ACCOUNT_MANAGEMENT).setStyle(ButtonStyle.Secondary).setLabel("Back to Account Management"),
 					),
 				];
 			}
@@ -232,14 +200,8 @@ export default class MinecraftLink {
 				return [
 					new TextDisplayBuilder().setContent("Invalid link token."),
 					new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
-						new ButtonBuilder()
-							.setCustomId(this.customIds.MINECRAFT_LINK_MODAL)
-							.setStyle(ButtonStyle.Success)
-							.setLabel("Try Again"),
-						new ButtonBuilder()
-							.setCustomId(this.customIds.ACCOUNT_MANAGEMENT)
-							.setStyle(ButtonStyle.Secondary)
-							.setLabel("Back to Account Management")
+						new ButtonBuilder().setCustomId(this.customIds.MINECRAFT_LINK_MODAL).setStyle(ButtonStyle.Success).setLabel("Try Again"),
+						new ButtonBuilder().setCustomId(this.customIds.ACCOUNT_MANAGEMENT).setStyle(ButtonStyle.Secondary).setLabel("Back to Account Management"),
 					),
 				];
 			}
@@ -252,10 +214,7 @@ export default class MinecraftLink {
 				return [
 					new TextDisplayBuilder().setContent(errorMessage),
 					new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
-						new ButtonBuilder()
-							.setCustomId(this.customIds.ACCOUNT_MANAGEMENT)
-							.setStyle(ButtonStyle.Secondary)
-							.setLabel("Back to Account Management")
+						new ButtonBuilder().setCustomId(this.customIds.ACCOUNT_MANAGEMENT).setStyle(ButtonStyle.Secondary).setLabel("Back to Account Management"),
 					),
 				];
 			}
@@ -269,14 +228,8 @@ export default class MinecraftLink {
 				return [
 					new TextDisplayBuilder().setContent("Failed to check linked accounts. Please tell Dani."),
 					new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
-						new ButtonBuilder()
-							.setCustomId(this.customIds.MINECRAFT_LINK_MODAL)
-							.setStyle(ButtonStyle.Success)
-							.setLabel("Try Again"),
-						new ButtonBuilder()
-							.setCustomId(this.customIds.ACCOUNT_MANAGEMENT)
-							.setStyle(ButtonStyle.Secondary)
-							.setLabel("Back to Account Management")
+						new ButtonBuilder().setCustomId(this.customIds.MINECRAFT_LINK_MODAL).setStyle(ButtonStyle.Success).setLabel("Try Again"),
+						new ButtonBuilder().setCustomId(this.customIds.ACCOUNT_MANAGEMENT).setStyle(ButtonStyle.Secondary).setLabel("Back to Account Management"),
 					),
 				];
 			}
@@ -294,14 +247,8 @@ export default class MinecraftLink {
 				return [
 					new TextDisplayBuilder().setContent("Failed to link account. Please tell Dani."),
 					new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
-						new ButtonBuilder()
-							.setCustomId(this.customIds.MINECRAFT_LINK_MODAL)
-							.setStyle(ButtonStyle.Success)
-							.setLabel("Try Again"),
-						new ButtonBuilder()
-							.setCustomId(this.customIds.ACCOUNT_MANAGEMENT)
-							.setStyle(ButtonStyle.Secondary)
-							.setLabel("Back to Account Management")
+						new ButtonBuilder().setCustomId(this.customIds.MINECRAFT_LINK_MODAL).setStyle(ButtonStyle.Success).setLabel("Try Again"),
+						new ButtonBuilder().setCustomId(this.customIds.ACCOUNT_MANAGEMENT).setStyle(ButtonStyle.Secondary).setLabel("Back to Account Management"),
 					),
 				];
 			}
@@ -315,29 +262,18 @@ export default class MinecraftLink {
 				return [
 					new TextDisplayBuilder().setContent("Failed to clean up. Please tell Dani."),
 					new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
-						new ButtonBuilder()
-							.setCustomId(this.customIds.MINECRAFT_LINK_MODAL)
-							.setStyle(ButtonStyle.Success)
-							.setLabel("Try Again"),
-						new ButtonBuilder()
-							.setCustomId(this.customIds.ACCOUNT_MANAGEMENT)
-							.setStyle(ButtonStyle.Secondary)
-							.setLabel("Back to Account Management")
+						new ButtonBuilder().setCustomId(this.customIds.MINECRAFT_LINK_MODAL).setStyle(ButtonStyle.Success).setLabel("Try Again"),
+						new ButtonBuilder().setCustomId(this.customIds.ACCOUNT_MANAGEMENT).setStyle(ButtonStyle.Secondary).setLabel("Back to Account Management"),
 					),
 				];
 			}
 			return [
 				new TextDisplayBuilder().setContent("Account linked successfully."),
 				new MediaGalleryBuilder().addItems(
-					new MediaGalleryItemBuilder().setURL(
-						`https://starlightskins.lunareclipse.studio/render/default/${linkRecord.account}/face`
-					)
+					new MediaGalleryItemBuilder().setURL(`https://starlightskins.lunareclipse.studio/render/default/${linkRecord.account}/face`),
 				),
 				new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
-					new ButtonBuilder()
-						.setCustomId(this.customIds.ACCOUNT_MANAGEMENT)
-						.setStyle(ButtonStyle.Secondary)
-						.setLabel("Back to Account Management")
+					new ButtonBuilder().setCustomId(this.customIds.ACCOUNT_MANAGEMENT).setStyle(ButtonStyle.Secondary).setLabel("Back to Account Management"),
 				),
 			];
 		} finally {
@@ -354,10 +290,7 @@ export default class MinecraftLink {
 			return [
 				new TextDisplayBuilder().setContent("You don't have this Minecraft account linked."),
 				new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
-					new ButtonBuilder()
-						.setCustomId(this.customIds.ACCOUNT_MANAGEMENT)
-						.setStyle(ButtonStyle.Secondary)
-						.setLabel("Back to Account Management")
+					new ButtonBuilder().setCustomId(this.customIds.ACCOUNT_MANAGEMENT).setStyle(ButtonStyle.Secondary).setLabel("Back to Account Management"),
 				),
 			];
 		}
@@ -374,10 +307,7 @@ export default class MinecraftLink {
 			return [
 				new TextDisplayBuilder().setContent("Failed to remove account. Please tell Dani."),
 				new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
-					new ButtonBuilder()
-						.setCustomId(this.customIds.ACCOUNT_MANAGEMENT)
-						.setStyle(ButtonStyle.Secondary)
-						.setLabel("Back to Account Management")
+					new ButtonBuilder().setCustomId(this.customIds.ACCOUNT_MANAGEMENT).setStyle(ButtonStyle.Secondary).setLabel("Back to Account Management"),
 				),
 			];
 		let newMainAccount: AccountRecord | null = null;
@@ -395,30 +325,20 @@ export default class MinecraftLink {
 
 		return [
 			new TextDisplayBuilder().setContent(
-				`Minecraft account **${account.name}** removed successfully.${
-					newMainAccount ? `\nYour new main account is **${newMainAccount.name}**.` : ""
-				}`
+				`Minecraft account **${account.name}** removed successfully.${newMainAccount ? `\nYour new main account is **${newMainAccount.name}**.` : ""}`,
 			),
 			new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
-				new ButtonBuilder()
-					.setCustomId(this.customIds.ACCOUNT_MANAGEMENT)
-					.setStyle(ButtonStyle.Secondary)
-					.setLabel("Back to Account Management")
+				new ButtonBuilder().setCustomId(this.customIds.ACCOUNT_MANAGEMENT).setStyle(ButtonStyle.Secondary).setLabel("Back to Account Management"),
 			),
 		];
 	}
 	async setMainAccount(interaction: Interaction, accountUuid: string) {
-		const accounts = await this.db
-			.collection("lom2_accounts")
-			.getFullList<AccountRecord>({ filter: `owner.discord_id = "${interaction.user.id}"` });
+		const accounts = await this.db.collection("lom2_accounts").getFullList<AccountRecord>({ filter: `owner.discord_id = "${interaction.user.id}"` });
 		if (accounts.length === 0)
 			return [
 				new TextDisplayBuilder().setContent("You don't have any Minecraft accounts linked."),
 				new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
-					new ButtonBuilder()
-						.setCustomId(this.customIds.ACCOUNT_MANAGEMENT)
-						.setStyle(ButtonStyle.Secondary)
-						.setLabel("Back to Account Management")
+					new ButtonBuilder().setCustomId(this.customIds.ACCOUNT_MANAGEMENT).setStyle(ButtonStyle.Secondary).setLabel("Back to Account Management"),
 				),
 			];
 		const account = accounts.find((acc) => acc.id === accountUuid);
@@ -426,20 +346,14 @@ export default class MinecraftLink {
 			return [
 				new TextDisplayBuilder().setContent("You don't have this Minecraft account linked."),
 				new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
-					new ButtonBuilder()
-						.setCustomId(this.customIds.ACCOUNT_MANAGEMENT)
-						.setStyle(ButtonStyle.Secondary)
-						.setLabel("Back to Account Management")
+					new ButtonBuilder().setCustomId(this.customIds.ACCOUNT_MANAGEMENT).setStyle(ButtonStyle.Secondary).setLabel("Back to Account Management"),
 				),
 			];
 		if (account.main)
 			return [
 				new TextDisplayBuilder().setContent("This account is already set as your main account."),
 				new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
-					new ButtonBuilder()
-						.setCustomId(this.customIds.ACCOUNT_MANAGEMENT)
-						.setStyle(ButtonStyle.Secondary)
-						.setLabel("Back to Account Management")
+					new ButtonBuilder().setCustomId(this.customIds.ACCOUNT_MANAGEMENT).setStyle(ButtonStyle.Secondary).setLabel("Back to Account Management"),
 				),
 			];
 		// Unset main status for all other accounts
@@ -456,22 +370,14 @@ export default class MinecraftLink {
 			return [
 				new TextDisplayBuilder().setContent("Failed to set this account as main. Please tell Dani."),
 				new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
-					new ButtonBuilder()
-						.setCustomId(this.customIds.ACCOUNT_MANAGEMENT)
-						.setStyle(ButtonStyle.Secondary)
-						.setLabel("Back to Account Management")
+					new ButtonBuilder().setCustomId(this.customIds.ACCOUNT_MANAGEMENT).setStyle(ButtonStyle.Secondary).setLabel("Back to Account Management"),
 				),
 			];
 		return [
 			new TextDisplayBuilder().setContent(`**${account.name}** is now set as your main Minecraft account.`),
-			new MediaGalleryBuilder().addItems(
-				new MediaGalleryItemBuilder().setURL(`https://starlightskins.lunareclipse.studio/render/default/${account.id}/face`)
-			),
+			new MediaGalleryBuilder().addItems(new MediaGalleryItemBuilder().setURL(`https://starlightskins.lunareclipse.studio/render/default/${account.id}/face`)),
 			new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
-				new ButtonBuilder()
-					.setCustomId(this.customIds.ACCOUNT_MANAGEMENT)
-					.setStyle(ButtonStyle.Secondary)
-					.setLabel("Back to Account Management")
+				new ButtonBuilder().setCustomId(this.customIds.ACCOUNT_MANAGEMENT).setStyle(ButtonStyle.Secondary).setLabel("Back to Account Management"),
 			),
 		];
 	}

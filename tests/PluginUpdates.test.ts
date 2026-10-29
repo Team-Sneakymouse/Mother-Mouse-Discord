@@ -175,13 +175,15 @@ test("retry migrates an existing deployment message and skips its recorded succe
 	selection.stage = "upload";
 	selection.selected = ["Plugin0", "Plugin1"];
 	const target = message(renderState(selection));
-	target.result.embeds = [new Embed({
-		...target.result.embeds[0].toJSON(),
-		fields: [
-			{ name: "Selected releases", value: "`Plugin0`\n`Plugin1`" },
-			{ name: "Uploaded releases", value: "`Plugin0 old-release paper-plugin`" },
-		],
-	})];
+	target.result.embeds = [
+		new Embed({
+			...target.result.embeds[0].toJSON(),
+			fields: [
+				{ name: "Selected releases", value: "`Plugin0`\n`Plugin1`" },
+				{ name: "Uploaded releases", value: "`Plugin0 old-release paper-plugin`" },
+			],
+		}),
+	];
 	assert.deepEqual(pending(readState(target.result)), ["Plugin1"]);
 	const deployed: string[] = [];
 	const service = {
@@ -511,10 +513,7 @@ test("Discord component IDs and persisted embed fields stay within API limits", 
 			if ("custom_id" in component) assert.ok(component.custom_id!.length <= 100);
 		}
 	assert.deepEqual(readState(message(rendered).result), selection);
-	assert.throws(
-		() => renderState({ ...selection, selected: [...selection.selected, "OneMore"] }, [], artifacts),
-		/separate batches/,
-	);
+	assert.throws(() => renderState({ ...selection, selected: [...selection.selected, "OneMore"] }, [], artifacts), /separate batches/);
 });
 
 test("the release menu only offers releases compatible with the selected server", async () => {

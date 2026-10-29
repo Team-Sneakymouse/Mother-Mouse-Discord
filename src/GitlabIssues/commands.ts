@@ -17,9 +17,7 @@ export const data = [
 	new SlashCommandBuilder()
 		.setName("report")
 		.setDescription("Report a bug or feature request")
-		.addStringOption(
-			new SlashCommandStringOption().setName("title").setDescription("Short description of your bug/request").setRequired(false)
-		),
+		.addStringOption(new SlashCommandStringOption().setName("title").setDescription("Short description of your bug/request").setRequired(false)),
 ];
 
 export default function (client: Client, gitlab: InstanceType<typeof Gitlab>) {
@@ -70,7 +68,7 @@ export default function (client: Client, gitlab: InstanceType<typeof Gitlab>) {
 							],
 						},
 					],
-				}).toJSON()
+				}).toJSON(),
 			);
 		},
 	};

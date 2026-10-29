@@ -1,12 +1,4 @@
-import {
-	MessageFlags,
-	Client,
-	CommandInteraction,
-	ContextMenuCommandBuilder,
-	GuildTextBasedChannel,
-	SlashCommandBuilder,
-	VoiceChannel,
-} from "discord.js";
+import { MessageFlags, Client, CommandInteraction, ContextMenuCommandBuilder, GuildTextBasedChannel, SlashCommandBuilder, VoiceChannel } from "discord.js";
 export const data = [
 	new SlashCommandBuilder().setName("power").setDescription("Power up Dani"),
 	new SlashCommandBuilder().setName("lock").setDescription("Lock/unlock room"),
@@ -44,9 +36,7 @@ async function handleLockCommand(interaction: CommandInteraction) {
 
 		const permissionUpdatePromises: Promise<any>[] = [];
 		for (const voiceChannel of voiceChannels.values()) {
-			permissionUpdatePromises.push(
-				(voiceChannel as VoiceChannel).fetch().then((c) => c.permissionOverwrites.cache.map((p) => p.edit({ Connect: false })))
-			);
+			permissionUpdatePromises.push((voiceChannel as VoiceChannel).fetch().then((c) => c.permissionOverwrites.cache.map((p) => p.edit({ Connect: false }))));
 		}
 		await Promise.all(permissionUpdatePromises);
 		await category.edit({ name: `🔒 ${category.name}` });

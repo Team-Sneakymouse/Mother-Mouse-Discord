@@ -1,460 +1,426 @@
 [
-  {
-    "id": "todolabels00001",
-    "name": "todo_list_labels",
-    "type": "base",
-    "listRule": null,
-    "viewRule": null,
-    "createRule": null,
-    "updateRule": null,
-    "deleteRule": null,
-    "fields": [
-      {
-        "name": "guild_id",
-        "type": "text",
-        "required": true
-      },
-      {
-        "name": "name",
-        "type": "text",
-        "required": true,
-        "max": 100
-      },
-      {
-        "name": "repo",
-        "type": "text",
-        "max": 500
-      },
-      {
-        "name": "thread_id",
-        "type": "text"
-      },
-      {
-        "name": "description",
-        "type": "text",
-        "max": 10000
-      }
-    ],
-    "indexes": [
-      "CREATE UNIQUE INDEX idx_todo_label_name ON todo_list_labels (guild_id, name)"
-    ]
-  },
-  {
-    "id": "todogroups00001",
-    "name": "todo_list_label_groups",
-    "type": "base",
-    "listRule": null,
-    "viewRule": null,
-    "createRule": null,
-    "updateRule": null,
-    "deleteRule": null,
-    "fields": [
-      {
-        "name": "guild_id",
-        "type": "text",
-        "required": true
-      },
-      {
-        "name": "name",
-        "type": "text",
-        "required": true,
-        "max": 100
-      },
-      {
-        "name": "labels",
-        "type": "relation",
-        "collectionId": "todolabels00001",
-        "maxSelect": 1000,
-        "cascadeDelete": false,
-        "required": false
-      },
-      {
-        "name": "assigned_user_id",
-        "type": "text",
-        "required": false,
-        "max": 20
-      },
-      {
-        "name": "child_groups",
-        "type": "relation",
-        "collectionId": "todogroups00001",
-        "maxSelect": 1000,
-        "cascadeDelete": false,
-        "required": false
-      }
-    ],
-    "indexes": [
-      "CREATE UNIQUE INDEX idx_todo_group_name ON todo_list_label_groups (guild_id, name)"
-    ]
-  },
-  {
-    "id": "todotodos000001",
-    "name": "todo_list_todos",
-    "type": "base",
-    "listRule": null,
-    "viewRule": null,
-    "createRule": null,
-    "updateRule": null,
-    "deleteRule": null,
-    "fields": [
-      {
-        "name": "guild_id",
-        "type": "text",
-        "required": true
-      },
-      {
-        "name": "number",
-        "type": "number",
-        "onlyInt": true,
-        "min": 1,
-        "required": true
-      },
-      {
-        "name": "origin_key",
-        "type": "text",
-        "required": true
-      },
-      {
-        "name": "title",
-        "type": "text",
-        "required": true,
-        "max": 200
-      },
-      {
-        "name": "description",
-        "type": "text",
-        "required": true,
-        "max": 20000
-      },
-      {
-        "name": "label",
-        "type": "relation",
-        "collectionId": "todolabels00001",
-        "maxSelect": 1,
-        "cascadeDelete": false,
-        "required": false
-      },
-      {
-        "name": "kind",
-        "type": "select",
-        "values": [
-          "bug",
-          "feature"
-        ],
-        "maxSelect": 1,
-        "required": true
-      },
-      {
-        "name": "priority",
-        "type": "select",
-        "values": [
-          "red",
-          "yellow",
-          "blue"
-        ],
-        "maxSelect": 1,
-        "required": true
-      },
-      {
-        "name": "status",
-        "type": "select",
-        "values": [
-          "open",
-          "in_progress",
-          "blocked",
-          "done",
-          "closed",
-          "cancelled"
-        ],
-        "maxSelect": 1,
-        "required": true
-      },
-      {
-        "name": "claim",
-        "type": "json",
-        "maxSize": 20000000
-      },
-      {
-        "name": "audit",
-        "type": "json",
-        "maxSize": 2000000
-      },
-      {
-        "name": "work",
-        "type": "json",
-        "maxSize": 2000000
-      },
-      {
-        "name": "pr_links",
-        "type": "json",
-        "maxSize": 200000
-      }
-    ],
-    "indexes": [
-      "CREATE UNIQUE INDEX idx_todo_number ON todo_list_todos (number)",
-      "CREATE UNIQUE INDEX idx_todo_origin ON todo_list_todos (origin_key)"
-    ]
-  },
-  {
-    "id": "todoreports0001",
-    "name": "todo_list_reports",
-    "type": "base",
-    "listRule": null,
-    "viewRule": null,
-    "createRule": null,
-    "updateRule": null,
-    "deleteRule": null,
-    "fields": [
-      {
-        "name": "source_key",
-        "type": "text",
-        "required": true
-      },
-      {
-        "name": "guild_id",
-        "type": "text",
-        "required": true
-      },
-      {
-        "name": "channel_id",
-        "type": "text",
-        "required": true
-      },
-      {
-        "name": "message_id",
-        "type": "text",
-        "required": true
-      },
-      {
-        "name": "source",
-        "type": "json",
-        "maxSize": 2000000
-      },
-      {
-        "name": "context",
-        "type": "json",
-        "maxSize": 20000000
-      },
-      {
-        "name": "context_text",
-        "type": "text",
-        "max": 20000000
-      },
-      {
-        "name": "state",
-        "type": "select",
-        "values": [
-          "pending",
-          "assessing",
-          "assessed",
-          "needs_clarification",
-          "dismissed",
-          "failed"
-        ],
-        "maxSelect": 1,
-        "required": true
-      },
-      {
-        "name": "todos",
-        "type": "relation",
-        "collectionId": "todotodos000001",
-        "maxSelect": 1000,
-        "cascadeDelete": false,
-        "required": false
-      },
-      {
-        "name": "assessment",
-        "type": "json",
-        "maxSize": 2000000
-      }
-    ],
-    "indexes": [
-      "CREATE UNIQUE INDEX idx_todo_source ON todo_list_reports (source_key)"
-    ]
-  },
-  {
-    "id": "todochanges0001",
-    "name": "todo_list_manual_changes",
-    "type": "base",
-    "listRule": null,
-    "viewRule": null,
-    "createRule": null,
-    "updateRule": null,
-    "deleteRule": null,
-    "fields": [
-      {
-        "name": "guild_id",
-        "type": "text",
-        "required": true
-      },
-      {
-        "name": "todo",
-        "type": "relation",
-        "collectionId": "todotodos000001",
-        "maxSelect": 1,
-        "cascadeDelete": false
-      },
-      {
-        "name": "sequence",
-        "type": "number",
-        "onlyInt": true,
-        "min": 1,
-        "required": true
-      },
-      {
-        "name": "actor",
-        "type": "text"
-      },
-      {
-        "name": "actor_source",
-        "type": "text"
-      },
-      {
-        "name": "at",
-        "type": "text"
-      },
-      {
-        "name": "operation_id",
-        "type": "text"
-      },
-      {
-        "name": "field",
-        "type": "text"
-      },
-      {
-        "name": "old_value",
-        "type": "text"
-      },
-      {
-        "name": "new_value",
-        "type": "text"
-      },
-      {
-        "name": "old_name",
-        "type": "text"
-      },
-      {
-        "name": "new_name",
-        "type": "text"
-      },
-      {
-        "name": "reason",
-        "type": "text"
-      },
-      {
-        "name": "todo_snapshot",
-        "type": "json",
-        "maxSize": 25000000
-      },
-      {
-        "name": "reports",
-        "type": "json",
-        "maxSize": 25000000
-      }
-    ],
-    "indexes": [
-      "CREATE UNIQUE INDEX idx_todo_change_sequence ON todo_list_manual_changes (sequence)"
-    ]
-  },
-  {
-    "id": "todoretroruns01",
-    "name": "todo_list_assessment_retrospectives",
-    "type": "base",
-    "listRule": null,
-    "viewRule": null,
-    "createRule": null,
-    "updateRule": null,
-    "deleteRule": null,
-    "fields": [
-      {
-        "name": "guild_id",
-        "type": "text"
-      },
-      {
-        "name": "actor",
-        "type": "text"
-      },
-      {
-        "name": "state",
-        "type": "text"
-      },
-      {
-        "name": "thread_id",
-        "type": "text"
-      },
-      {
-        "name": "baseline_version",
-        "type": "text"
-      },
-      {
-        "name": "baseline_hash",
-        "type": "text"
-      },
-      {
-        "name": "proposal_hash",
-        "type": "text"
-      },
-      {
-        "name": "policy_version",
-        "type": "text"
-      },
-      {
-        "name": "policy_hash",
-        "type": "text"
-      },
-      {
-        "name": "error",
-        "type": "text"
-      },
-      {
-        "name": "created_at",
-        "type": "text"
-      },
-      {
-        "name": "completed_at",
-        "type": "text"
-      },
-      {
-        "name": "upper_sequence",
-        "type": "number",
-        "onlyInt": true
-      },
-      {
-        "name": "correction_ids",
-        "type": "json",
-        "maxSize": 30000000
-      },
-      {
-        "name": "corrections",
-        "type": "json",
-        "maxSize": 30000000
-      },
-      {
-        "name": "reports",
-        "type": "json",
-        "maxSize": 30000000
-      },
-      {
-        "name": "labels",
-        "type": "json",
-        "maxSize": 30000000
-      },
-      {
-        "name": "proposal",
-        "type": "json",
-        "maxSize": 30000000
-      },
-      {
-        "name": "resume_state",
-        "type": "text"
-      },
-      {
-        "name": "dispatch_token",
-        "type": "text"
-      }
-    ],
-    "indexes": [
-      "CREATE UNIQUE INDEX idx_todo_retro_active ON todo_list_assessment_retrospectives (guild_id) WHERE state != 'completed'"
-    ]
-  }
+	{
+		"id": "todolabels00001",
+		"name": "todo_list_labels",
+		"type": "base",
+		"listRule": null,
+		"viewRule": null,
+		"createRule": null,
+		"updateRule": null,
+		"deleteRule": null,
+		"fields": [
+			{
+				"name": "guild_id",
+				"type": "text",
+				"required": true
+			},
+			{
+				"name": "name",
+				"type": "text",
+				"required": true,
+				"max": 100
+			},
+			{
+				"name": "repo",
+				"type": "text",
+				"max": 500
+			},
+			{
+				"name": "thread_id",
+				"type": "text"
+			},
+			{
+				"name": "description",
+				"type": "text",
+				"max": 10000
+			}
+		],
+		"indexes": ["CREATE UNIQUE INDEX idx_todo_label_name ON todo_list_labels (guild_id, name)"]
+	},
+	{
+		"id": "todogroups00001",
+		"name": "todo_list_label_groups",
+		"type": "base",
+		"listRule": null,
+		"viewRule": null,
+		"createRule": null,
+		"updateRule": null,
+		"deleteRule": null,
+		"fields": [
+			{
+				"name": "guild_id",
+				"type": "text",
+				"required": true
+			},
+			{
+				"name": "name",
+				"type": "text",
+				"required": true,
+				"max": 100
+			},
+			{
+				"name": "labels",
+				"type": "relation",
+				"collectionId": "todolabels00001",
+				"maxSelect": 1000,
+				"cascadeDelete": false,
+				"required": false
+			},
+			{
+				"name": "assigned_user_id",
+				"type": "text",
+				"required": false,
+				"max": 20
+			},
+			{
+				"name": "child_groups",
+				"type": "relation",
+				"collectionId": "todogroups00001",
+				"maxSelect": 1000,
+				"cascadeDelete": false,
+				"required": false
+			}
+		],
+		"indexes": ["CREATE UNIQUE INDEX idx_todo_group_name ON todo_list_label_groups (guild_id, name)"]
+	},
+	{
+		"id": "todotodos000001",
+		"name": "todo_list_todos",
+		"type": "base",
+		"listRule": null,
+		"viewRule": null,
+		"createRule": null,
+		"updateRule": null,
+		"deleteRule": null,
+		"fields": [
+			{
+				"name": "guild_id",
+				"type": "text",
+				"required": true
+			},
+			{
+				"name": "number",
+				"type": "number",
+				"onlyInt": true,
+				"min": 1,
+				"required": true
+			},
+			{
+				"name": "origin_key",
+				"type": "text",
+				"required": true
+			},
+			{
+				"name": "title",
+				"type": "text",
+				"required": true,
+				"max": 200
+			},
+			{
+				"name": "description",
+				"type": "text",
+				"required": true,
+				"max": 20000
+			},
+			{
+				"name": "label",
+				"type": "relation",
+				"collectionId": "todolabels00001",
+				"maxSelect": 1,
+				"cascadeDelete": false,
+				"required": false
+			},
+			{
+				"name": "kind",
+				"type": "select",
+				"values": ["bug", "feature"],
+				"maxSelect": 1,
+				"required": true
+			},
+			{
+				"name": "priority",
+				"type": "select",
+				"values": ["red", "yellow", "blue"],
+				"maxSelect": 1,
+				"required": true
+			},
+			{
+				"name": "status",
+				"type": "select",
+				"values": ["open", "in_progress", "blocked", "done", "closed", "cancelled"],
+				"maxSelect": 1,
+				"required": true
+			},
+			{
+				"name": "claim",
+				"type": "json",
+				"maxSize": 20000000
+			},
+			{
+				"name": "audit",
+				"type": "json",
+				"maxSize": 2000000
+			},
+			{
+				"name": "work",
+				"type": "json",
+				"maxSize": 2000000
+			},
+			{
+				"name": "pr_links",
+				"type": "json",
+				"maxSize": 200000
+			}
+		],
+		"indexes": ["CREATE UNIQUE INDEX idx_todo_number ON todo_list_todos (number)", "CREATE UNIQUE INDEX idx_todo_origin ON todo_list_todos (origin_key)"]
+	},
+	{
+		"id": "todoreports0001",
+		"name": "todo_list_reports",
+		"type": "base",
+		"listRule": null,
+		"viewRule": null,
+		"createRule": null,
+		"updateRule": null,
+		"deleteRule": null,
+		"fields": [
+			{
+				"name": "source_key",
+				"type": "text",
+				"required": true
+			},
+			{
+				"name": "guild_id",
+				"type": "text",
+				"required": true
+			},
+			{
+				"name": "channel_id",
+				"type": "text",
+				"required": true
+			},
+			{
+				"name": "message_id",
+				"type": "text",
+				"required": true
+			},
+			{
+				"name": "source",
+				"type": "json",
+				"maxSize": 2000000
+			},
+			{
+				"name": "context",
+				"type": "json",
+				"maxSize": 20000000
+			},
+			{
+				"name": "context_text",
+				"type": "text",
+				"max": 20000000
+			},
+			{
+				"name": "state",
+				"type": "select",
+				"values": ["pending", "assessing", "assessed", "needs_clarification", "dismissed", "failed"],
+				"maxSelect": 1,
+				"required": true
+			},
+			{
+				"name": "todos",
+				"type": "relation",
+				"collectionId": "todotodos000001",
+				"maxSelect": 1000,
+				"cascadeDelete": false,
+				"required": false
+			},
+			{
+				"name": "assessment",
+				"type": "json",
+				"maxSize": 2000000
+			}
+		],
+		"indexes": ["CREATE UNIQUE INDEX idx_todo_source ON todo_list_reports (source_key)"]
+	},
+	{
+		"id": "todochanges0001",
+		"name": "todo_list_manual_changes",
+		"type": "base",
+		"listRule": null,
+		"viewRule": null,
+		"createRule": null,
+		"updateRule": null,
+		"deleteRule": null,
+		"fields": [
+			{
+				"name": "guild_id",
+				"type": "text",
+				"required": true
+			},
+			{
+				"name": "todo",
+				"type": "relation",
+				"collectionId": "todotodos000001",
+				"maxSelect": 1,
+				"cascadeDelete": false
+			},
+			{
+				"name": "sequence",
+				"type": "number",
+				"onlyInt": true,
+				"min": 1,
+				"required": true
+			},
+			{
+				"name": "actor",
+				"type": "text"
+			},
+			{
+				"name": "actor_source",
+				"type": "text"
+			},
+			{
+				"name": "at",
+				"type": "text"
+			},
+			{
+				"name": "operation_id",
+				"type": "text"
+			},
+			{
+				"name": "field",
+				"type": "text"
+			},
+			{
+				"name": "old_value",
+				"type": "text"
+			},
+			{
+				"name": "new_value",
+				"type": "text"
+			},
+			{
+				"name": "old_name",
+				"type": "text"
+			},
+			{
+				"name": "new_name",
+				"type": "text"
+			},
+			{
+				"name": "reason",
+				"type": "text"
+			},
+			{
+				"name": "todo_snapshot",
+				"type": "json",
+				"maxSize": 25000000
+			},
+			{
+				"name": "reports",
+				"type": "json",
+				"maxSize": 25000000
+			}
+		],
+		"indexes": ["CREATE UNIQUE INDEX idx_todo_change_sequence ON todo_list_manual_changes (sequence)"]
+	},
+	{
+		"id": "todoretroruns01",
+		"name": "todo_list_assessment_retrospectives",
+		"type": "base",
+		"listRule": null,
+		"viewRule": null,
+		"createRule": null,
+		"updateRule": null,
+		"deleteRule": null,
+		"fields": [
+			{
+				"name": "guild_id",
+				"type": "text"
+			},
+			{
+				"name": "actor",
+				"type": "text"
+			},
+			{
+				"name": "state",
+				"type": "text"
+			},
+			{
+				"name": "thread_id",
+				"type": "text"
+			},
+			{
+				"name": "baseline_version",
+				"type": "text"
+			},
+			{
+				"name": "baseline_hash",
+				"type": "text"
+			},
+			{
+				"name": "proposal_hash",
+				"type": "text"
+			},
+			{
+				"name": "policy_version",
+				"type": "text"
+			},
+			{
+				"name": "policy_hash",
+				"type": "text"
+			},
+			{
+				"name": "error",
+				"type": "text"
+			},
+			{
+				"name": "created_at",
+				"type": "text"
+			},
+			{
+				"name": "completed_at",
+				"type": "text"
+			},
+			{
+				"name": "upper_sequence",
+				"type": "number",
+				"onlyInt": true
+			},
+			{
+				"name": "correction_ids",
+				"type": "json",
+				"maxSize": 30000000
+			},
+			{
+				"name": "corrections",
+				"type": "json",
+				"maxSize": 30000000
+			},
+			{
+				"name": "reports",
+				"type": "json",
+				"maxSize": 30000000
+			},
+			{
+				"name": "labels",
+				"type": "json",
+				"maxSize": 30000000
+			},
+			{
+				"name": "proposal",
+				"type": "json",
+				"maxSize": 30000000
+			},
+			{
+				"name": "resume_state",
+				"type": "text"
+			},
+			{
+				"name": "dispatch_token",
+				"type": "text"
+			}
+		],
+		"indexes": ["CREATE UNIQUE INDEX idx_todo_retro_active ON todo_list_assessment_retrospectives (guild_id) WHERE state != 'completed'"]
+	}
 ]

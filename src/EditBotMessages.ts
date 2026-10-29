@@ -84,14 +84,7 @@ function makeModal(id: string, content: string): ModalBuilder {
 		.setCustomId("edit-message_" + id)
 		.addComponents([
 			new ActionRowBuilder({
-				components: [
-					new TextInputBuilder()
-						.setCustomId("content")
-						.setLabel("Content")
-						.setValue(content)
-						.setRequired(true)
-						.setStyle(TextInputStyle.Paragraph),
-				],
+				components: [new TextInputBuilder().setCustomId("content").setLabel("Content").setValue(content).setRequired(true).setStyle(TextInputStyle.Paragraph)],
 			}),
 		]);
 }

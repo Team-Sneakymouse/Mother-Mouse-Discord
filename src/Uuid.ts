@@ -3,9 +3,7 @@ export const data = [
 	new SlashCommandBuilder()
 		.setName("uuid")
 		.setDescription("Get Minecraft UUID")
-		.addStringOption(
-			new SlashCommandStringOption().setName("username").setDescription("The username to get the UUID for").setRequired(true)
-		),
+		.addStringOption(new SlashCommandStringOption().setName("username").setDescription("The username to get the UUID for").setRequired(true)),
 ];
 
 export default function Uuid(client: Client) {

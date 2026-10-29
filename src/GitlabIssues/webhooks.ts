@@ -47,19 +47,15 @@ export default function init(client: Client, gitlab: InstanceType<typeof Gitlab>
 		if (req.body.event_type === "issue") {
 			let author: any;
 			if (!botUser) author = await gitlab.Users.show(req.body.object_attributes.author_id);
-			const authorImage = botUser
-				? req.body.object_attributes.description.match(/\[Profile Image\]\(([^?)]+)[^)]*\)/)?.[1]
-				: author.avatar_url;
+			const authorImage = botUser ? req.body.object_attributes.description.match(/\[Profile Image\]\(([^?)]+)[^)]*\)/)?.[1] : author.avatar_url;
 			const authorName = botUser ? req.body.object_attributes.description.match(/\*\*([^\*]+)\*\*/)?.[1] : author.name;
-			const authorUrl = botUser
-				? `https://discord.com/users/${authorImage?.match(/avatars\/(\d+)/)?.[1]}`
-				: `https://gitlab.com/${author.username}`;
+			const authorUrl = botUser ? `https://discord.com/users/${authorImage?.match(/avatars\/(\d+)/)?.[1]}` : `https://gitlab.com/${author.username}`;
 
 			const created_at = req.body.object_attributes.created_at;
 			const description =
 				(req.body.object_attributes.description.split("\n---\n")[1] || req.body.object_attributes.description).replaceAll(
 					/!?\[([^\]]+)\]\(\/([^\)]+)\)/g,
-					`[$1](${req.body.project.web_url}/$2)`
+					`[$1](${req.body.project.web_url}/$2)`,
 				) || "";
 			const id = req.body.object_attributes.id;
 			const iid = req.body.object_attributes.iid;
@@ -102,9 +98,7 @@ export default function init(client: Client, gitlab: InstanceType<typeof Gitlab>
 			const streamPromises = urls.map((url) => axios.get(url, { responseType: "stream" }).then((res) => [res.data, url]));
 			const streams = await Promise.all(streamPromises);
 			//const attachments = streams.map(([stream, url]) => new Attachment(stream as Stream, (url as string).split("/").pop()));
-			const attachments = streams.map(([stream, url]) =>
-				new AttachmentBuilder(stream as Stream).setName((url as string).split("/").pop()!)
-			);
+			const attachments = streams.map(([stream, url]) => new AttachmentBuilder(stream as Stream).setName((url as string).split("/").pop()!));
 
 			if (!issueMessage) {
 				// Post new message
@@ -154,12 +148,10 @@ export default function init(client: Client, gitlab: InstanceType<typeof Gitlab>
 			await webhook.send({
 				threadId: issueMessage?.thread?.id,
 				username: !botUser ? req.body.user.name : req.body.object_attributes.note.match(/\*\*([^\*]+)\*\*/)?.[1],
-				avatarURL: !botUser
-					? req.body.user.avatar_url
-					: req.body.object_attributes.note.match(/\[Profile Image\]\(([^?)]+)[^)]*\)/)?.[1],
+				avatarURL: !botUser ? req.body.user.avatar_url : req.body.object_attributes.note.match(/\[Profile Image\]\(([^?)]+)[^)]*\)/)?.[1],
 				content: (req.body.object_attributes.note.split("\n---\n")[1] || req.body.object_attributes.note).replaceAll(
 					/!?\[[^\]+]\]\(\/([^\)]+)\)/g,
-					req.body.project.web_url + "/$1"
+					req.body.project.web_url + "/$1",
 				),
 			});
 
@@ -186,10 +178,7 @@ export default function init(client: Client, gitlab: InstanceType<typeof Gitlab>
 					threadId: thread.id,
 					username: !botUser ? comment.author.username : comment.body.match(/\*\*([^\*]+)\*\*/)?.[1] || comment.author.username,
 					avatarURL: comment.body.match(/\[Profile Image\]\(([^?)]+)[^)]*\)/)?.[1] || comment.author.avatar_url,
-					content: (comment.body.split("\n---\n")[1] || comment.body).replaceAll(
-						/!?\[([^\]]+)\]\(\/([^\)]+)\)/g,
-						`[$1](${project.web_url}/$2)`
-					),
+					content: (comment.body.split("\n---\n")[1] || comment.body).replaceAll(/!?\[([^\]]+)\]\(\/([^\)]+)\)/g, `[$1](${project.web_url}/$2)`),
 				});
 			} else {
 				await thread.send({

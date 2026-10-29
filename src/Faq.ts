@@ -4,13 +4,7 @@ export const data = [
 	new SlashCommandBuilder()
 		.setName("faq")
 		.setDescription("Query the FAQ")
-		.addStringOption(
-			new SlashCommandStringOption()
-				.setName("query")
-				.setDescription("The query to search for")
-				.setRequired(true)
-				.setAutocomplete(true)
-		),
+		.addStringOption(new SlashCommandStringOption().setName("query").setDescription("The query to search for").setRequired(true).setAutocomplete(true)),
 ];
 
 type FaqQuestion = { question: string; answer: string; tags: string };
@@ -41,7 +35,7 @@ export default function Vibecheck(client: Client, pocketbase: PocketBase) {
 				(question) =>
 					question.question.toLowerCase().includes(autocomplete) ||
 					question.answer.toLowerCase().includes(autocomplete) ||
-					question.tags.toLowerCase().includes(autocomplete)
+					question.tags.toLowerCase().includes(autocomplete),
 			);
 
 			interaction.respond(relevantQuestions.map((question) => ({ name: question.question, value: question.id })));

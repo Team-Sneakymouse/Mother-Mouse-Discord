@@ -77,9 +77,7 @@ export default function SneakyrpApplications(client: Client, server: Express) {
 			content: "Success",
 			flags: MessageFlags.Ephemeral,
 		});
-		await (interaction.message.thread as ThreadChannel).send(
-			`${(interaction.member as GuildMember).displayName} accepted the application of <@${userId}>`
-		);
+		await (interaction.message.thread as ThreadChannel).send(`${(interaction.member as GuildMember).displayName} accepted the application of <@${userId}>`);
 		await (interaction.message.thread as ThreadChannel).setArchived(true);
 	}
 
@@ -102,7 +100,7 @@ export default function SneakyrpApplications(client: Client, server: Express) {
 						],
 					},
 				],
-			})
+			}),
 		);
 	}
 
@@ -126,7 +124,7 @@ export default function SneakyrpApplications(client: Client, server: Express) {
 		});
 		const reason = interaction.fields.getTextInputValue("sneakyrp-applications:rejectconfirm-reason");
 		await (msg.thread as ThreadChannel).send(
-			`${(interaction.member as GuildMember).displayName} rejected the application of <@${userId}> with reason:\n > ${reason}`
+			`${(interaction.member as GuildMember).displayName} rejected the application of <@${userId}> with reason:\n > ${reason}`,
 		);
 		await (msg.thread as ThreadChannel).setArchived(true);
 	}
@@ -151,9 +149,7 @@ export default function SneakyrpApplications(client: Client, server: Express) {
 			if (results.size === 0) {
 				console.error(`No guild member found for ${discordName}`);
 			} else {
-				member = results.find(
-					(m) => m.user.username.toLowerCase() === discordName.toLowerCase() && m.user.discriminator === discordDiscriminator
-				);
+				member = results.find((m) => m.user.username.toLowerCase() === discordName.toLowerCase() && m.user.discriminator === discordDiscriminator);
 			}
 		} else {
 			console.error("No Discord tag found in application response");
@@ -175,9 +171,7 @@ export default function SneakyrpApplications(client: Client, server: Express) {
 			},
 			title: `${accepted ? "Closed" : "Open"} ${form[0].toUpperCase() + form.substring(1)} Application`,
 			description: `\`${id}\`\n\n${
-				member
-					? `<@${member.id}> (<discord://-/users/${member.id}>)`
-					: `User ${discordTagResponse?.response} not found in the server!`
+				member ? `<@${member.id}> (<discord://-/users/${member.id}>)` : `User ${discordTagResponse?.response} not found in the server!`
 			}`,
 			timestamp: timestamp,
 			footer: {
@@ -215,7 +209,7 @@ export default function SneakyrpApplications(client: Client, server: Express) {
 									},
 								],
 							},
-					  ],
+						],
 			});
 			// TODO: write application's discord message id to persistence
 			// await redis.set(`mm-discord-sneakyrp:application-${id}`, rootMessage.id);
@@ -245,7 +239,7 @@ export default function SneakyrpApplications(client: Client, server: Express) {
 									},
 								],
 							},
-					  ],
+						],
 			});
 		}
 
@@ -288,9 +282,9 @@ export default function SneakyrpApplications(client: Client, server: Express) {
 					content: "Application is too long to send as message",
 					embeds: [newEmbed],
 					files: [
-						new AttachmentBuilder(
-							Buffer.from(contentEmbed.description ?? "Error: Can't find embed description", "utf8")
-						).setFile(`${discordTagResponse?.response}_${new Date().toISOString()}.md`),
+						new AttachmentBuilder(Buffer.from(contentEmbed.description ?? "Error: Can't find embed description", "utf8")).setFile(
+							`${discordTagResponse?.response}_${new Date().toISOString()}.md`,
+						),
 					],
 				});
 			}
@@ -307,9 +301,9 @@ export default function SneakyrpApplications(client: Client, server: Express) {
 					content: "Application is too long to send as message",
 					embeds: [newEmbed],
 					files: [
-						new AttachmentBuilder(
-							Buffer.from(contentEmbed.description ?? "Error: Can't find embed description", "utf8")
-						).setFile(`${discordTagResponse?.response}_${new Date().toISOString()}.md`),
+						new AttachmentBuilder(Buffer.from(contentEmbed.description ?? "Error: Can't find embed description", "utf8")).setFile(
+							`${discordTagResponse?.response}_${new Date().toISOString()}.md`,
+						),
 					],
 				});
 			}

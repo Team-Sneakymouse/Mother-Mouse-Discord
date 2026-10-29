@@ -26,9 +26,7 @@ export default function MediaEmbeds(client: Client) {
 					},
 					title: `Message edited in <#${oldMessage.channelId}>`,
 					url: newMessage.url,
-					description: `${oldMessage.content ?? "*Message wasn't cached*"}\n\n------\n\n${
-						newMessage.content ?? "*Mother Mouse can't see message"
-					}`,
+					description: `${oldMessage.content ?? "*Message wasn't cached*"}\n\n------\n\n${newMessage.content ?? "*Mother Mouse can't see message"}`,
 					color: 0xeb9e34,
 					timestamp: newMessage.createdAt.toISOString(),
 				},

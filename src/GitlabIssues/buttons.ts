@@ -47,7 +47,7 @@ export default function (client: Client, gitlab: InstanceType<typeof Gitlab>) {
 								],
 							},
 						],
-					}).toJSON()
+					}).toJSON(),
 				);
 			} else if (action == "open") {
 				const issue = await gitlab.Issues.edit(project_id, parseInt(iid), {

@@ -23,11 +23,22 @@ export default class YouTubeDL {
 		if (!(await this.init)) throw "yt-dlp is unavailable. Rebuild the downloader image or follow docs/youtube-downloader.md for local setup.";
 		return await new Promise((resolve, reject) => {
 			const dl = spawn("yt-dlp", [
-				"--ignore-config", "--js-runtimes", "node", "--newline", "--progress", "--no-simulate",
-				"--extract-audio", "--audio-format", "mp3", "--print", "after_move:%(filepath)j",
-				"-o", "ffmpeg/%(title)s.%(ext)s",
+				"--ignore-config",
+				"--js-runtimes",
+				"node",
+				"--newline",
+				"--progress",
+				"--no-simulate",
+				"--extract-audio",
+				"--audio-format",
+				"mp3",
+				"--print",
+				"after_move:%(filepath)j",
+				"-o",
+				"ffmpeg/%(title)s.%(ext)s",
 				...(process.env.YTDLP_COOKIES_FILE ? ["--cookies", process.env.YTDLP_COOKIES_FILE] : []),
-				"--", url,
+				"--",
+				url,
 			]);
 
 			let file: string;
@@ -41,7 +52,9 @@ export default class YouTubeDL {
 				try {
 					const path: unknown = JSON.parse(line);
 					if (typeof path === "string") file = path;
-				} catch { /* Ignore yt-dlp's human-readable status lines. */ }
+				} catch {
+					/* Ignore yt-dlp's human-readable status lines. */
+				}
 			};
 			dl.stdout.setEncoding("utf8");
 			dl.stdout.on("data", (data: string) => {
@@ -50,7 +63,9 @@ export default class YouTubeDL {
 				pending = lines.pop()!;
 				lines.forEach(readLine);
 			});
-			dl.stdout.on("end", () => { if (pending) readLine(pending); });
+			dl.stdout.on("end", () => {
+				if (pending) readLine(pending);
+			});
 
 			const errorLines: string[] = [];
 			dl.stderr.on("data", (data: Buffer) => {
@@ -68,7 +83,9 @@ export default class YouTubeDL {
 				if (code !== 0) {
 					const diagnostic = errorLines.join("\n");
 					if (/sign in to confirm|not a bot/i.test(diagnostic)) {
-						return reject("YouTube requires bot verification. Ask an operator to configure YTDLP_COOKIES_FILE with an authorized cookie file (see docs/youtube-downloader.md). Updating yt-dlp alone cannot bypass this check.");
+						return reject(
+							"YouTube requires bot verification. Ask an operator to configure YTDLP_COOKIES_FILE with an authorized cookie file (see docs/youtube-downloader.md). Updating yt-dlp alone cannot bypass this check.",
+						);
 					}
 					return reject(diagnostic.trim() || `yt-dlp failed with exit code ${code}. Check the downloader installation and network access.`);
 				}

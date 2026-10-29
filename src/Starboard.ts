@@ -27,16 +27,14 @@ export default function Starboard(client: Client) {
 		const sourceChannel = reaction.message.channel;
 		if (sourceChannel.isDMBased()) return;
 
-		const links = Array.from(reaction.message.content?.matchAll(/https:\/\/[^\s]+\.(?:mp3|ogg|wav|png|jpg|jpeg|mov|mp4)/gi) ?? []).map(
-			(result) => result[0]
-		);
+		const links = Array.from(reaction.message.content?.matchAll(/https:\/\/[^\s]+\.(?:mp3|ogg|wav|png|jpg|jpeg|mov|mp4)/gi) ?? []).map((result) => result[0]);
 		const linkAttachments = await Promise.all(
 			links.map(async (link) => {
 				const res = await fetch(link);
 				const buffer = Buffer.from(await res.arrayBuffer());
 				const attachment = new AttachmentBuilder(buffer).setName(link.split("/").pop()!);
 				return attachment;
-			})
+			}),
 		);
 
 		const attachments = [...linkAttachments, ...reaction.message.attachments.values()];

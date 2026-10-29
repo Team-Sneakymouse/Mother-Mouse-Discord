@@ -211,7 +211,12 @@ test("Velocity plugins are not deployed automatically and proxies are never auto
 	await store.accept(event);
 	const { service, calls } = fakeService();
 	service.artifact = async () => ({ types: ["velocity-plugin"] });
-	await new ReposiliteWorker(store, () => service as unknown as PluginDeployment, async () => {}, () => now).tick();
+	await new ReposiliteWorker(
+		store,
+		() => service as unknown as PluginDeployment,
+		async () => {},
+		() => now,
+	).tick();
 	assert.equal(store.jobs[0].status, "ignored");
 	assert.deepEqual(calls, []);
 
@@ -220,13 +225,22 @@ test("Velocity plugins are not deployed automatically and proxies are never auto
 	await second.accept(event);
 	const backend = fakeService();
 	backend.service.artifact = async () => ({ types: ["paper-plugin", "velocity-plugin"] }) as any;
-	backend.service.servers = async () => [
-		{ identifier: "dev-one", name: "Dev one", description: "Lords of Minecraft Dev Server" },
-		{ identifier: "dev-proxy", name: "Dev proxy", description: "Lords of Minecraft Dev Server Proxy" },
-	] as any;
-	await new ReposiliteWorker(second, () => backend.service as unknown as PluginDeployment, async () => {}, () => now).tick();
+	backend.service.servers = async () =>
+		[
+			{ identifier: "dev-one", name: "Dev one", description: "Lords of Minecraft Dev Server" },
+			{ identifier: "dev-proxy", name: "Dev proxy", description: "Lords of Minecraft Dev Server Proxy" },
+		] as any;
+	await new ReposiliteWorker(
+		second,
+		() => backend.service as unknown as PluginDeployment,
+		async () => {},
+		() => now,
+	).tick();
 	assert.equal(second.jobs[0].status, "completed");
-	assert.deepEqual(backend.calls.map((call) => call.server), ["dev-one"]);
+	assert.deepEqual(
+		backend.calls.map((call) => call.server),
+		["dev-one"],
+	);
 });
 
 test("missing POM is retried later and unsupported deployment properties are ignored", async () => {
@@ -460,7 +474,12 @@ test("each uploaded version gets one thread message edited across retries and ne
 		if (server === "dev-two" && fail) throw new Error("Upload failed");
 		return { id, version: "1.0" };
 	};
-	await new ReposiliteWorker(store, () => service as unknown as PluginDeployment, notify, () => now).tick();
+	await new ReposiliteWorker(
+		store,
+		() => service as unknown as PluginDeployment,
+		notify,
+		() => now,
+	).tick();
 	assert.equal(discord.sent.length, 1);
 	assert.equal(discord.thread.archived, false);
 	assert.deepEqual(discord.sent[0].allowedMentions, { parse: [] });
@@ -468,14 +487,24 @@ test("each uploaded version gets one thread message edited across retries and ne
 	assert.equal(store.jobs[0].message_id, "message-1");
 	store.jobs[0].next_attempt = new Date(now).toISOString();
 	fail = false;
-	await new ReposiliteWorker(store, () => service as unknown as PluginDeployment, notify, () => now).tick();
+	await new ReposiliteWorker(
+		store,
+		() => service as unknown as PluginDeployment,
+		notify,
+		() => now,
+	).tick();
 	assert.equal(discord.sent.length, 1);
 	assert.ok(discord.edits.every((edit) => edit.id === "message-1"));
 	assert.match(discord.edits.at(-1)!.content, /Uploaded \*\*Example\*\* `1\.0` to Dev one, Dev two/);
 	const nextEvent = { ...event, id: "e4fa61fb-1eb1-45e2-9c58-70d4af566431", path: event.path.replaceAll("1.0", "2.0") };
 	await store.accept(nextEvent);
 	(service as any).artifact = async () => ({ types: ["paper-plugin"] });
-	await new ReposiliteWorker(store, () => service as unknown as PluginDeployment, notify, () => now).tick();
+	await new ReposiliteWorker(
+		store,
+		() => service as unknown as PluginDeployment,
+		notify,
+		() => now,
+	).tick();
 	assert.equal(discord.sent.length, 2);
 	assert.equal(discord.edits.at(-1)!.id, "message-2");
 });
@@ -489,15 +518,30 @@ test("terminal failure edits the existing message, and no matching servers do no
 	service.deploy = async () => {
 		throw new Error("Upload failed");
 	};
-	await new ReposiliteWorker(store, () => service as unknown as PluginDeployment, notify, () => now).tick();
+	await new ReposiliteWorker(
+		store,
+		() => service as unknown as PluginDeployment,
+		notify,
+		() => now,
+	).tick();
 	store.jobs[0].attempts = 11;
 	store.jobs[0].next_attempt = new Date(now).toISOString();
-	await new ReposiliteWorker(store, () => service as unknown as PluginDeployment, notify, () => now).tick();
+	await new ReposiliteWorker(
+		store,
+		() => service as unknown as PluginDeployment,
+		notify,
+		() => now,
+	).tick();
 	assert.equal(discord.sent.length, 1);
 	assert.match(discord.edits.at(-1)!.content, /failed.*12 attempts/s);
 	await store.accept({ ...event, id: "e4fa61fb-1eb1-45e2-9c58-70d4af566431" });
 	service.servers = async () => [];
-	await new ReposiliteWorker(store, () => service as unknown as PluginDeployment, notify, () => now).tick();
+	await new ReposiliteWorker(
+		store,
+		() => service as unknown as PluginDeployment,
+		notify,
+		() => now,
+	).tick();
 	assert.equal(store.jobs[1].status, "completed");
 	assert.match(discord.edits.at(-1)?.content ?? discord.sent.at(-1)!.content, /Skipped.*no matching dev servers/);
 });

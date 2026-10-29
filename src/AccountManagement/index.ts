@@ -23,7 +23,7 @@ export const data = [
 	...accountsAliases.map((alias) =>
 		new SlashCommandBuilder()
 			.setName(alias) //
-			.setDescription("Manage your linked accounts")
+			.setDescription("Manage your linked accounts"),
 	),
 	new SlashCommandBuilder()
 		.setName("link")

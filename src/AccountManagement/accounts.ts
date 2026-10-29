@@ -18,7 +18,10 @@ import {
 import { AccountRecord, ButtonIds, UserRecord } from "./types.js";
 
 export class AccountManagementInterface {
-	constructor(public customIds: ButtonIds, public db: PocketBase) {}
+	constructor(
+		public customIds: ButtonIds,
+		public db: PocketBase,
+	) {}
 
 	async HandleButton(interaction: ButtonInteraction) {
 		if (interaction.customId === this.customIds.ACCOUNT_MANAGEMENT) {
@@ -51,9 +54,7 @@ export class AccountManagementInterface {
 				throw err; // Other errors should be thrown
 			});
 
-		const accountRecords = await this.db
-			.collection("lom2_accounts")
-			.getFullList<AccountRecord>({ filter: `owner.discord_id = "${interaction.user.id}"` });
+		const accountRecords = await this.db.collection("lom2_accounts").getFullList<AccountRecord>({ filter: `owner.discord_id = "${interaction.user.id}"` });
 
 		return [
 			new TextDisplayBuilder().setContent("# Account Management\nUse this to manage your linked accounts"),
@@ -67,7 +68,7 @@ export class AccountManagementInterface {
 			return [
 				new TextDisplayBuilder().setContent("## Twitch"),
 				new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
-					new ButtonBuilder().setCustomId(this.customIds.TWITCH_ADD).setStyle(ButtonStyle.Success).setLabel("Link Twitch Account")
+					new ButtonBuilder().setCustomId(this.customIds.TWITCH_ADD).setStyle(ButtonStyle.Success).setLabel("Link Twitch Account"),
 				),
 			];
 		return [
@@ -80,14 +81,14 @@ export class AccountManagementInterface {
 						.setThumbnailAccessory(
 							new ThumbnailBuilder().setURL(
 								twitch.profile_image_url ||
-									"https://static-cdn.jtvnw.net/user-default-pictures-uv/ebe4cd89-b4f4-4cd9-adac-2f30151b4209-profile_image-70x70.png"
-							)
-						)
+									"https://static-cdn.jtvnw.net/user-default-pictures-uv/ebe4cd89-b4f4-4cd9-adac-2f30151b4209-profile_image-70x70.png",
+							),
+						),
 				)
 				.addActionRowComponents(
 					new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
-						new ButtonBuilder().setCustomId(this.customIds.TWITCH_REMOVE).setStyle(ButtonStyle.Danger).setLabel("Remove")
-					)
+						new ButtonBuilder().setCustomId(this.customIds.TWITCH_REMOVE).setStyle(ButtonStyle.Danger).setLabel("Remove"),
+					),
 				),
 			new TextDisplayBuilder().setContent("-# You can only link a single Twitch account"),
 		];
@@ -114,15 +115,12 @@ export class AccountManagementInterface {
 											label: account.name,
 											description: account.main ? "Main Account" : undefined,
 											default: account.id === selected,
-										})
-								)
-							)
+										}),
+								),
+							),
 						),
-						this.buildMinecraftAccountSection(
-							accountRecords.find((a) => a.id === selected) ?? accountRecords.find((a) => a.main) ?? accountRecords[0],
-							true
-						),
-				  ]),
+						this.buildMinecraftAccountSection(accountRecords.find((a) => a.id === selected) ?? accountRecords.find((a) => a.main) ?? accountRecords[0], true),
+					]),
 			new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
 				new ButtonBuilder()
 					.setCustomId(this.customIds.MINECRAFT_ADD)
@@ -131,7 +129,7 @@ export class AccountManagementInterface {
 				new ButtonBuilder() // Modal to enter link token
 					.setCustomId(this.customIds.MINECRAFT_LINK_MODAL)
 					.setStyle(ButtonStyle.Secondary)
-					.setLabel("Enter Link Token")
+					.setLabel("Enter Link Token"),
 			),
 		];
 	}
@@ -142,11 +140,9 @@ export class AccountManagementInterface {
 				new SectionBuilder()
 					.addTextDisplayComponents(
 						new TextDisplayBuilder().setContent(`### ${account.name}`),
-						...(showMain ? [new TextDisplayBuilder().setContent(account.main ? "Main Account" : "-# Alt Account")] : [])
+						...(showMain ? [new TextDisplayBuilder().setContent(account.main ? "Main Account" : "-# Alt Account")] : []),
 					)
-					.setThumbnailAccessory(
-						new ThumbnailBuilder().setURL(`https://starlightskins.lunareclipse.studio/render/default/${account.id}/face`)
-					)
+					.setThumbnailAccessory(new ThumbnailBuilder().setURL(`https://starlightskins.lunareclipse.studio/render/default/${account.id}/face`)),
 			)
 			.addActionRowComponents(
 				new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
@@ -155,11 +151,8 @@ export class AccountManagementInterface {
 						.setStyle(ButtonStyle.Primary)
 						.setLabel("Set as Main")
 						.setDisabled(account.main),
-					new ButtonBuilder()
-						.setCustomId(`${this.customIds.MINECRAFT_REMOVE}:${account.id}`)
-						.setStyle(ButtonStyle.Danger)
-						.setLabel("Remove")
-				)
+					new ButtonBuilder().setCustomId(`${this.customIds.MINECRAFT_REMOVE}:${account.id}`).setStyle(ButtonStyle.Danger).setLabel("Remove"),
+				),
 			);
 	}
 }
