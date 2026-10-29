@@ -272,6 +272,62 @@ test("messages stay within Discord's limit and neutralize mentions and markdown"
 	assert.match(content, /\\\*\\\*bold\\\*\\\*/);
 });
 
+test("late workflow events never replace a newer run, attempt or phase", async () => {
+	const { tracker, store } = setup();
+	await tracker.push(pushEvent(sha(1), sha(0)));
+	const stage = async () => (await store.stages((await store.recent(REPO, 1))[0].id))[0];
+	await tracker.workflowRun(runEvent(sha(1), "completed", "failure"));
+	await tracker.workflowRun(runEvent(sha(1), "completed", "success", { run_attempt: 2 }));
+	await tracker.workflowRun(runEvent(sha(1), "in_progress"));
+	await tracker.workflowRun(runEvent(sha(1), "queued", null, { run_attempt: 2 }));
+	assert.equal((await stage()).status, "success");
+	assert.equal((await stage()).detail.attempt, 2);
+	await tracker.workflowRun(runEvent(sha(1), "queued", null, { run_attempt: 3 }));
+	assert.equal((await stage()).status, "queued", "A new attempt starts over");
+	await tracker.workflowRun(runEvent(sha(1), "completed", "success", { id: 70, run_attempt: 9 }));
+	assert.equal((await stage()).detail.attempt, 3, "An older run never replaces a newer one");
+	await tracker.workflowRun(runEvent(sha(1), "in_progress", null, { id: 80 }));
+	assert.equal((await stage()).status, "running");
+});
+
+test("push details arriving after the deployment still include earlier pushes", async () => {
+	const { tracker, store } = setup();
+	await tracker.push(pushEvent(sha(1), sha(0)));
+	// B is known only from CI when it deploys, so its `before` is still unknown.
+	await tracker.workflowRun(runEvent(sha(2), "completed", "success"));
+	assert.equal(await tracker.artifact({ repository: REPO, commit: sha(2).slice(0, 7) }, { id: "SneakyMail", status: "success", text: "Uploaded" }), true);
+	let [b, a] = await store.recent(REPO, 10);
+	assert.equal(a.deployedVia, null);
+	await tracker.push(pushEvent(sha(2), sha(1)));
+	[b, a] = await store.recent(REPO, 10);
+	assert.equal(b.sha, sha(2));
+	assert.equal(a.deployedVia, b.id);
+
+	// The earlier push itself may also be reported only after the deployment.
+	await tracker.push(pushEvent(sha(4), sha(3)));
+	await tracker.artifact({ repository: REPO, commit: sha(4) }, { id: "SneakyMail", status: "success", text: "Uploaded" });
+	await tracker.push(pushEvent(sha(3), sha(2)));
+	const pushes = await store.recent(REPO, 10);
+	const p3 = pushes.find((push) => push.sha === sha(3))!;
+	const p4 = pushes.find((push) => push.sha === sha(4))!;
+	assert.equal(p3.deployedVia, p4.id);
+	assert.equal(pushes.find((push) => push.sha === sha(2))!.deployedVia, null, "B deployed itself");
+});
+
+test("earlier messages get the link once the later push's message exists", async () => {
+	const { tracker, store, discord } = setup();
+	await tracker.push(pushEvent(sha(1), sha(0)));
+	await tracker.push(pushEvent(sha(2), sha(1)));
+	await tracker.artifact({ repository: REPO, commit: sha(2) }, { id: "SneakyMail", status: "success", text: "Uploaded" });
+	// Oldest first: A renders before B has a message to link to.
+	await tracker.flush();
+	const [b, a] = await store.recent(REPO, 10);
+	assert.match(discord.messages.get(a.messageId!)!, /Deployed together with a later push\.$/m);
+	await tracker.flush();
+	assert.match(discord.messages.get(a.messageId!)!, new RegExp(`later push: https://discord.test/${b.messageId}`));
+	assert.equal(discord.sent.length, 2);
+});
+
 test("GitHub repository URLs are parsed strictly", () => {
 	assert.equal(githubRepo(`https://github.com/${REPO}`), REPO);
 	assert.equal(githubRepo(`https://github.com/${REPO}.git`), REPO);

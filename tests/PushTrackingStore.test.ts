@@ -82,6 +82,13 @@ async function contract(store: PushStore) {
 	await store.rendered(placeholder.id, marked.version);
 	await store.rendered(placeholder.id, 1);
 	assert.ok(!(await store.pendingRenders(10)).some((push) => push.id === placeholder.id));
+	await store.refreshDependents(second.id);
+	assert.ok(
+		(await store.pendingRenders(10)).some((push) => push.id === placeholder.id),
+		"Pushes deployed via another are re-rendered",
+	);
+	assert.ok(!(await store.pendingRenders(10)).some((push) => push.id === second.id));
+	await store.rendered(placeholder.id, (await store.get(placeholder.id))!.version);
 	assert.equal(await store.get(9999), undefined);
 }
 

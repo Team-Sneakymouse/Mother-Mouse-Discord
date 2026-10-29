@@ -41,6 +41,8 @@ export interface PushStore {
 	/** Stores the Discord message without requesting another render. */
 	setMessage(id: number, messageId: string): Promise<void>;
 	rendered(id: number, version: number): Promise<void>;
+	/** Requests a render of every push deployed via `id`, e.g. once `id` has a message to link to. */
+	refreshDependents(id: number): Promise<void>;
 	/** Pushes whose message is out of date, oldest first. */
 	pendingRenders(limit: number): Promise<Push[]>;
 }
@@ -126,6 +128,9 @@ export class MemoryPushStore implements PushStore {
 	async rendered(id: number, version: number): Promise<void> {
 		const push = this.pushes.find((item) => item.id === id)!;
 		push.renderedVersion = Math.max(push.renderedVersion, version);
+	}
+	async refreshDependents(id: number): Promise<void> {
+		for (const push of this.pushes) if (push.deployedVia === id) push.version++;
 	}
 	async pendingRenders(limit: number): Promise<Push[]> {
 		return structuredClone(this.pushes.filter((item) => item.version > item.renderedVersion).slice(0, limit));

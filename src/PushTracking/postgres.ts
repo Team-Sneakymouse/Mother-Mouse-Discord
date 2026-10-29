@@ -175,6 +175,9 @@ export class PostgresPushStore implements PushStore {
 	async rendered(id: number, version: number): Promise<void> {
 		await this.sql`update push_tracking.pushes set rendered_version = greatest(rendered_version, ${version}) where id = ${id}`;
 	}
+	async refreshDependents(id: number): Promise<void> {
+		await this.sql`update push_tracking.pushes set version = version + 1 where deployed_via = ${id}`;
+	}
 	async pendingRenders(limit: number): Promise<Push[]> {
 		const rows = await this.sql<Row>`select * from push_tracking.pushes where version > rendered_version order by id limit ${limit}`;
 		return rows.map(push);

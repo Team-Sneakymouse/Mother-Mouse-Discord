@@ -86,6 +86,15 @@ export function githubRepo(url: string | undefined): string | undefined {
 	return match?.[1];
 }
 
+// Workflow events are ordered by run ID, then attempt, then phase within an attempt.
+const PHASE: Record<StageStatus, number> = { queued: 0, running: 1, success: 2, failure: 2, skipped: 2, cancelled: 2 };
+type Progress = [run: number, attempt: number, phase: number];
+const progressOf = (stage: Stage): Progress => [Number(stage.detail.run) || 0, Number(stage.detail.attempt) || 1, PHASE[stage.status] ?? 0];
+function compareProgress(a: Progress, b: Progress): number {
+	for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return a[i] - b[i];
+	return 0;
+}
+
 const deployed = (stages: Stage[]) => stages.some((stage) => stage.kind !== "workflow" && (stage.status === "success" || stage.status === "running"));
 
 export class PushTracker {
@@ -115,13 +124,16 @@ export class PushTracker {
 			compareUrl: event.compare ?? null,
 			forced: event.forced ?? false,
 		});
-		if (!event.forced) return;
-		// Earlier, undeployed pushes may reference commits the force push removed.
-		for (const older of await this.store.recent(repo, 20)) {
-			if (older.id >= push.id || older.superseded || older.deployedVia) continue;
-			if (deployed(await this.store.stages(older.id))) continue;
-			await this.store.mark(older.id, { superseded: true });
+		if (event.forced) {
+			// Earlier, undeployed pushes may reference commits the force push removed.
+			for (const older of await this.store.recent(repo, 20)) {
+				if (older.id >= push.id || older.superseded || older.deployedVia) continue;
+				if (deployed(await this.store.stages(older.id))) continue;
+				await this.store.mark(older.id, { superseded: true });
+			}
 		}
+		// This push's `before` may complete a chain for a deployment that was reported first.
+		await this.reconcile(repo);
 	}
 
 	/** GitHub `workflow_run` event. Only runs triggered by pushes to the default branch are tracked. */
@@ -130,11 +142,17 @@ export class PushTracker {
 		const run = event.workflow_run;
 		if (run.event !== "push" || run.head_branch !== event.repository.default_branch) return;
 		const push = await this.store.upsertPush(event.repository.full_name, run.head_sha.toLowerCase());
+		const key = String(run.workflow_id);
+		const status = workflowStatus(run);
+		const attempt = run.run_attempt ?? 1;
+		// GitHub may deliver a run's events late; never let an older run, attempt or phase replace a newer one.
+		const current = (await this.store.stages(push.id)).find((stage) => stage.kind === "workflow" && stage.key === key);
+		if (current && compareProgress([run.id, attempt, PHASE[status]], progressOf(current)) < 0) return;
 		await this.store.setStage(push.id, {
 			kind: "workflow",
-			key: String(run.workflow_id),
-			status: workflowStatus(run),
-			detail: { name: run.name ?? "Workflow", url: run.html_url, attempt: run.run_attempt ?? 1, run: run.id },
+			key,
+			status,
+			detail: { name: run.name ?? "Workflow", url: run.html_url, attempt, run: run.id },
 		});
 	}
 
@@ -176,6 +194,14 @@ export class PushTracker {
 					? `🐳 Updated container \`${name}\`${image}.`
 					: `❌ 🐳 Updating container \`${name}\`${image} failed${entry.error ? `: ${plain(entry.error)}` : "."}`,
 			);
+		}
+	}
+
+	/** Re-applies `includeEarlier` for recent deployed pushes, for chains whose links arrived late. */
+	private async reconcile(repo: string): Promise<void> {
+		for (const push of await this.store.recent(repo, 20)) {
+			const stages = await this.store.stages(push.id);
+			if (stages.some((stage) => stage.kind !== "workflow" && stage.status === "success")) await this.includeEarlier(push);
 		}
 	}
 
@@ -238,5 +264,7 @@ export class PushTracker {
 		const id = await this.sink.send(content);
 		await this.store.setMessage(push.id, id);
 		await this.store.rendered(push.id, push.version);
+		// Earlier pushes deployed with this one link to its message; it is new, so refresh them.
+		await this.store.refreshDependents(push.id);
 	}
 }
