@@ -79,7 +79,7 @@ function push(row: Row): Push {
 
 async function currentUser(sql: SQL): Promise<string> {
 	try {
-		const [{ name }] = await sql<{ name: string }>`select quote_ident(current_user) as name`;
+		const [{ name }] = await sql<Array<{ name: string }>>`select quote_ident(current_user) as name`;
 		return name;
 	} catch {
 		return "<bot role>";
@@ -105,7 +105,7 @@ export async function migrate(sql: SQL): Promise<void> {
 			}
 		}
 		await tx.unsafe("create table if not exists discord_push_tracking.migrations (version integer primary key, applied_at timestamptz not null default now())");
-		const [{ current }] = await tx<{ current: number }>`select coalesce(max(version), 0)::integer as current from discord_push_tracking.migrations`;
+		const [{ current }] = await tx<Array<{ current: number }>>`select coalesce(max(version), 0)::integer as current from discord_push_tracking.migrations`;
 		for (let version = current + 1; version <= MIGRATIONS.length; version++) {
 			await tx.unsafe(MIGRATIONS[version - 1]);
 			await tx`insert into discord_push_tracking.migrations (version) values (${version})`;
@@ -129,14 +129,14 @@ export class PostgresPushStore implements PushStore {
 	}
 	async upsertPush(repo: string, sha: string, details?: PushDetails): Promise<Push> {
 		if (!details) {
-			const [row] = await this.sql<Row>`
+			const [row] = await this.sql<Row[]>`
 				insert into discord_push_tracking.pushes (repo, sha) values (${repo}, ${sha})
 				on conflict (lower(repo), sha) do update set repo = discord_push_tracking.pushes.repo
 				returning *`;
 			return push(row);
 		}
 		const commits = details.commits ? JSON.stringify(details.commits) : null;
-		const [row] = await this.sql<Row>`
+		const [row] = await this.sql<Row[]>`
 			insert into discord_push_tracking.pushes (repo, sha, before_sha, pusher, commits, compare_url, forced)
 			values (${repo}, ${sha}, ${details.before}, ${details.pusher}, ${commits}::jsonb, ${details.compareUrl}, ${details.forced})
 			on conflict (lower(repo), sha) do update set
@@ -152,19 +152,19 @@ export class PostgresPushStore implements PushStore {
 		return push(row);
 	}
 	async get(id: number): Promise<Push | undefined> {
-		const [row] = await this.sql<Row>`select * from discord_push_tracking.pushes where id = ${id}`;
+		const [row] = await this.sql<Row[]>`select * from discord_push_tracking.pushes where id = ${id}`;
 		return row && push(row);
 	}
 	async findByCommit(repo: string, prefix: string): Promise<Push | undefined> {
 		const pattern = `${prefix.toLowerCase().replace(/[^a-f0-9]/g, "")}%`;
-		const [row] = await this.sql<Row>`
+		const [row] = await this.sql<Row[]>`
 			select * from discord_push_tracking.pushes
 			where lower(repo) = lower(${repo}) and sha like ${pattern}
 			order by id desc limit 1`;
 		return row && push(row);
 	}
 	async recent(repo: string, limit: number): Promise<Push[]> {
-		const rows = await this.sql<Row>`select * from discord_push_tracking.pushes where lower(repo) = lower(${repo}) order by id desc limit ${limit}`;
+		const rows = await this.sql<Row[]>`select * from discord_push_tracking.pushes where lower(repo) = lower(${repo}) order by id desc limit ${limit}`;
 		return rows.map(push);
 	}
 	async setStage(pushId: number, stage: Stage): Promise<void> {
@@ -177,7 +177,7 @@ export class PostgresPushStore implements PushStore {
 		});
 	}
 	async stages(pushId: number): Promise<Stage[]> {
-		const rows = await this.sql<Stage & { detail: unknown }>`
+		const rows = await this.sql<Array<Stage & { detail: unknown }>>`
 			select kind, key, status, detail from discord_push_tracking.stages where push_id = ${pushId}
 			order by case kind when 'workflow' then 0 when 'artifact' then 1 else 2 end, created_at, key`;
 		return rows.map((row) => ({ kind: row.kind, key: row.key, status: row.status, detail: json(row.detail) ?? {} }));
@@ -201,7 +201,7 @@ export class PostgresPushStore implements PushStore {
 		await this.sql`update discord_push_tracking.pushes set version = version + 1 where deployed_via = ${id}`;
 	}
 	async pendingRenders(limit: number): Promise<Push[]> {
-		const rows = await this.sql<Row>`select * from discord_push_tracking.pushes where version > rendered_version order by id limit ${limit}`;
+		const rows = await this.sql<Row[]>`select * from discord_push_tracking.pushes where version > rendered_version order by id limit ${limit}`;
 		return rows.map(push);
 	}
 }
