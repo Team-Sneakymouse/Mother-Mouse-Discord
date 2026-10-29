@@ -115,9 +115,21 @@ WATCHTOWER_NOTIFICATION_URL: generic+https://mm-discord.rawb.tv/watchtower?@Auth
 
 PostgreSQL through Bun's built-in client (`Bun.sql`), configured by `PGHOST`,
 `PGUSER`, `PGPASSWORD`, `PGDATABASE` (and optionally `PGPORT`). Everything lives in
-schema `push_tracking`, created at startup along with numbered migrations
-(`push_tracking.migrations`, guarded by an advisory lock). The database role needs
-`CREATE` on the database; otherwise create the schema once by hand and grant it.
+schema `push_tracking`. Numbered migrations (`push_tracking.migrations`, guarded
+by an advisory lock) create and update its tables at startup.
+
+The production role `mothermouse` has no `CREATE` privilege on the database, so
+an administrator creates the schema once, owned by that role:
+
+```sql
+-- as postgres, in database team_sneakymouse
+create schema push_tracking authorization mothermouse;
+```
+
+The bot then manages everything inside it. It only tries to create the schema if
+it is missing, because even `create schema if not exists` requires the database
+privilege. Without the schema, startup logs this command and tracking stays
+disabled.
 
 - `deliveries`: webhook delivery IDs for deduplication, pruned after 30 days.
 - `pushes`: one row per repo + SHA, with commits, the Discord message ID, and
@@ -143,7 +155,8 @@ The bot posts in the same thread as before, with the same permissions.
 ## Rollout
 
 1. Merge the `ci` change (image labels and `GIT_SHA`) so new images carry them.
-2. Add `GITHUB_WEBHOOK_SECRET` and `WATCHTOWER_WEBHOOK_TOKEN` to Infisical
+2. Create the `push_tracking` schema owned by `mothermouse` (see [Storage](#storage)).
+   Add `GITHUB_WEBHOOK_SECRET` and `WATCHTOWER_WEBHOOK_TOKEN` to Infisical
    `/MotherMouse`, then deploy the bot.
 3. Create the organization webhook (above) and check that the ping succeeds.
 4. Update Watchtower to ≥ 1.23 and switch its notification settings (above).

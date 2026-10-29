@@ -77,11 +77,33 @@ function push(row: Row): Push {
 	};
 }
 
+async function currentUser(sql: SQL): Promise<string> {
+	try {
+		const [{ name }] = await sql<{ name: string }>`select quote_ident(current_user) as name`;
+		return name;
+	} catch {
+		return "<bot role>";
+	}
+}
+
 export async function migrate(sql: SQL): Promise<void> {
 	await sql.begin(async (tx) => {
 		// Serialize concurrent starts (e.g. an old and a new container overlapping during an update).
 		await tx`select pg_advisory_xact_lock(hashtext('push_tracking.migrations'))`;
-		await tx.unsafe("create schema if not exists push_tracking");
+		// Even `create schema if not exists` requires CREATE on the database, which the bot's role
+		// usually lacks; an administrator creates the schema once, owned by that role.
+		const [schema] = await tx`select 1 from pg_namespace where nspname = 'push_tracking'`;
+		if (!schema) {
+			// Look up the role first: a failed statement aborts the transaction.
+			const role = await currentUser(tx);
+			try {
+				await tx.unsafe("create schema push_tracking");
+			} catch (error) {
+				throw new Error(
+					`schema push_tracking is missing and cannot be created (${(error as Error)?.message ?? error}). As an administrator, run: create schema push_tracking authorization ${role};`,
+				);
+			}
+		}
 		await tx.unsafe("create table if not exists push_tracking.migrations (version integer primary key, applied_at timestamptz not null default now())");
 		const [{ current }] = await tx<{ current: number }>`select coalesce(max(version), 0)::integer as current from push_tracking.migrations`;
 		for (let version = current + 1; version <= MIGRATIONS.length; version++) {
