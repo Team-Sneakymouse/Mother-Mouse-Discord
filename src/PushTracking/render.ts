@@ -13,12 +13,9 @@ const EMOJI: Record<StageStatus, string> = {
 };
 export const COLOR = {
 	pushed: 0x5865f2,
-	queued: 0xf1c40f,
 	running: 0x3498db,
 	success: 0x2ecc71,
 	failure: 0xe74c3c,
-	skipped: 0x95a5a6,
-	cancelled: 0x95a5a6,
 	superseded: 0x95a5a6,
 } as const;
 
@@ -54,26 +51,16 @@ function stageLine(stage: Stage): string {
 	return `${emoji} 🐳 \`${plain(stage.key, 100)}\` — ${state}${error ? `: ${plain(error, 300)}` : ""}`;
 }
 
-/**
- * The one stage that describes the push. `stages` must be ordered by last update.
- * - Failures win: a parallel workflow's success must not hide them. A re-run replaces the failed stage.
- * - Deployments outrank CI: a workflow often reports completion after its deployment already started or finished.
- * - Running workflows outrank finished ones, so one finished workflow does not hide others still running.
- */
-export function shownStage(stages: Stage[]): Stage | undefined {
-	const latest = (match: (stage: Stage) => boolean) => stages.filter(match).at(-1);
-	return (
-		latest((stage) => stage.status === "failure") ??
-		latest((stage) => stage.kind !== "workflow") ??
-		latest((stage) => stage.status === "running" || stage.status === "queued") ??
-		stages.at(-1)
-	);
+function overall(push: Push, stages: Stage[], deployedVia: unknown): number {
+	if (push.superseded) return COLOR.superseded;
+	if (deployedVia) return COLOR.success;
+	if (stages.some((stage) => stage.status === "failure")) return COLOR.failure;
+	if (stages.some((stage) => stage.status === "running" || stage.status === "queued")) return COLOR.running;
+	return stages.length ? COLOR.success : COLOR.pushed;
 }
 
 export function renderPush(push: Push, stages: Stage[], deployedVia?: { link: string | null }): PushMessage {
 	const root = `https://github.com/${push.repo}`;
-	const latest = shownStage(stages);
-	const color = push.superseded ? COLOR.superseded : deployedVia ? COLOR.success : latest ? COLOR[latest.status] : COLOR.pushed;
 
 	const name = push.repo.split("/").at(-1)!;
 	const parts = [`**[${escapeMarkdown(name)}](<${root}>)**`];
@@ -82,10 +69,10 @@ export function renderPush(push: Push, stages: Stage[], deployedVia?: { link: st
 	else parts.push(`[\`${push.sha.slice(0, 7)}\`](<${root}/commit/${push.sha}>)`);
 	const header = parts.join(" · ");
 
-	const status = latest ? [stageLine(latest)] : [];
+	const status = stages.map(stageLine);
 	if (deployedVia) status.push(`↪️ Deployed together with a later push${deployedVia.link ? `: ${deployedVia.link}` : "."}`);
 	if (push.superseded) status.push("⚠️ A later force push replaced this history; these commits may no longer be on the branch.");
-	const footer = status.join("\n").slice(0, 1000);
+	const footer = status.join("\n").slice(0, 1500);
 
 	const commits = push.commits;
 	const lines: string[] = [];
@@ -106,5 +93,5 @@ export function renderPush(push: Push, stages: Stage[], deployedVia?: { link: st
 	}
 	const sections = [[header, ...lines].join("\n")];
 	if (footer) sections.push(footer);
-	return { color, sections };
+	return { color: overall(push, stages, deployedVia), sections };
 }

@@ -51,13 +51,13 @@ async function contract(store: PushStore) {
 	await store.setStage(second.id, { kind: "workflow", key: "5", status: "success", detail: { name: "CI", attempt: 2 } });
 	assert.deepEqual(
 		(await store.stages(second.id)).map((stage) => stage.kind),
-		["container", "artifact", "workflow"],
-		"Stages are ordered by last update, latest last",
+		["workflow", "artifact", "container"],
+		"Updating a stage does not move its line",
 	);
 	await store.setStage(second.id, { kind: "container", key: "app", status: "skipped", detail: {} });
 	assert.deepEqual(await store.stages(second.id), [
-		{ kind: "artifact", key: "Repo", status: "success", detail: { text: "Uploaded" } },
 		{ kind: "workflow", key: "5", status: "success", detail: { name: "CI", attempt: 2 } },
+		{ kind: "artifact", key: "Repo", status: "success", detail: { text: "Uploaded" } },
 		{ kind: "container", key: "app", status: "skipped", detail: {} },
 	]);
 
@@ -154,7 +154,7 @@ test("PostgreSQL store follows the store contract and migrations are repeatable"
 		await tracker.flush();
 		const rendered = [...messages.values()].filter((content) => content.includes(repo));
 		assert.equal(rendered.length, 1, "One message per push, edited in place");
-		assert.match(rendered[0], /^\*\*\[EndToEnd\].*Add feature\n✅ Uploaded \*\*EndToEnd\*\*$/s);
+		assert.match(rendered[0], /^\*\*\[EndToEnd\].*Add feature\n✅ CI · CI — success\n✅ Uploaded \*\*EndToEnd\*\*$/s);
 	} finally {
 		await sql.unsafe("drop schema if exists discord_push_tracking cascade");
 		await sql.close();

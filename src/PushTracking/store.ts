@@ -36,7 +36,6 @@ export interface PushStore {
 	/** Newest pushes in `repo`, most recent first. */
 	recent(repo: string, limit: number): Promise<Push[]>;
 	setStage(pushId: number, stage: Stage): Promise<void>;
-	/** Ordered by last update; the most recently updated stage comes last. */
 	stages(pushId: number): Promise<Stage[]>;
 	mark(id: number, patch: { superseded?: boolean; deployedVia?: number }): Promise<void>;
 	/** Stores the Discord message without requesting another render. */
@@ -108,13 +107,15 @@ export class MemoryPushStore implements PushStore {
 	async setStage(pushId: number, stage: Stage): Promise<void> {
 		const stages = this.stageMap.get(pushId) ?? [];
 		const index = stages.findIndex((item) => item.kind === stage.kind && item.key === stage.key);
-		if (index >= 0) stages.splice(index, 1);
-		stages.push(structuredClone(stage));
+		if (index >= 0) stages[index] = structuredClone(stage);
+		else stages.push(structuredClone(stage));
 		this.stageMap.set(pushId, stages);
 		this.bump(pushId);
 	}
 	async stages(pushId: number): Promise<Stage[]> {
-		return structuredClone(this.stageMap.get(pushId) ?? []);
+		// Stable display order: CI, then deployments, then containers, each in creation order.
+		const order: Record<string, number> = { workflow: 0, artifact: 1, container: 2 };
+		return structuredClone(this.stageMap.get(pushId) ?? []).sort((a, b) => order[a.kind] - order[b.kind]);
 	}
 	async mark(id: number, patch: { superseded?: boolean; deployedVia?: number }): Promise<void> {
 		const push = this.pushes.find((item) => item.id === id)!;

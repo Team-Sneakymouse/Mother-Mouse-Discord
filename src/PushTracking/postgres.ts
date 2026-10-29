@@ -170,16 +170,16 @@ export class PostgresPushStore implements PushStore {
 	async setStage(pushId: number, stage: Stage): Promise<void> {
 		await this.sql.begin(async (tx) => {
 			await tx`
-				insert into discord_push_tracking.stages (push_id, kind, key, status, detail, updated_at)
-				values (${pushId}, ${stage.kind}, ${stage.key}, ${stage.status}, ${JSON.stringify(stage.detail)}::jsonb, clock_timestamp())
-				on conflict (push_id, kind, key) do update set status = excluded.status, detail = excluded.detail, updated_at = excluded.updated_at`;
+				insert into discord_push_tracking.stages (push_id, kind, key, status, detail)
+				values (${pushId}, ${stage.kind}, ${stage.key}, ${stage.status}, ${JSON.stringify(stage.detail)}::jsonb)
+				on conflict (push_id, kind, key) do update set status = excluded.status, detail = excluded.detail, updated_at = now()`;
 			await tx`update discord_push_tracking.pushes set version = version + 1, updated_at = now() where id = ${pushId}`;
 		});
 	}
 	async stages(pushId: number): Promise<Stage[]> {
 		const rows = await this.sql<Stage & { detail: unknown }>`
 			select kind, key, status, detail from discord_push_tracking.stages where push_id = ${pushId}
-			order by updated_at, case kind when 'workflow' then 0 when 'artifact' then 1 else 2 end, key`;
+			order by case kind when 'workflow' then 0 when 'artifact' then 1 else 2 end, created_at, key`;
 		return rows.map((row) => ({ kind: row.kind, key: row.key, status: row.status, detail: json(row.detail) ?? {} }));
 	}
 	async mark(id: number, patch: { superseded?: boolean; deployedVia?: number }): Promise<void> {

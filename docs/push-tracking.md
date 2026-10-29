@@ -21,25 +21,19 @@ Each message is a container whose accent color shows the current state:
 ┃ SneakyMail · DaniDipp · compare
 ┃ - abc1234 Fix mail delivery
 ┃ ───────────────
+┃ ✅ CI · Build and publish — success
 ┃ ✅ Uploaded SneakyMail 2026.10.29-abc1234 to Dev one, Dev two.
 ```
 
-- Color: blurple pushed, yellow queued, blue in progress, green done,
-  red failed, gray skipped, cancelled or superseded by a force push. A push
-  deployed together with a later one is green.
+- Color is the overall state: blurple pushed, blue in progress, green done,
+  red if any stage failed, gray if superseded by a force push. A push deployed
+  together with a later one is green.
 - The header has the repository name (without the organization), the pusher and
   the compare link. Without a compare link (push details still missing) it links
   the head commit instead.
-- One status line is shown; every stage is still stored. It is the most recent of,
-  in order of priority:
-  1. a failed stage, so a parallel workflow's success cannot hide a failure. A
-     successful re-run of that workflow replaces it;
-  2. a dev-server deployment or container update. GitHub often reports a workflow
-     as completed after its deployment already started or finished;
-  3. a queued or running workflow;
-  4. any stage.
-
-  A re-run shows `(attempt 2)`.
+- Below the divider is one line per stage, in a fixed order: CI workflows, then
+  dev-server deployments, then containers. A stage updates its line in place (a
+  re-run shows `(attempt 2)`).
 - Commits are listed oldest first. When they exceed the 4,000-character limit
   of a container message, the oldest are hidden behind "…N earlier commit(s)", which links
   to the comparison. Mentions are disabled and subjects are escaped.
@@ -62,7 +56,7 @@ five minutes and never create a duplicate.
 | Stage | Source | Matched by |
 |---|---|---|
 | Pushed | GitHub `push` → `POST /github` | repo + `after` |
-| CI | GitHub `workflow_run` → `POST /github` | repo + `head_sha`; one stage per workflow |
+| CI | GitHub `workflow_run` → `POST /github` | repo + `head_sha`; one line per workflow |
 | Dev deployment | Reposilite worker ([reposilite-webhook.md](reposilite-webhook.md)) | POM repo + commit prefix |
 | Container | Watchtower → `POST /watchtower` | image labels: `ociSource` + `latestImageRevision` |
 | This bot's container | `GIT_SHA` at startup | `Team-Sneakymouse/Mother-Mouse-Discord` + `GIT_SHA` |

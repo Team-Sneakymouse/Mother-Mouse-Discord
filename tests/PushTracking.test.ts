@@ -114,7 +114,7 @@ test("workflow runs may arrive before the push and update the same message throu
 	await tracker.workflowRun(runEvent(sha(1), "completed", "success", { run_attempt: 2 }));
 	await tracker.flush();
 	assert.match(discord.messages.get("m1")!, /\n✅ CI .* — success \(attempt 2\)$/s);
-	assert.equal(discord.messages.get("m1")!.match(/CI ·/g)?.length, 1, "Only the latest status is shown");
+	assert.equal(discord.messages.get("m1")!.match(/CI ·/g)?.length, 1, "A re-run updates its line in place");
 	assert.equal(discord.colors.get("m1"), COLOR.success);
 	assert.equal(discord.sent.length, 1);
 
@@ -124,37 +124,14 @@ test("workflow runs may arrive before the push and update the same message throu
 	assert.equal(discord.sent.length, 1, "Only runs for pushes to the default branch are tracked");
 });
 
-test("with parallel workflows, failures and running workflows are not hidden by another workflow's success", async () => {
+test("parallel workflows each get a line and any failure colors the message", async () => {
 	const { tracker, discord } = setup();
-	const build = { id: 80, workflow_id: 6, name: "Build" };
-	const validate = { id: 81, workflow_id: 7, name: "Validate" };
 	await tracker.push(pushEvent(sha(1), sha(0)));
-	await tracker.workflowRun(runEvent(sha(1), "in_progress", null, build));
-	await tracker.workflowRun(runEvent(sha(1), "completed", "success", validate));
+	await tracker.workflowRun(runEvent(sha(1), "completed", "failure", { id: 80, workflow_id: 6, name: "Build" }));
+	await tracker.workflowRun(runEvent(sha(1), "completed", "success", { id: 81, workflow_id: 7, name: "Validate" }));
 	await tracker.flush();
-	assert.match(discord.messages.get("m1")!, /🔄 CI · \[Build\].* — running$/, "A finished workflow does not hide one still running");
-	await tracker.workflowRun(runEvent(sha(1), "completed", "failure", build));
-	await tracker.workflowRun(runEvent(sha(1), "completed", "success", { ...validate, run_attempt: 2 }));
-	await tracker.flush();
-	assert.match(discord.messages.get("m1")!, /❌ CI · \[Build\].* — failure$/);
+	assert.match(discord.messages.get("m1")!, /\n❌ CI · \[Build\].* — failure\n✅ CI · \[Validate\].* — success$/);
 	assert.equal(discord.colors.get("m1"), COLOR.failure);
-	await tracker.workflowRun(runEvent(sha(1), "completed", "success", { ...build, run_attempt: 2 }));
-	await tracker.flush();
-	assert.match(discord.messages.get("m1")!, /✅ CI · \[Build\].* — success \(attempt 2\)$/, "A successful re-run clears the failure");
-	assert.equal(discord.colors.get("m1"), COLOR.success);
-});
-
-test("a workflow completing after its deployment does not replace the deployment status", async () => {
-	const { tracker, discord } = setup();
-	await tracker.push(pushEvent(sha(1), sha(0)));
-	await tracker.workflowRun(runEvent(sha(1), "in_progress"));
-	await tracker.flush();
-	assert.match(discord.messages.get("m1")!, /🔄 CI .* — running$/, "CI is shown until a deployment starts");
-	await tracker.container(REPO, sha(1), "sneakymail", "success");
-	await tracker.workflowRun(runEvent(sha(1), "completed", "success"));
-	await tracker.flush();
-	assert.match(discord.messages.get("m1")!, /\n✅ 🐳 `sneakymail` — container updated$/);
-	assert.equal(discord.colors.get("m1"), COLOR.success);
 });
 
 test("deployments match release commit prefixes and include earlier pushes that never deployed", async () => {
@@ -243,9 +220,8 @@ test("Watchtower updates are matched by image source and revision, others get th
 	const [push] = await store.recent(REPO, 1);
 	const message = discord.messages.get(push.messageId!)!;
 	assert.equal(discord.colors.get(push.messageId!), COLOR.failure);
-	assert.match(message, /\n❌ 🐳 `broken` — container update failed: pull failed @​everyone$/);
-	assert.doesNotMatch(message, /`sneakymail` — container updated/, "Only the latest stage is shown");
-	assert.equal((await store.stages(push.id)).length, 2, "Earlier stages are still recorded");
+	assert.match(message, /✅ 🐳 `sneakymail` — container updated/);
+	assert.match(message, /❌ 🐳 `broken` — container update failed: pull failed @​everyone/);
 	assert.deepEqual(discord.sent.slice(1).sort(), [
 		"🐳 Updated container `other` (`registry/other:latest`).",
 		"🐳 Updated container `wikijs` (`registry/wikijs:latest`).",
@@ -317,7 +293,7 @@ test("messages stay within Discord's limit and neutralize mentions and markdown"
 	assert.match(lines[1], /^…\d+ earlier commit\(s\) in the \[comparison\]/, "The oldest commits are hidden");
 	assert.ok(lines.at(-1)!.includes(sha(99).slice(0, 7)), "The newest commit is shown last");
 	assert.ok(!content.includes(sha(0).slice(0, 7)));
-	assert.doesNotMatch(content, /✅ CI/, "Only the latest stage is shown");
+	assert.match(content, /✅ CI · \[CI\]/);
 	assert.match(content, /🔄 Deploying \*\*SneakyMail\*\*/);
 	assert.doesNotMatch(content, /<@123>|@everyone/);
 	assert.match(content, /\\\*\\\*bold\\\*\\\*/);
