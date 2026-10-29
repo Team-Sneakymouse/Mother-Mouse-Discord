@@ -10,7 +10,9 @@
 		"dev": "docker build -t mother-mouse-discord:dev . && docker run --rm -v \"${PWD}:/app\" -w /app -p 80:80 --network db -t --entrypoint sh mother-mouse-discord:dev -c 'bun install --frozen-lockfile && bun --watch src/bot.ts'",
 		"watch": "bun --watch src/bot.ts",
 		"typecheck": "tsc --noEmit",
-		"test": "bun test"
+		"test": "bun test",
+		"format": "biome format --write",
+		"format:check": "biome format"
 	},
 	"dependencies": {
 		"@gitbeaker/node": "^35.8.1",

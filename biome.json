@@ -1,6 +1,7 @@
 {
-  "formatter": {
-    "enabled": true,
-    "lineWidth": 160
-  }
+	"formatter": {
+		"enabled": true,
+		"lineWidth": 160,
+		"lineEnding": "auto"
+	}
 }
