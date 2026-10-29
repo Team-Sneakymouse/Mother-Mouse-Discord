@@ -55,13 +55,24 @@ function stageLine(stage: Stage): string {
 }
 
 /**
- * `stages` must be ordered by last update; only the latest one is shown.
- * Deployments outrank CI: a workflow often reports completion after its deployment already started or finished.
+ * The one stage that describes the push. `stages` must be ordered by last update.
+ * - Failures win: a parallel workflow's success must not hide them. A re-run replaces the failed stage.
+ * - Deployments outrank CI: a workflow often reports completion after its deployment already started or finished.
+ * - Running workflows outrank finished ones, so one finished workflow does not hide others still running.
  */
+export function shownStage(stages: Stage[]): Stage | undefined {
+	const latest = (match: (stage: Stage) => boolean) => stages.filter(match).at(-1);
+	return (
+		latest((stage) => stage.status === "failure") ??
+		latest((stage) => stage.kind !== "workflow") ??
+		latest((stage) => stage.status === "running" || stage.status === "queued") ??
+		stages.at(-1)
+	);
+}
+
 export function renderPush(push: Push, stages: Stage[], deployedVia?: { link: string | null }): PushMessage {
 	const root = `https://github.com/${push.repo}`;
-	const deployments = stages.filter((stage) => stage.kind !== "workflow");
-	const latest = (deployments.length ? deployments : stages).at(-1);
+	const latest = shownStage(stages);
 	const color = push.superseded ? COLOR.superseded : deployedVia ? COLOR.success : latest ? COLOR[latest.status] : COLOR.pushed;
 
 	const name = push.repo.split("/").at(-1)!;

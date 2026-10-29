@@ -30,10 +30,16 @@ Each message is a container whose accent color shows the current state:
 - The header has the repository name (without the organization), the pusher and
   the compare link. Without a compare link (push details still missing) it links
   the head commit instead.
-- Only the latest stage is shown, i.e. the one that was updated last. Every stage
-  is still stored. A re-run shows `(attempt 2)`. Once a dev-server deployment or
-  container update exists, CI is no longer shown: GitHub often reports a workflow
-  as completed after its deployment already started or finished.
+- One status line is shown; every stage is still stored. It is the most recent of,
+  in order of priority:
+  1. a failed stage, so a parallel workflow's success cannot hide a failure. A
+     successful re-run of that workflow replaces it;
+  2. a dev-server deployment or container update. GitHub often reports a workflow
+     as completed after its deployment already started or finished;
+  3. a queued or running workflow;
+  4. any stage.
+
+  A re-run shows `(attempt 2)`.
 - Commits are listed oldest first. When they exceed the 4,000-character limit
   of a container message, the oldest are hidden behind "…N earlier commit(s)", which links
   to the comparison. Mentions are disabled and subjects are escaped.

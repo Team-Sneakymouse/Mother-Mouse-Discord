@@ -124,6 +124,26 @@ test("workflow runs may arrive before the push and update the same message throu
 	assert.equal(discord.sent.length, 1, "Only runs for pushes to the default branch are tracked");
 });
 
+test("with parallel workflows, failures and running workflows are not hidden by another workflow's success", async () => {
+	const { tracker, discord } = setup();
+	const build = { id: 80, workflow_id: 6, name: "Build" };
+	const validate = { id: 81, workflow_id: 7, name: "Validate" };
+	await tracker.push(pushEvent(sha(1), sha(0)));
+	await tracker.workflowRun(runEvent(sha(1), "in_progress", null, build));
+	await tracker.workflowRun(runEvent(sha(1), "completed", "success", validate));
+	await tracker.flush();
+	assert.match(discord.messages.get("m1")!, /🔄 CI · \[Build\].* — running$/, "A finished workflow does not hide one still running");
+	await tracker.workflowRun(runEvent(sha(1), "completed", "failure", build));
+	await tracker.workflowRun(runEvent(sha(1), "completed", "success", { ...validate, run_attempt: 2 }));
+	await tracker.flush();
+	assert.match(discord.messages.get("m1")!, /❌ CI · \[Build\].* — failure$/);
+	assert.equal(discord.colors.get("m1"), COLOR.failure);
+	await tracker.workflowRun(runEvent(sha(1), "completed", "success", { ...build, run_attempt: 2 }));
+	await tracker.flush();
+	assert.match(discord.messages.get("m1")!, /✅ CI · \[Build\].* — success \(attempt 2\)$/, "A successful re-run clears the failure");
+	assert.equal(discord.colors.get("m1"), COLOR.success);
+});
+
 test("a workflow completing after its deployment does not replace the deployment status", async () => {
 	const { tracker, discord } = setup();
 	await tracker.push(pushEvent(sha(1), sha(0)));
