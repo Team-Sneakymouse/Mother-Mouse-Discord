@@ -51,13 +51,13 @@ async function contract(store: PushStore) {
 	await store.setStage(second.id, { kind: "workflow", key: "5", status: "success", detail: { name: "CI", attempt: 2 } });
 	assert.deepEqual(
 		(await store.stages(second.id)).map((stage) => stage.kind),
-		["workflow", "artifact", "container"],
-		"Updating a stage does not move its line",
+		["container", "artifact", "workflow"],
+		"Stages are ordered by last update, latest last",
 	);
 	await store.setStage(second.id, { kind: "container", key: "app", status: "skipped", detail: {} });
 	assert.deepEqual(await store.stages(second.id), [
-		{ kind: "workflow", key: "5", status: "success", detail: { name: "CI", attempt: 2 } },
 		{ kind: "artifact", key: "Repo", status: "success", detail: { text: "Uploaded" } },
+		{ kind: "workflow", key: "5", status: "success", detail: { name: "CI", attempt: 2 } },
 		{ kind: "container", key: "app", status: "skipped", detail: {} },
 	]);
 
@@ -123,13 +123,13 @@ test("PostgreSQL store follows the store contract and migrations are repeatable"
 		// End to end through the tracker: push → CI → deployment, rendered into one message.
 		const messages = new Map<string, string>();
 		const tracker = new PushTracker(store, {
-			async send(content) {
+			async send(message) {
 				const id = String(messages.size + 1);
-				messages.set(id, content);
+				messages.set(id, message.sections.join("\n"));
 				return id;
 			},
-			async edit(id, content) {
-				messages.set(id, content);
+			async edit(id, message) {
+				messages.set(id, message.sections.join("\n"));
 			},
 			link: (id) => id,
 		});
@@ -154,7 +154,7 @@ test("PostgreSQL store follows the store contract and migrations are repeatable"
 		await tracker.flush();
 		const rendered = [...messages.values()].filter((content) => content.includes(repo));
 		assert.equal(rendered.length, 1, "One message per push, edited in place");
-		assert.match(rendered[0], /^✅ .*Add feature\n✅ CI · CI — success\n✅ Uploaded \*\*EndToEnd\*\*$/s);
+		assert.match(rendered[0], /^\*\*\[EndToEnd\].*Add feature\n✅ Uploaded \*\*EndToEnd\*\*$/s);
 	} finally {
 		await sql.unsafe("drop schema if exists discord_push_tracking cascade");
 		await sql.close();

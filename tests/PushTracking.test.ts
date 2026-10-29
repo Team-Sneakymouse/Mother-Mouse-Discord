@@ -3,7 +3,7 @@ import { createHmac } from "node:crypto";
 import type { AddressInfo } from "node:net";
 import { test } from "node:test";
 import express from "express";
-import { renderPush } from "../src/PushTracking/render.ts";
+import { COLOR, renderPush } from "../src/PushTracking/render.ts";
 import { registerPushTrackingRoutes, validSignature } from "../src/PushTracking/routes.ts";
 import { MemoryPushStore, type Push } from "../src/PushTracking/store.ts";
 import { githubRepo, type MessageSink, PushTracker } from "../src/PushTracking/tracker.ts";
@@ -12,24 +12,29 @@ const REPO = "Team-Sneakymouse/SneakyMail";
 const sha = (n: number) => n.toString(16).padStart(4, "0") + "b".repeat(36);
 
 function fakeSink() {
+	// Messages are stored as their sections joined by newlines; colors separately.
 	const messages = new Map<string, string>();
+	const colors = new Map<string, number>();
 	const sent: string[] = [];
 	let count = 0;
 	const sink: MessageSink & { failEdit?: unknown } = {
-		async send(content) {
+		async send(message) {
 			const id = `m${++count}`;
+			const content = message.sections.join("\n");
 			messages.set(id, content);
+			colors.set(id, message.color);
 			sent.push(content);
 			return id;
 		},
-		async edit(id, content) {
+		async edit(id, message) {
 			if (sink.failEdit) throw sink.failEdit;
 			if (!messages.has(id)) throw { code: 10008 };
-			messages.set(id, content);
+			messages.set(id, message.sections.join("\n"));
+			colors.set(id, message.color);
 		},
 		link: (id) => `https://discord.test/${id}`,
 	};
-	return { sink, messages, sent };
+	return { sink, messages, colors, sent };
 }
 
 function setup() {
@@ -82,7 +87,10 @@ test("each push to the default branch gets one message; other refs and deletions
 	await tracker.push(pushEvent(sha(3), sha(1), { ref: "refs/tags/v1" }));
 	await tracker.flush();
 	assert.equal(discord.sent.length, 1);
-	assert.match(discord.sent[0], /SneakyMail.*pushed by DaniDipp.*compare/);
+	const header = discord.sent[0].split("\n")[0];
+	assert.match(header, /^\*\*\[SneakyMail\]\(<https:\/\/github\.com\/Team-Sneakymouse\/SneakyMail>\)\*\* · DaniDipp · \[compare\]\(<[^>]+>\)$/);
+	assert.doesNotMatch(header, /\/commit\/|pushed by/, "The header shows only the repository name, pusher and compare link");
+	assert.equal(discord.colors.get("m1"), COLOR.pushed);
 	assert.match(discord.sent[0], /Change 0001$/m);
 	assert.doesNotMatch(discord.sent[0], /Body/);
 	await tracker.flush();
@@ -100,11 +108,14 @@ test("workflow runs may arrive before the push and update the same message throu
 	await tracker.workflowRun(runEvent(sha(1), "in_progress"));
 	await tracker.flush();
 	assert.equal(discord.sent.length, 1);
-	assert.match(discord.messages.get("m1")!, /^🔄 .*\n- .*Change 0001\n🔄 CI .* — running$/s);
+	assert.match(discord.messages.get("m1")!, /\n- .*Change 0001\n🔄 CI .* — running$/s);
+	assert.equal(discord.colors.get("m1"), COLOR.running);
 	await tracker.workflowRun(runEvent(sha(1), "completed", "failure"));
 	await tracker.workflowRun(runEvent(sha(1), "completed", "success", { run_attempt: 2 }));
 	await tracker.flush();
-	assert.match(discord.messages.get("m1")!, /^✅ .*✅ CI .* — success \(attempt 2\)$/s);
+	assert.match(discord.messages.get("m1")!, /\n✅ CI .* — success \(attempt 2\)$/s);
+	assert.equal(discord.messages.get("m1")!.match(/CI ·/g)?.length, 1, "Only the latest status is shown");
+	assert.equal(discord.colors.get("m1"), COLOR.success);
 	assert.equal(discord.sent.length, 1);
 
 	await tracker.workflowRun(runEvent(sha(9), "queued", null, { event: "pull_request" }));
@@ -162,7 +173,8 @@ test("a force push marks earlier undeployed pushes as superseded", async () => {
 	assert.equal(forced.superseded, false);
 	assert.equal(p3.superseded, true);
 	assert.equal(p2.superseded, false, "Deployed pushes stay as they are");
-	assert.match(discord.messages.get(p3.messageId!)!, /^⚠️ .*force push replaced this history/s);
+	assert.match(discord.messages.get(p3.messageId!)!, /⚠️ A later force push replaced this history/);
+	assert.equal(discord.colors.get(p3.messageId!), COLOR.superseded);
 });
 
 test("Watchtower updates are matched by image source and revision, others get their own message", async () => {
@@ -197,9 +209,10 @@ test("Watchtower updates are matched by image source and revision, others get th
 	await tracker.flush();
 	const [push] = await store.recent(REPO, 1);
 	const message = discord.messages.get(push.messageId!)!;
-	assert.match(message, /^❌ /);
-	assert.match(message, /✅ 🐳 `sneakymail` — container updated/);
-	assert.match(message, /❌ 🐳 `broken` — container update failed: pull failed @​everyone/);
+	assert.equal(discord.colors.get(push.messageId!), COLOR.failure);
+	assert.match(message, /\n❌ 🐳 `broken` — container update failed: pull failed @​everyone$/);
+	assert.doesNotMatch(message, /`sneakymail` — container updated/, "Only the latest stage is shown");
+	assert.equal((await store.stages(push.id)).length, 2, "Earlier stages are still recorded");
 	assert.deepEqual(discord.sent.slice(1).sort(), [
 		"🐳 Updated container `other` (`registry/other:latest`).",
 		"🐳 Updated container `wikijs` (`registry/wikijs:latest`).",
@@ -261,12 +274,17 @@ test("messages stay within Discord's limit and neutralize mentions and markdown"
 		version: 1,
 		renderedVersion: 0,
 	};
-	const content = renderPush(push, [
+	const { sections } = renderPush(push, [
 		{ kind: "workflow", key: "1", status: "success", detail: { name: "CI", url: "https://github.com/run" } },
 		{ kind: "artifact", key: "SneakyMail", status: "running", detail: { text: "Deploying **SneakyMail** `1` (paper-plugin) to 2 dev server(s)." } },
 	]);
-	assert.ok(content.length <= 2000);
-	assert.match(content, /more commit\(s\) in the \[comparison\]/);
+	const content = sections.join("\n");
+	assert.ok(content.length <= 4000);
+	const lines = sections[0].split("\n");
+	assert.match(lines[1], /^…\d+ earlier commit\(s\) in the \[comparison\]/, "The oldest commits are hidden");
+	assert.ok(lines.at(-1)!.includes(sha(99).slice(0, 7)), "The newest commit is shown last");
+	assert.ok(!content.includes(sha(0).slice(0, 7)));
+	assert.doesNotMatch(content, /✅ CI/, "Only the latest stage is shown");
 	assert.match(content, /🔄 Deploying \*\*SneakyMail\*\*/);
 	assert.doesNotMatch(content, /<@123>|@everyone/);
 	assert.match(content, /\\\*\\\*bold\\\*\\\*/);

@@ -1,9 +1,10 @@
 import { SQL } from "bun";
-import { type Client, MessageFlags } from "discord.js";
+import { type Client, ContainerBuilder, MessageFlags, SeparatorBuilder, SeparatorSpacingSize, TextDisplayBuilder } from "discord.js";
 import type { Express } from "express";
 import { DEV_UPDATE_THREAD } from "../ReposiliteWebhook.js";
 import type { ArtifactSource } from "../utils/PluginDeployment.js";
 import { migrate, PostgresPushStore } from "./postgres.js";
+import type { PushMessage } from "./render.js";
 import { registerPushTrackingRoutes } from "./routes.js";
 import { type ArtifactUpdate, type MessageSink, PushTracker } from "./tracker.js";
 
@@ -18,13 +19,21 @@ export function threadSink(client: Client, threadId = DEV_UPDATE_THREAD): Messag
 		if (channel.archived) await channel.setArchived(false);
 		return channel;
 	};
-	const payload = (content: string) => ({ content, allowedMentions: { parse: [] as const }, flags: MessageFlags.SuppressEmbeds as const });
+	const payload = ({ color, sections }: PushMessage) => {
+		const container = new ContainerBuilder().setAccentColor(color);
+		sections.forEach((text, index) => {
+			if (index) container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small));
+			container.addTextDisplayComponents(new TextDisplayBuilder().setContent(text));
+		});
+		return { components: [container], allowedMentions: { parse: [] as const }, flags: MessageFlags.IsComponentsV2 as const };
+	};
 	return {
-		async send(content) {
-			return (await (await thread()).send(payload(content))).id;
+		async send(message) {
+			return (await (await thread()).send(payload(message))).id;
 		},
-		async edit(id, content) {
-			await (await thread()).messages.edit(id, payload(content));
+		async edit(id, message) {
+			// Clearing `content` lets Discord convert older plain-text messages into containers.
+			await (await thread()).messages.edit(id, { ...payload(message), content: null });
 		},
 		link: (id) => `https://discord.com/channels/${RAWBTV}/${threadId}/${id}`,
 	};

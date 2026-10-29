@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { ArtifactSource } from "../utils/PluginDeployment.js";
-import { plain, renderPush } from "./render.js";
+import { COLOR, plain, type PushMessage, renderPush } from "./render.js";
 import type { Commit, Push, PushStore, Stage, StageStatus } from "./store.js";
 
 export const ORG = "Team-Sneakymouse";
@@ -66,9 +66,9 @@ export const watchtowerSchema = z.object({
 export type ArtifactUpdate = { id: string; status: StageStatus; text: string };
 
 export interface MessageSink {
-	send(content: string): Promise<string>;
+	send(message: PushMessage): Promise<string>;
 	/** Rejects with `{ code: 10008 }` when the message was deleted. */
-	edit(id: string, content: string): Promise<void>;
+	edit(id: string, message: PushMessage): Promise<void>;
 	link(id: string): string;
 }
 
@@ -189,11 +189,14 @@ export class PushTracker {
 			if (tracked) continue;
 			const name = plain(entry.name.replace(/^\//, ""), 100);
 			const image = entry.imageName ? ` (\`${plain(entry.imageName, 200)}\`)` : "";
-			await this.sink.send(
-				status === "success"
-					? `🐳 Updated container \`${name}\`${image}.`
-					: `❌ 🐳 Updating container \`${name}\`${image} failed${entry.error ? `: ${plain(entry.error)}` : "."}`,
-			);
+			await this.sink.send({
+				color: COLOR[status],
+				sections: [
+					status === "success"
+						? `🐳 Updated container \`${name}\`${image}.`
+						: `❌ 🐳 Updating container \`${name}\`${image} failed${entry.error ? `: ${plain(entry.error)}` : "."}`,
+				],
+			});
 		}
 	}
 
@@ -250,10 +253,10 @@ export class PushTracker {
 			const later = await this.store.get(push.deployedVia);
 			via = { link: later?.messageId ? this.sink.link(later.messageId) : null };
 		}
-		const content = renderPush(push, stages, via);
+		const message = renderPush(push, stages, via);
 		if (push.messageId) {
 			try {
-				await this.sink.edit(push.messageId, content);
+				await this.sink.edit(push.messageId, message);
 				await this.store.rendered(push.id, push.version);
 				return;
 			} catch (error) {
@@ -261,7 +264,7 @@ export class PushTracker {
 				if ((error as { code?: number }).code !== 10008) throw error;
 			}
 		}
-		const id = await this.sink.send(content);
+		const id = await this.sink.send(message);
 		await this.store.setMessage(push.id, id);
 		await this.store.rendered(push.id, push.version);
 		// Earlier pushes deployed with this one link to its message; it is new, so refresh them.

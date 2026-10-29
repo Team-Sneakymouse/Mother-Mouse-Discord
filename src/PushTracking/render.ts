@@ -1,7 +1,8 @@
 import { escapeMarkdown } from "discord.js";
 import type { Push, Stage, StageStatus } from "./store.js";
 
-const LIMIT = 2000;
+/** Components V2 messages allow 4000 characters of text in total. */
+const LIMIT = 4000;
 const EMOJI: Record<StageStatus, string> = {
 	queued: "⏳",
 	running: "🔄",
@@ -10,6 +11,19 @@ const EMOJI: Record<StageStatus, string> = {
 	skipped: "⏭️",
 	cancelled: "⏹️",
 };
+export const COLOR = {
+	pushed: 0x5865f2,
+	queued: 0xf1c40f,
+	running: 0x3498db,
+	success: 0x2ecc71,
+	failure: 0xe74c3c,
+	skipped: 0x95a5a6,
+	cancelled: 0x95a5a6,
+	superseded: 0x95a5a6,
+} as const;
+
+/** A message rendered into one colored container. Sections are separated by a divider. */
+export type PushMessage = { color: number; sections: string[] };
 
 /** First line of a commit message, safe to show in Discord (no mentions, links or markdown). */
 export function subject(message: string): string {
@@ -19,13 +33,6 @@ export function subject(message: string): string {
 /** Free text (names, errors) embedded in a message line. */
 export function plain(text: string, max = 300): string {
 	return subject(text.replace(/\s+/g, " ").trim().slice(0, max));
-}
-
-function overall(push: Push, stages: Stage[]): string {
-	if (push.superseded) return "⚠️";
-	if (stages.some((stage) => stage.status === "failure")) return EMOJI.failure;
-	if (stages.some((stage) => stage.status === "running" || stage.status === "queued")) return EMOJI.running;
-	return stages.length ? EMOJI.success : "📥";
 }
 
 const string = (value: unknown) => (typeof value === "string" ? value : undefined);
@@ -47,34 +54,42 @@ function stageLine(stage: Stage): string {
 	return `${emoji} 🐳 \`${plain(stage.key, 100)}\` — ${state}${error ? `: ${plain(error, 300)}` : ""}`;
 }
 
-export function renderPush(push: Push, stages: Stage[], deployedVia?: { link: string | null }): string {
+/** `stages` must be ordered by last update; only the latest one is shown. */
+export function renderPush(push: Push, stages: Stage[], deployedVia?: { link: string | null }): PushMessage {
 	const root = `https://github.com/${push.repo}`;
-	const short = push.sha.slice(0, 7);
-	const parts = [`**[${escapeMarkdown(push.repo)}](<${root}>)**`, `[\`${short}\`](<${root}/commit/${push.sha}>)`];
-	if (push.pusher) parts.push(`pushed by ${plain(push.pusher, 60)}`);
-	if (push.compareUrl) parts.push(`[compare](<${push.compareUrl}>)`);
-	const header = `${overall(push, stages)} ${parts.join(" · ")}`;
+	const latest = stages.at(-1);
+	const color = push.superseded ? COLOR.superseded : deployedVia ? COLOR.success : latest ? COLOR[latest.status] : COLOR.pushed;
 
-	const footer = stages.map(stageLine);
-	if (deployedVia) footer.push(`↪️ Deployed together with a later push${deployedVia.link ? `: ${deployedVia.link}` : "."}`);
-	if (push.superseded) footer.push("⚠️ A later force push replaced this history; these commits may no longer be on the branch.");
-	const tail = footer.join("\n").slice(0, 900);
+	const name = push.repo.split("/").at(-1)!;
+	const parts = [`**[${escapeMarkdown(name)}](<${root}>)**`];
+	if (push.pusher) parts.push(plain(push.pusher, 60));
+	if (push.compareUrl) parts.push(`[compare](<${push.compareUrl}>)`);
+	else parts.push(`[\`${push.sha.slice(0, 7)}\`](<${root}/commit/${push.sha}>)`);
+	const header = parts.join(" · ");
+
+	const status = latest ? [stageLine(latest)] : [];
+	if (deployedVia) status.push(`↪️ Deployed together with a later push${deployedVia.link ? `: ${deployedVia.link}` : "."}`);
+	if (push.superseded) status.push("⚠️ A later force push replaced this history; these commits may no longer be on the branch.");
+	const footer = status.join("\n").slice(0, 1000);
 
 	const commits = push.commits;
 	const lines: string[] = [];
 	if (!commits) lines.push("_Waiting for push details from GitHub._");
+	else if (!commits.length) lines.push("_No new commits._");
 	else {
-		// Keep room for the header, stage lines and the "more commits" note.
-		let budget = LIMIT - header.length - tail.length - 120;
-		for (const commit of commits) {
+		// Keep the newest commits; GitHub lists them oldest first. Leave room for the header, status and note.
+		let budget = LIMIT - header.length - footer.length - 150;
+		for (let i = commits.length - 1; i >= 0; i--) {
+			const commit = commits[i];
 			const line = `- [\`${commit.sha.slice(0, 7)}\`](<${root}/commit/${commit.sha}>) ${subject(commit.subject)}`;
 			if (line.length + 1 > budget) break;
-			lines.push(line);
+			lines.unshift(line);
 			budget -= line.length + 1;
 		}
 		const hidden = commits.length - lines.length;
-		if (hidden > 0) lines.push(`…and ${hidden} more commit(s)${push.compareUrl ? ` in the [comparison](<${push.compareUrl}>)` : ""}.`);
-		if (!commits.length) lines.push("_No new commits._");
+		if (hidden > 0) lines.unshift(`…${hidden} earlier commit(s)${push.compareUrl ? ` in the [comparison](<${push.compareUrl}>)` : ""}.`);
 	}
-	return [header, ...lines, tail].filter(Boolean).join("\n").slice(0, LIMIT);
+	const sections = [[header, ...lines].join("\n")];
+	if (footer) sections.push(footer);
+	return { color, sections };
 }

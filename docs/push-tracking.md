@@ -15,25 +15,33 @@ push ──► CI (workflow_run) ──┬─► published to Reposilite ─► 
 
 ## Message
 
+Each message is a container whose accent color shows the current state:
+
 ```
-✅ Team-Sneakymouse/SneakyMail · abc1234 · pushed by DaniDipp · compare
-- abc1234 Fix mail delivery
-✅ CI · Build and publish — success
-✅ Uploaded SneakyMail 2026.10.29-abc1234 to Dev one, Dev two.
+┃ SneakyMail · DaniDipp · compare
+┃ - abc1234 Fix mail delivery
+┃ ───────────────
+┃ ✅ Uploaded SneakyMail 2026.10.29-abc1234 to Dev one, Dev two.
 ```
 
-- The first emoji is the overall state: 📥 pushed, 🔄 in progress, ✅ done,
-  ❌ something failed, ⚠️ superseded by a force push.
-- One line per stage, in a fixed order: CI workflows, then dev-server deployments,
-  then containers. A stage updates its line in place (a re-run shows `(attempt 2)`).
-- Commit subjects are shown up to the 2,000-character limit, then
-  "…and N more commit(s)" links to the comparison. Mentions are disabled and
-  subjects are escaped.
+- Color: blurple pushed, yellow queued, blue in progress, green done,
+  red failed, gray skipped, cancelled or superseded by a force push. A push
+  deployed together with a later one is green.
+- The header has the repository name (without the organization), the pusher and
+  the compare link. Without a compare link (push details still missing) it links
+  the head commit instead.
+- Only the latest stage is shown, i.e. the one that was updated last. Every stage
+  is still stored. A re-run shows `(attempt 2)`.
+- Commits are listed oldest first. When they exceed the 4,000-character limit
+  of a container message, the oldest are hidden behind "…N earlier commit(s)", which links
+  to the comparison. Mentions are disabled and subjects are escaped.
 - Dependabot and other bot pushes are tracked like any other push.
 - When a deployment also ships earlier pushes whose own builds failed or were
   skipped, those messages say "Deployed together with a later push" and link to it.
   Pushes on a non-forced branch form a chain through GitHub's `before` SHA.
 - A force push marks earlier pushes that never deployed as superseded.
+- Messages sent as plain text before the container format are converted on their
+  next edit; they are not migrated otherwise.
 
 Messages are re-rendered from the database, never patched, so replayed and
 out-of-order events are harmless. A render loop runs every second and edits only
@@ -46,7 +54,7 @@ five minutes and never create a duplicate.
 | Stage | Source | Matched by |
 |---|---|---|
 | Pushed | GitHub `push` → `POST /github` | repo + `after` |
-| CI | GitHub `workflow_run` → `POST /github` | repo + `head_sha`; one line per workflow |
+| CI | GitHub `workflow_run` → `POST /github` | repo + `head_sha`; one stage per workflow |
 | Dev deployment | Reposilite worker ([reposilite-webhook.md](reposilite-webhook.md)) | POM repo + commit prefix |
 | Container | Watchtower → `POST /watchtower` | image labels: `ociSource` + `latestImageRevision` |
 | This bot's container | `GIT_SHA` at startup | `Team-Sneakymouse/Mother-Mouse-Discord` + `GIT_SHA` |
