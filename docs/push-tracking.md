@@ -115,20 +115,26 @@ WATCHTOWER_NOTIFICATION_URL: generic+https://mm-discord.rawb.tv/watchtower?@Auth
 
 PostgreSQL through Bun's built-in client (`Bun.sql`), configured by `PGHOST`,
 `PGUSER`, `PGPASSWORD`, `PGDATABASE` (and optionally `PGPORT`). Everything lives in
-schema `push_tracking`. Numbered migrations (`push_tracking.migrations`, guarded
-by an advisory lock) create and update its tables at startup.
+schema `discord_push_tracking`. Numbered migrations
+(`discord_push_tracking.migrations`, guarded by an advisory lock) create and update
+its tables at startup.
 
-The production role `mothermouse` has no `CREATE` privilege on the database, so
-an administrator creates the schema once, owned by that role:
+The bot logs in as `mothermouse`, a member of the group role `mothermouse_rw`,
+which holds read/write access to the bot's data across schemas. `mothermouse` has
+no `CREATE` privilege on the database, so the schema was created once by the
+database administrator (done on 2026-10-29), owned by `mothermouse`:
 
 ```sql
 -- as postgres, in database team_sneakymouse
-create schema push_tracking authorization mothermouse;
+create schema discord_push_tracking authorization mothermouse;
+grant usage on schema discord_push_tracking to mothermouse_rw;
 ```
 
-The bot then manages everything inside it. It only tries to create the schema if
-it is missing, because even `create schema if not exists` requires the database
-privilege. Without the schema, startup logs this command and tracking stays
+The bot then manages everything inside it. Existing default privileges give
+`mothermouse_rw` read/write access to every table and sequence that `mothermouse`
+creates, as in the other schemas. The bot only tries to create the schema if it is
+missing, because even `create schema if not exists` requires the database
+privilege. Without the schema, startup logs the command to run and tracking stays
 disabled.
 
 - `deliveries`: webhook delivery IDs for deduplication, pruned after 30 days.
@@ -155,7 +161,7 @@ The bot posts in the same thread as before, with the same permissions.
 ## Rollout
 
 1. Merge the `ci` change (image labels and `GIT_SHA`) so new images carry them.
-2. Create the `push_tracking` schema owned by `mothermouse` (see [Storage](#storage)).
+2. ~~Create the `discord_push_tracking` schema~~ (done; see [Storage](#storage)).
    Add `GITHUB_WEBHOOK_SECRET` and `WATCHTOWER_WEBHOOK_TOKEN` to Infisical
    `/MotherMouse`, then deploy the bot.
 3. Create the organization webhook (above) and check that the ping succeeds.
@@ -171,6 +177,6 @@ bun run typecheck
 
 `tests/PushTrackingStore.test.ts` tests the PostgreSQL store only when
 `PUSH_TRACKING_TEST_DATABASE_URL` points at a **disposable** database (it drops the
-`push_tracking` schema), e.g. a local `postgres:17-alpine` container. It passes
+`discord_push_tracking` schema), e.g. a local `postgres:17-alpine` container. It passes
 every connection setting explicitly so the PG variables in `.env` cannot redirect
 it.

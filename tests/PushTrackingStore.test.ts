@@ -109,14 +109,14 @@ test("PostgreSQL store follows the store contract and migrations are repeatable"
 	const [{ database }] = await sql<{ database: string }>`select current_database() as database`;
 	assert.equal(database, target.pathname.slice(1));
 	try {
-		await sql.unsafe("drop schema if exists push_tracking cascade");
+		await sql.unsafe("drop schema if exists discord_push_tracking cascade");
 		await migrate(sql);
 		await Promise.all([migrate(sql), migrate(sql)]);
-		const [{ versions }] = await sql<{ versions: number }>`select count(*)::integer as versions from push_tracking.migrations`;
+		const [{ versions }] = await sql<{ versions: number }>`select count(*)::integer as versions from discord_push_tracking.migrations`;
 		assert.equal(versions, 1);
 		const store = new PostgresPushStore(sql);
 		await contract(store);
-		await sql`update push_tracking.deliveries set received_at = now() - interval '40 days' where id = 'd1'`;
+		await sql`update discord_push_tracking.deliveries set received_at = now() - interval '40 days' where id = 'd1'`;
 		await store.pruneDeliveries(30);
 		assert.equal(await store.claimDelivery("d1", "github"), true, "Old delivery IDs are pruned");
 
@@ -156,7 +156,7 @@ test("PostgreSQL store follows the store contract and migrations are repeatable"
 		assert.equal(rendered.length, 1, "One message per push, edited in place");
 		assert.match(rendered[0], /^✅ .*Add feature\n✅ CI · CI — success\n✅ Uploaded \*\*EndToEnd\*\*$/s);
 	} finally {
-		await sql.unsafe("drop schema if exists push_tracking cascade");
+		await sql.unsafe("drop schema if exists discord_push_tracking cascade");
 		await sql.close();
 	}
 });
