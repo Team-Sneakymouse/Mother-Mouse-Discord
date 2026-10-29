@@ -48,9 +48,12 @@ client.once("clientReady", () => {
 import TwitchShame from "./TwitchShame.js";
 TwitchShame(client, server);
 
-// Register the webhook's own bounded JSON parser before the general JSON middleware.
+// Register the webhooks' own body parsers before the general JSON middleware.
+// GitHub signatures cover the raw body, which express.json() would consume.
+import PushTracking from "./PushTracking/index.js";
 import ReposiliteWebhook from "./ReposiliteWebhook.js";
-if (process.env.PRODUCTION === "TRUE") ReposiliteWebhook(client, server);
+const pushTracking = process.env.PRODUCTION === "TRUE" ? PushTracking(client, server) : undefined;
+if (process.env.PRODUCTION === "TRUE") ReposiliteWebhook(client, server, pushTracking);
 
 server.use(express.json());
 
@@ -270,6 +273,7 @@ installProcessShutdown({
 	signals: process,
 	stopWork: async () => {
 		await stopJobBoard?.();
+		await pushTracking?.stop();
 	},
 	close: [
 		() => new Promise<void>((resolve, reject) => httpServer.close((error) => (error ? reject(error) : resolve()))),

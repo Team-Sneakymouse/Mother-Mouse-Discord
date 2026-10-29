@@ -460,25 +460,7 @@ test("each uploaded version gets one thread message edited across retries and ne
 		if (server === "dev-two" && fail) throw new Error("Upload failed");
 		return { id, version: "1.0" };
 	};
-	let descriptions = 0;
-	let checkpoints = 0;
-	const changelog = {
-		async describe() {
-			descriptions++;
-			return "**Commits**\n- Fix a bug";
-		},
-		async completed() {
-			checkpoints++;
-		},
-	};
-	await new ReposiliteWorker(
-		store,
-		() => service as unknown as PluginDeployment,
-		notify,
-		() => now,
-		changelog,
-	).tick();
-	assert.equal(checkpoints, 0);
+	await new ReposiliteWorker(store, () => service as unknown as PluginDeployment, notify, () => now).tick();
 	assert.equal(discord.sent.length, 1);
 	assert.equal(discord.thread.archived, false);
 	assert.deepEqual(discord.sent[0].allowedMentions, { parse: [] });
@@ -486,28 +468,14 @@ test("each uploaded version gets one thread message edited across retries and ne
 	assert.equal(store.jobs[0].message_id, "message-1");
 	store.jobs[0].next_attempt = new Date(now).toISOString();
 	fail = false;
-	await new ReposiliteWorker(
-		store,
-		() => service as unknown as PluginDeployment,
-		notify,
-		() => now,
-		changelog,
-	).tick();
+	await new ReposiliteWorker(store, () => service as unknown as PluginDeployment, notify, () => now).tick();
 	assert.equal(discord.sent.length, 1);
-	assert.equal(descriptions, 1);
-	assert.equal(checkpoints, 1);
 	assert.ok(discord.edits.every((edit) => edit.id === "message-1"));
-	assert.match(discord.edits.at(-1)!.content, /Uploaded.*Fix a bug/s);
+	assert.match(discord.edits.at(-1)!.content, /Uploaded \*\*Example\*\* `1\.0` to Dev one, Dev two/);
 	const nextEvent = { ...event, id: "e4fa61fb-1eb1-45e2-9c58-70d4af566431", path: event.path.replaceAll("1.0", "2.0") };
 	await store.accept(nextEvent);
 	(service as any).artifact = async () => ({ types: ["paper-plugin"] });
-	await new ReposiliteWorker(
-		store,
-		() => service as unknown as PluginDeployment,
-		notify,
-		() => now,
-		changelog,
-	).tick();
+	await new ReposiliteWorker(store, () => service as unknown as PluginDeployment, notify, () => now).tick();
 	assert.equal(discord.sent.length, 2);
 	assert.equal(discord.edits.at(-1)!.id, "message-2");
 });
@@ -521,35 +489,17 @@ test("terminal failure edits the existing message, and no matching servers do no
 	service.deploy = async () => {
 		throw new Error("Upload failed");
 	};
-	const changelog = { describe: async () => "Release commit", completed: async () => assert.fail("Must not checkpoint a failed or empty deployment") };
-	await new ReposiliteWorker(
-		store,
-		() => service as unknown as PluginDeployment,
-		notify,
-		() => now,
-		changelog,
-	).tick();
+	await new ReposiliteWorker(store, () => service as unknown as PluginDeployment, notify, () => now).tick();
 	store.jobs[0].attempts = 11;
 	store.jobs[0].next_attempt = new Date(now).toISOString();
-	await new ReposiliteWorker(
-		store,
-		() => service as unknown as PluginDeployment,
-		notify,
-		() => now,
-		changelog,
-	).tick();
+	await new ReposiliteWorker(store, () => service as unknown as PluginDeployment, notify, () => now).tick();
 	assert.equal(discord.sent.length, 1);
-	assert.match(discord.edits.at(-1)!.content, /failed.*12 attempts.*Release commit/s);
+	assert.match(discord.edits.at(-1)!.content, /failed.*12 attempts/s);
 	await store.accept({ ...event, id: "e4fa61fb-1eb1-45e2-9c58-70d4af566431" });
 	service.servers = async () => [];
-	await new ReposiliteWorker(
-		store,
-		() => service as unknown as PluginDeployment,
-		notify,
-		() => now,
-		changelog,
-	).tick();
+	await new ReposiliteWorker(store, () => service as unknown as PluginDeployment, notify, () => now).tick();
 	assert.equal(store.jobs[1].status, "completed");
+	assert.match(discord.edits.at(-1)?.content ?? discord.sent.at(-1)!.content, /Skipped.*no matching dev servers/);
 });
 
 test("deleted update messages are replaced while transient edit failures never create duplicates", async () => {
@@ -570,26 +520,67 @@ test("deleted update messages are replaced while transient edit failures never c
 	assert.equal(store.jobs[0].message_id, "message-2");
 });
 
-test("changelog lookup and checkpoint failures never retry successful uploads", async () => {
+test("tracked artifacts report progress to their push instead of posting a message", async () => {
 	const store = memoryStore();
 	await store.accept(event);
-	const { service, calls } = fakeService();
-	const changelog = {
-		async describe() {
-			throw new Error("GitHub unavailable");
-		},
-		async completed() {
-			throw new Error("Disk unavailable");
+	const { service } = fakeService();
+	const source = { repository: "Team-Sneakymouse/Example", commit: "abc1234" };
+	(service as any).artifact = async () => ({ types: ["paper-plugin"], source });
+	const updates: { source: unknown; status: string; text: string }[] = [];
+	const notifications: string[] = [];
+	const tracker = {
+		async artifact(given: unknown, update: { id: string; status: string; text: string }) {
+			assert.equal(update.id, "Example");
+			updates.push({ source: given, status: update.status, text: update.text });
+			return true;
 		},
 	};
 	await new ReposiliteWorker(
 		store,
 		() => service as unknown as PluginDeployment,
-		async () => {},
+		async (content) => void notifications.push(content),
 		() => now,
-		changelog,
+		tracker,
 	).tick();
 	assert.equal(store.jobs[0].status, "completed");
-	assert.equal(store.jobs[0].attempts, 0);
-	assert.equal(calls.length, 2);
+	assert.deepEqual(store.jobs[0].source, source);
+	assert.deepEqual(
+		updates.map((update) => update.status),
+		["running", "success"],
+	);
+	assert.ok(updates.every((update) => update.source === source || JSON.stringify(update.source) === JSON.stringify(source)));
+	assert.match(updates[1].text, /Uploaded \*\*Example\*\*/);
+	assert.deepEqual(notifications, []);
+});
+
+test("untracked artifacts, missing source metadata and tracker failures fall back to the upload's own message", async () => {
+	for (const [source, tracker] of [
+		[{ repository: "Team-Sneakymouse/Example", commit: "abc1234" }, { artifact: async () => false }],
+		[undefined, { artifact: async () => assert.fail("Artifacts without a source cannot match a push") }],
+		[
+			{ repository: "Team-Sneakymouse/Example", commit: "abc1234" },
+			{
+				artifact: async () => {
+					throw new Error("Database unavailable");
+				},
+			},
+		],
+	] as const) {
+		const store = memoryStore();
+		await store.accept(event);
+		const { service, calls } = fakeService();
+		(service as any).artifact = async () => ({ types: ["paper-plugin"], ...(source ? { source } : {}) });
+		const notifications: string[] = [];
+		await new ReposiliteWorker(
+			store,
+			() => service as unknown as PluginDeployment,
+			async (content) => void notifications.push(content),
+			() => now,
+			tracker,
+		).tick();
+		assert.equal(store.jobs[0].status, "completed");
+		assert.equal(calls.length, 2, "Tracking problems never block deployment");
+		assert.equal(notifications.length, 2);
+		assert.match(notifications[1], /Uploaded/);
+	}
 });
