@@ -378,7 +378,7 @@ async function serve(options: { github?: string; watchtower?: string; ready?: bo
 	return { url, store, tracker, discord, close: () => new Promise((resolve) => server.close(resolve)) };
 }
 
-function signed(secret: string, body: string, event: string, delivery = crypto.randomUUID()) {
+function signed(secret: string, body: string, event: string, delivery: string = crypto.randomUUID()) {
 	return {
 		method: "POST",
 		body,

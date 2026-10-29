@@ -1,9 +1,27 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { ActionRow, type ChatInputCommandInteraction, ComponentType, Embed, type Message, type MessageComponentInteraction } from "discord.js";
+import {
+	ActionRow,
+	type APIActionRowComponent,
+	type APIComponentInMessageActionRow,
+	type APIEmbed,
+	type ChatInputCommandInteraction,
+	ComponentType,
+	Embed,
+	EmbedType,
+	type Message,
+	type MessageActionRowComponent,
+	type MessageComponentInteraction,
+} from "discord.js";
 import { PluginUpdatesController } from "../src/PluginUpdates.ts";
 import { type Artifact, type PluginDeployment } from "../src/utils/PluginDeployment.ts";
 import { customId, pending, readState, renderState, selectArtifacts, type UpdateState } from "../src/utils/PluginUpdateMessage.ts";
+
+// discord.js types these constructors as private, but the tests need real instances.
+const rowData = (row: { toJSON(): unknown }) => row.toJSON() as APIActionRowComponent<APIComponentInMessageActionRow>;
+const makeEmbed = (data: APIEmbed) => new (Embed as unknown as new (data: APIEmbed) => Embed)(data);
+const makeActionRow = (data: APIActionRowComponent<APIComponentInMessageActionRow>) =>
+	new (ActionRow as unknown as new (data: APIActionRowComponent<APIComponentInMessageActionRow>) => ActionRow<MessageActionRowComponent>)(data);
 
 const owner = "123456789012345678";
 const artifacts: Artifact[] = Array.from({ length: 30 }, (_, index) => ({
@@ -26,23 +44,23 @@ function message(initial: ReturnType<typeof renderState>) {
 		author: { id: "bot" },
 		content: "",
 		embeds: [] as Embed[],
-		components: [] as ActionRow<any>[],
+		components: [] as ActionRow<MessageActionRowComponent>[],
 		async fetch() {
-			return result as unknown as Message;
+			return result as unknown as Message<true>;
 		},
 		async edit(payload: ReturnType<typeof renderState>) {
 			edits.push(payload);
 			apply(payload);
-			return result as unknown as Message;
+			return result as unknown as Message<true>;
 		},
 	};
 	function apply(payload: ReturnType<typeof renderState>) {
 		result.content = payload.content;
-		if (payload.embeds) result.embeds = payload.embeds.map((embed) => new Embed(embed.toJSON()));
-		result.components = payload.components.map((row) => new ActionRow(row.toJSON()));
+		if (payload.embeds) result.embeds = payload.embeds.map((embed) => makeEmbed(embed.toJSON()));
+		result.components = payload.components.map((row) => makeActionRow(row.toJSON()));
 	}
 	apply(initial);
-	return { result: result as unknown as Message, edits };
+	return { result: result as unknown as Message<true>, edits };
 }
 
 function click(target: Message, id: string, values: string[] = [], user = owner, memberPermissions: { has: () => boolean } | null = { has: () => true }) {
@@ -176,7 +194,7 @@ test("retry migrates an existing deployment message and skips its recorded succe
 	selection.selected = ["Plugin0", "Plugin1"];
 	const target = message(renderState(selection));
 	target.result.embeds = [
-		new Embed({
+		makeEmbed({
 			...target.result.embeds[0].toJSON(),
 			fields: [
 				{ name: "Selected releases", value: "`Plugin0`\n`Plugin1`" },
@@ -328,8 +346,8 @@ test("unchanged controls remain usable when fetched message JSON has different p
 			) as Payload;
 		return value;
 	}
-	fetched.result.embeds = fetched.result.embeds.map((embed) => new Embed(reorder(embed.toJSON())));
-	fetched.result.components = fetched.result.components.map((row) => new ActionRow(reorder(row.toJSON())));
+	fetched.result.embeds = fetched.result.embeds.map((embed) => makeEmbed(reorder(embed.toJSON())));
+	fetched.result.components = fetched.result.components.map((row) => makeActionRow(reorder(rowData(row))));
 	clicked.result.fetch = async () => fetched.result;
 	const event = click(clicked.result, customId(selection, "next"));
 	const service = { servers: async () => [backend], catalog: async () => ({ artifacts, failures: [] }) } as unknown as PluginDeployment;
@@ -344,10 +362,10 @@ for (const action of ["server", "reset"]) {
 		const servers = [{ identifier: "abcdefgh", name: "Buildteam" }];
 		const clicked = message(renderState(selection, servers));
 		const fetched = message(renderState(selection, servers));
-		fetched.result.embeds = fetched.result.embeds.map((embed) => new Embed({ ...embed.toJSON(), type: "rich" }));
+		fetched.result.embeds = fetched.result.embeds.map((embed) => makeEmbed({ ...embed.toJSON(), type: EmbedType.Rich }));
 		fetched.result.components = fetched.result.components.map((row, index) => {
-			const data = row.toJSON();
-			return new ActionRow({
+			const data = rowData(row);
+			return makeActionRow({
 				...data,
 				id: index + 1,
 				components: data.components.map((component, componentIndex) => ({
@@ -391,9 +409,11 @@ for (const change of ["content", "route", "options", "disabled"]) {
 		const rendered = renderState(selection, [], change === "options" ? artifacts.slice(1) : artifacts);
 		if (change === "content") rendered.content = "Deployment cancelled.";
 		else if (change !== "options") {
-			const button = rendered.components[1].components.find((component) => component.data.custom_id === customId(selection, "next"));
+			const button = rendered.components[1].components.find(
+				(component) => "custom_id" in component.data && component.data.custom_id === customId(selection, "next"),
+			);
 			assert.ok(button);
-			if (change === "route") button.data.custom_id = customId({ ...selection, page: 1 }, "next");
+			if (change === "route") (button.data as { custom_id?: string }).custom_id = customId({ ...selection, page: 1 }, "next");
 			else button.data.disabled = true;
 		}
 		const fetched = message(rendered);

@@ -1,8 +1,8 @@
 import { expect, test } from "bun:test";
 import { createHash } from "node:crypto";
-import seed from "../pocketbase/todo.catalog.seed.json";
-import schema from "../pocketbase/todo.collections.json";
-import assignmentField from "../pocketbase/todo.group-assignment-field.json";
+import seed from "../pocketbase/todo.catalog.seed.json" with { type: "json" };
+import schema from "../pocketbase/todo.collections.json" with { type: "json" };
+import assignmentField from "../pocketbase/todo.group-assignment-field.json" with { type: "json" };
 
 test("reviewed seed retains all exact supplied label names, URLs, descriptions and nulls", () => {
 	// Canonical compact JSON of the user's original 37 objects, preserving property and catalog order.

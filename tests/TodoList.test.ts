@@ -107,5 +107,5 @@ test("every list card exposes Edit and detail UI has paginated concrete labels a
 	expect(detail.components[0].components[0].options).toHaveLength(25);
 	expect(detail.components[1].components[0].options.map((o: any) => o.value)).toContain("closed");
 	expect(JSON.stringify(detail.embeds)).toContain("https://discord.com/channels/111/222/333");
-	expect(detail.embeds[0].footer.text).toContain('"revision":1');
+	expect(detail.embeds[0].footer?.text).toContain('"revision":1');
 });

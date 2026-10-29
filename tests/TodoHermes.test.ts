@@ -8,7 +8,7 @@ test("production transport wiring requires explicit bridge URL/token and otherwi
 	expect(configuredTodoTransports({} as any, {})).toEqual({});
 	const transports = configuredTodoTransports({} as any, { HERMES_TODO_BRIDGE_URL: "http://127.0.0.1:8091", HERMES_TODO_BRIDGE_TOKEN: "x".repeat(40) });
 	expect(transports.assessment).toBeInstanceOf(HermesTodoBridge);
-	expect(transports.conversation).toBe(transports.assessment);
+	expect<unknown>(transports.conversation).toBe(transports.assessment);
 });
 const servers: Server[] = [];
 for (const [name, prompt] of [

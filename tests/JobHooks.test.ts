@@ -31,17 +31,17 @@ test("HTTP client surfaces stale lease/config/server errors and malformed respon
 	const api = hooksApi(config, new AbortController().signal);
 	try {
 		for (const status of [401, 409, 503]) {
-			globalThis.fetch = async () => new Response("", { status });
+			globalThis.fetch = (async (_url) => new Response("", { status })) as typeof fetch;
 			await assert.rejects(api.claim(), new RegExp(String(status)));
 		}
-		globalThis.fetch = async () => Response.json({ bad: true });
+		globalThis.fetch = (async (_url) => Response.json({ bad: true })) as typeof fetch;
 		await assert.rejects(api.claim());
 		const aborted = new AbortController();
 		aborted.abort();
-		globalThis.fetch = async (_url, init) => {
+		globalThis.fetch = (async (_url, init) => {
 			init!.signal!.throwIfAborted();
 			return Response.json({});
-		};
+		}) as typeof fetch;
 		await assert.rejects(hooksApi(config, aborted.signal).claim());
 	} finally {
 		globalThis.fetch = original;

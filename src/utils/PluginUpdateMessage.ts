@@ -82,7 +82,7 @@ export function pending(state: UpdateState): string[] {
 	return state.selected.filter((id) => !state.completed.some((item) => item.id === id));
 }
 
-export function renderState(state: UpdateState, servers: Server[] = [], artifacts: Artifact[] = [], status?: string) {
+export function renderState(state: UpdateState, servers: Pick<Server, "identifier" | "name">[] = [], artifacts: Artifact[] = [], status?: string) {
 	// Reserve a completion marker, backticks and a newline for every selected ID.
 	// Leave room for the embed title, description and field names within 6,000 characters.
 	if (state.selected.reduce((size, id) => size + id.length + 5, 0) > 5000)

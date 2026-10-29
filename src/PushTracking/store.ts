@@ -54,7 +54,7 @@ export class MemoryPushStore implements PushStore {
 	private pushes: Push[] = [];
 	private stageMap = new Map<number, Stage[]>();
 
-	async claimDelivery(id: string): Promise<boolean> {
+	async claimDelivery(id: string, _source?: string): Promise<boolean> {
 		if (this.deliveries.has(id)) return false;
 		this.deliveries.add(id);
 		return true;

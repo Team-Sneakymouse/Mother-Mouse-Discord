@@ -106,13 +106,13 @@ test("PostgreSQL store follows the store contract and migrations are repeatable"
 		username: decodeURIComponent(target.username),
 		password: decodeURIComponent(target.password),
 	});
-	const [{ database }] = await sql<{ database: string }>`select current_database() as database`;
+	const [{ database }] = await sql<Array<{ database: string }>>`select current_database() as database`;
 	assert.equal(database, target.pathname.slice(1));
 	try {
 		await sql.unsafe("drop schema if exists discord_push_tracking cascade");
 		await migrate(sql);
 		await Promise.all([migrate(sql), migrate(sql)]);
-		const [{ versions }] = await sql<{ versions: number }>`select count(*)::integer as versions from discord_push_tracking.migrations`;
+		const [{ versions }] = await sql<Array<{ versions: number }>>`select count(*)::integer as versions from discord_push_tracking.migrations`;
 		assert.equal(versions, 1);
 		const store = new PostgresPushStore(sql);
 		await contract(store);

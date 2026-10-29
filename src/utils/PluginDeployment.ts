@@ -20,6 +20,7 @@ export type Artifact = {
 };
 export type Server = { identifier: string; name: string; description: string };
 export type DeploymentOptions = { version?: string; scope?: string[] };
+export type Fetch = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
 type Listing<T> = { data: { attributes: T }[]; meta?: { pagination?: { current_page: number; total_pages: number } } };
 type RemoteFile = { name: string; is_file: boolean; size: number };
 
@@ -88,7 +89,7 @@ export class PluginDeployment {
 		private host: string,
 		private applicationKey: string,
 		private clientKey: string,
-		private request: typeof fetch = fetch,
+		private request: Fetch = fetch,
 	) {
 		const url = new URL(host);
 		if (url.protocol !== "https:") throw new Error("PELICAN_API_HOST must use HTTPS");

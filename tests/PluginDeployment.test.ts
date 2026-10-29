@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { data } from "../src/PluginUpdates.ts";
-import { type Artifact, deploymentTypes, oldFiles, PluginDeployment } from "../src/utils/PluginDeployment.ts";
+import { type Artifact, deploymentTypes, type Fetch, oldFiles, PluginDeployment } from "../src/utils/PluginDeployment.ts";
 
 const metadata = `<metadata><versioning><release>2.0</release><latest>3.0-SNAPSHOT</latest><versions><version>1.0</version><version>2.0</version></versions></versioning></metadata>`;
 const pom = (type: string) => `<project><properties><sneakyrp.deployment.type>${type}</sneakyrp.deployment.type></properties></project>`;
@@ -9,7 +9,7 @@ const file = (name: string, size = 4) => ({ name, is_file: true, size });
 const listing = (files: unknown[]) => ({ data: files.map((attributes) => ({ attributes })) });
 
 test("catalog sorts same-day releases by precise Maven update time before version hashes", async () => {
-	const request: typeof fetch = async (input) => {
+	const request: Fetch = async (input) => {
 		const url = String(input);
 		if (url.includes("/api/maven/details/")) return Response.json({ files: ["Older", "Newer"].map((name) => ({ name, type: "DIRECTORY" })) });
 		if (url.endsWith(".pom")) return new Response(pom("paper-plugin"));
@@ -32,7 +32,7 @@ test("catalog sorts same-day releases by precise Maven update time before versio
 function setup(type = "paper-plugin", failUpload = false, failCleanup = false, badSize = false, description = "Lords of Minecraft - test") {
 	const events: { url: string; method: string; body?: any; headers: Headers }[] = [];
 	let uploaded = false;
-	const request: typeof fetch = async (input, init) => {
+	const request: Fetch = async (input, init) => {
 		const url = String(input);
 		const method = init?.method ?? "GET";
 		events.push({ url, method, body: typeof init?.body === "string" ? JSON.parse(init.body) : init?.body, headers: new Headers(init?.headers) });
@@ -144,7 +144,7 @@ test("Paper replacement is verified before staging cleanup and preserves install
 });
 
 test("update announcements send a console say command using the client API", async () => {
-	const request: typeof fetch = async (input, init) => {
+	const request: Fetch = async (input, init) => {
 		assert.equal(String(input), "https://panel.example/api/client/servers/dev%20server/command");
 		assert.equal(init?.method, "POST");
 		assert.equal(new Headers(init?.headers).get("Authorization"), "Bearer client-secret");
@@ -156,7 +156,7 @@ test("update announcements send a console say command using the client API", asy
 });
 
 test("update announcements report command failures to the caller", async () => {
-	const request: typeof fetch = async () => new Response("Server is offline", { status: 502 });
+	const request: Fetch = async () => new Response("Server is offline", { status: 502 });
 	const service = new PluginDeployment("https://panel.example/api", "application-secret", "client-secret", request);
 	await assert.rejects(service.announceUpdate("server", { id: "Example", version: "2.0" }), /HTTP 502/);
 });
@@ -223,7 +223,7 @@ test("cleanup failure reports that the replacement was already uploaded", async 
 });
 
 test("application server listing paginates, uses client-compatible identifiers and excludes descriptions outside scope", async () => {
-	const request: typeof fetch = async (url, init) => {
+	const request: Fetch = async (url, init) => {
 		assert.equal(new Headers(init?.headers).get("Authorization"), "Bearer application-secret");
 		assert.equal(new URL(String(url)).pathname, "/api/application/servers");
 		assert.equal(new URL(String(url)).searchParams.has("type"), false);
@@ -245,7 +245,7 @@ test("application server listing paginates, uses client-compatible identifiers a
 
 test("empty application listings do not fall back to client server listing", async () => {
 	const queries: string[] = [];
-	const request: typeof fetch = async (input) => {
+	const request: Fetch = async (input) => {
 		const url = new URL(String(input));
 		queries.push(url.search);
 		assert.equal(url.pathname, "/api/application/servers");
@@ -260,7 +260,7 @@ test("scope and latest POM eligibility are checked again immediately before depl
 	const { service, events } = setup("library");
 	await assert.rejects(service.deploy("server", "Example"), /no longer eligible/);
 	assert.ok(events.every((event) => event.method === "GET"));
-	const request: typeof fetch = async () => Response.json({ attributes: { description: "Different game" } });
+	const request: Fetch = async () => Response.json({ attributes: { description: "Different game" } });
 	await assert.rejects(
 		new PluginDeployment("https://panel.example/api", "application-secret", "client-secret", request).deploy("server", "Example"),
 		/does not confirm/,
@@ -275,7 +275,7 @@ test("slash command defaults to administrators and includes update subcommand", 
 
 test("exact-version resolution reads the uploaded version's POM and JAR even when metadata points to a newer release", async () => {
 	const urls: string[] = [];
-	const request: typeof fetch = async (input) => {
+	const request: Fetch = async (input) => {
 		const url = String(input);
 		urls.push(url);
 		if (url.endsWith("maven-metadata.xml")) return new Response(metadata);
@@ -290,7 +290,7 @@ test("exact-version resolution reads the uploaded version's POM and JAR even whe
 });
 
 test("automatic discovery and final client check require both description phrases", async () => {
-	const request: typeof fetch = async (input) => {
+	const request: Fetch = async (input) => {
 		const url = String(input);
 		if (url.includes("/application/servers?"))
 			return Response.json(
