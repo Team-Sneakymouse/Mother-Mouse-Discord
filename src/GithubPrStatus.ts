@@ -1,12 +1,16 @@
 import axios from "axios";
 import { CronJob } from "cron";
 import {
+	type APIButtonComponent,
 	type APIMessageTopLevelComponent,
+	ApplicationCommandType,
 	ButtonBuilder,
 	type ButtonInteraction,
 	ButtonStyle,
 	type Client,
+	ContextMenuCommandBuilder,
 	escapeMarkdown,
+	type MessageContextMenuCommandInteraction,
 	type MessageCreateOptions,
 	MessageFlags,
 	PermissionFlagsBits,
@@ -14,6 +18,9 @@ import {
 	TextDisplayBuilder,
 } from "discord.js";
 import { z } from "zod";
+
+const REFRESH_COMMAND = "Refresh PR status";
+export const data = [new ContextMenuCommandBuilder().setType(ApplicationCommandType.Message).setName(REFRESH_COMMAND)];
 
 export function createGithubApi(token: string) {
 	return axios.create({
@@ -34,6 +41,11 @@ export default function GithubPrStatus(client: Client, token = process.env.GITHU
 		return;
 	}
 	const github = api ?? createGithubApi(token);
+	const readApi = { get: github.get.bind(github) };
+	client.on("interactionCreate", (interaction) => {
+		if (!interaction.isMessageContextMenuCommand() || interaction.commandName !== REFRESH_COMMAND) return;
+		handleRefreshCommand(interaction, readApi).catch(() => console.error("GithubPrStatus: refresh interaction failed."));
+	});
 	if (github.put) {
 		const mergeApi = { get: github.get.bind(github), put: github.put.bind(github) };
 		client.on("interactionCreate", (interaction) => {
@@ -80,16 +92,24 @@ function parseMergeId(customId: string): { name: string; truncated: boolean; num
 	return match ? { name: match[1], truncated: match[2] === "~", number: Number(match[3]) } : undefined;
 }
 
-function pullButton(pull: OpenPullRequest): ButtonBuilder {
-	if (pull.draft) {
-		return new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel("Open draft").setURL(`https://github.com/${pull.repository}/pull/${pull.number}`);
-	}
+type PullRef = { repository: string; number: number };
+
+function mergeId(pull: PullRef): string {
 	const suffix = `:${pull.number}`;
 	const budget = 100 - MERGE_PREFIX.length - suffix.length;
 	const name = pull.repository.slice(pull.repository.indexOf("/") + 1);
-	const id = MERGE_PREFIX + (name.length > budget ? `${name.slice(0, budget - 1)}~` : name) + suffix;
-	return new ButtonBuilder().setCustomId(id).setStyle(ButtonStyle.Success).setLabel("Merge");
+	return MERGE_PREFIX + (name.length > budget ? `${name.slice(0, budget - 1)}~` : name) + suffix;
 }
+
+function pullButton(pull: PullRef & { draft: boolean }): ButtonBuilder {
+	if (pull.draft) {
+		return new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel("Open draft").setURL(`https://github.com/${pull.repository}/pull/${pull.number}`);
+	}
+	return new ButtonBuilder().setCustomId(mergeId(pull)).setStyle(ButtonStyle.Success).setLabel("Merge");
+}
+
+const DRAFT_PREFIX = "[DRAFT] ";
+const DIGEST_HEADER = "**Daily open PRs";
 
 export function formatDigest(pulls: readonly OpenPullRequest[]): MessageCreateOptions[] {
 	const sorted = [...pulls].sort((a, b) => (a.repository < b.repository ? -1 : a.repository > b.repository ? 1 : a.number - b.number));
@@ -98,7 +118,7 @@ export function formatDigest(pulls: readonly OpenPullRequest[]): MessageCreateOp
 	let length = 0;
 	let repository = "";
 	for (const pull of sorted) {
-		const text = `${pull.draft ? "[DRAFT] " : ""}[#${pull.number}](https://github.com/${pull.repository}/pull/${pull.number}) ${safeText(pull.title, 300)} — ${safeText(pull.user?.login ?? "unknown author", 80)}`;
+		const text = `${pull.draft ? DRAFT_PREFIX : ""}[#${pull.number}](https://github.com/${pull.repository}/pull/${pull.number}) ${safeText(pull.title, 300)} — ${safeText(pull.user?.login ?? "unknown author", 80)}`;
 		const heading = `**${safeText(pull.repository, 160)}**`;
 		let withHeading = repository !== pull.repository;
 		const cost = (withHeading ? 1 : 0) + PULL_COMPONENTS;
@@ -117,7 +137,7 @@ export function formatDigest(pulls: readonly OpenPullRequest[]): MessageCreateOp
 	}
 	return groups.map((group, index) => {
 		const components: (TextDisplayBuilder | SectionBuilder)[] = [
-			new TextDisplayBuilder().setContent(`**Daily open PRs — Part ${index + 1}/${groups.length}**`),
+			new TextDisplayBuilder().setContent(`${DIGEST_HEADER} — Part ${index + 1}/${groups.length}**`),
 		];
 		for (const { pull, text, heading } of group) {
 			if (heading) components.push(new TextDisplayBuilder().setContent(heading));
@@ -225,9 +245,13 @@ function mergeFailureReason(error: unknown): string {
 	// Never include raw errors: axios errors carry request headers, including the token.
 	if (!axios.isAxiosError(error) || !error.response) return "the GitHub request failed.";
 	const { status, data } = error.response;
-	if (status === 401 || status === 403 || status === 404) return `GitHub refused the request (HTTP ${status}); the token may lack write access.`;
+	if (status === 401 || status === 403 || status === 404) return `GitHub refused the request (HTTP ${status}); the token may lack access to it.`;
 	const message = z.object({ message: z.string() }).safeParse(data);
 	return message.success ? `${safeText(message.data.message, 200)} (HTTP ${status})` : `GitHub returned HTTP ${status}.`;
+}
+
+function doneLabel(verb: string, user: string | undefined): string {
+	return user ? `${verb} by ${Array.from(user).slice(0, 60).join("")}` : verb;
 }
 
 /** Grey out the clicked Merge button in place, leaving the rest of the message untouched. */
@@ -236,7 +260,7 @@ export function markMerged(node: unknown, customId: string, mergedBy: string): u
 	if (node === null || typeof node !== "object") return node;
 	const record = node as Record<string, unknown>;
 	if (record.custom_id === customId) {
-		return { ...record, style: ButtonStyle.Secondary, label: `Merged by ${Array.from(mergedBy).slice(0, 60).join("")}`, disabled: true };
+		return { ...record, style: ButtonStyle.Secondary, label: doneLabel("Merged", mergedBy), disabled: true };
 	}
 	return Object.fromEntries(Object.entries(record).map(([key, value]) => [key, markMerged(value, customId, mergedBy)]));
 }
@@ -268,4 +292,108 @@ export async function handleMergeButton(interaction: ButtonInteraction, api: Mer
 	}
 	const components = interaction.message.components.map((component) => component.toJSON());
 	await interaction.editReply({ components: markMerged(components, interaction.customId, interaction.user.username) as APIMessageTopLevelComponent[] });
+}
+
+const livePullSchema = z.object({
+	state: z.enum(["open", "closed"]),
+	merged: z.boolean(),
+	draft: z.boolean(),
+	merged_by: z.object({ login: z.string() }).nullable(),
+});
+const closedIssueSchema = z.object({ closed_by: z.object({ login: z.string() }).nullable() });
+// The PR link at the start of each digest row; it always holds the full repository name, even for drafts.
+const PULL_LINK = /\(https:\/\/github\.com\/(Team-Sneakymouse\/[A-Za-z0-9_.-]+)\/pull\/([0-9]+)\)/i;
+
+type PullState = "open" | "draft" | "merged" | "closed";
+type Section = { type: number; components: { content: string }[]; accessory: Record<string, unknown> };
+type RowUpdate = { state: PullState; button: APIButtonComponent };
+
+/** The PR a top-level digest section links to, if it is a PR row. */
+function rowPull(component: unknown): PullRef | undefined {
+	const section = component as Partial<Section>;
+	if (section.type !== 9 || section.accessory?.type !== 2 || typeof section.components?.[0]?.content !== "string") return;
+	const match = PULL_LINK.exec(section.components[0].content);
+	return match ? { repository: match[1], number: Number(match[2]) } : undefined;
+}
+
+const pullKey = (pull: PullRef) => `${pull.repository.toLowerCase()}#${pull.number}`;
+// Merging is final, so a row that already names who merged it is kept as is.
+const isMergedButton = (button: Record<string, unknown>) => button.disabled === true && typeof button.label === "string" && button.label.startsWith("Merged");
+
+async function liveButton(api: { get: GithubGet }, pull: PullRef): Promise<RowUpdate> {
+	const live = livePullSchema.parse((await api.get(`/repos/${pull.repository}/pulls/${pull.number}`, { params: {} })).data);
+	const done = new ButtonBuilder().setCustomId(mergeId(pull)).setDisabled(true);
+	if (live.merged) {
+		return { state: "merged", button: done.setStyle(ButtonStyle.Secondary).setLabel(doneLabel("Merged", live.merged_by?.login)).toJSON() };
+	}
+	if (live.state === "closed") {
+		// GitHub only reports who closed a PR on its issue.
+		const issue = closedIssueSchema.parse((await api.get(`/repos/${pull.repository}/issues/${pull.number}`, { params: {} })).data);
+		return { state: "closed", button: done.setStyle(ButtonStyle.Danger).setLabel(doneLabel("Closed", issue.closed_by?.login)).toJSON() };
+	}
+	return { state: live.draft ? "draft" : "open", button: pullButton({ ...pull, draft: live.draft }).toJSON() };
+}
+
+/** Look up the live state of every PR in one digest message that is not already marked merged. */
+export async function fetchRowUpdates(api: { get: GithubGet }, components: readonly unknown[]): Promise<Map<string, RowUpdate>> {
+	const updates = new Map<string, RowUpdate>();
+	for (const component of components) {
+		const pull = rowPull(component);
+		if (pull && !isMergedButton((component as Section).accessory)) updates.set(pullKey(pull), await liveButton(api, pull));
+	}
+	return updates;
+}
+
+/** Swap in the looked-up buttons and draft labels. Rows that became merged meanwhile are left alone. */
+export function applyRowUpdates(components: readonly unknown[], updates: ReadonlyMap<string, RowUpdate>): unknown[] {
+	return components.map((component) => {
+		const pull = rowPull(component);
+		const update = pull && updates.get(pullKey(pull));
+		const section = component as Section;
+		if (!update || isMergedButton(section.accessory)) return component;
+		const [text, ...rest] = section.components;
+		const content = text.content.startsWith(DRAFT_PREFIX) ? text.content.slice(DRAFT_PREFIX.length) : text.content;
+		return {
+			...section,
+			components: [{ ...text, content: (update.state === "draft" ? DRAFT_PREFIX : "") + content }, ...rest],
+			accessory: update.button,
+		};
+	});
+}
+
+function isDigest(components: readonly unknown[]): boolean {
+	const first = components[0] as { type?: number; content?: unknown } | undefined;
+	return first?.type === 10 && typeof first.content === "string" && first.content.startsWith(DIGEST_HEADER);
+}
+
+/** Refresh only the right-clicked digest message; other parts of the same digest are not touched. */
+export async function handleRefreshCommand(interaction: MessageContextMenuCommandInteraction, api: { get: GithubGet }): Promise<void> {
+	const allowedMentions = { parse: [] as [] };
+	const target = interaction.targetMessage;
+	const components = target.components.map((component) => component.toJSON());
+	if (target.author.id !== interaction.client.user.id || !isDigest(components)) {
+		await interaction.reply({ content: "That is not a PR digest message.", flags: MessageFlags.Ephemeral, allowedMentions });
+		return;
+	}
+	await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+	let updates: Map<string, RowUpdate>;
+	try {
+		updates = await fetchRowUpdates(api, components);
+	} catch (error) {
+		// Never include raw errors: axios errors carry request headers, including the token.
+		console.error("GithubPrStatus: refresh lookup failed.");
+		const reason = error instanceof z.ZodError ? "GitHub returned an unexpected response." : mergeFailureReason(error);
+		await interaction.editReply({ content: `Could not refresh, nothing was changed: ${reason}`, allowedMentions });
+		return;
+	}
+	// Re-read the message so a Merge click during the lookups is not overwritten.
+	const latest = (await target.fetch()).components.map((component) => component.toJSON());
+	await target.edit({ components: applyRowUpdates(latest, updates) as APIMessageTopLevelComponent[], allowedMentions });
+	const counts = { open: 0, draft: 0, merged: 0, closed: 0 };
+	for (const { state } of updates.values()) counts[state]++;
+	const summary = Object.entries(counts)
+		.filter(([, count]) => count)
+		.map(([state, count]) => `${count} ${state}`)
+		.join(", ");
+	await interaction.editReply({ content: updates.size ? `Refreshed ${updates.size} PRs: ${summary}.` : "Nothing to refresh.", allowedMentions });
 }

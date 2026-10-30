@@ -62,6 +62,24 @@ edits the digest message in place: only that button is replaced by a grey, disab
 stale. Failures (not mergeable, conflicts, missing token permission, already
 merged) are reported privately to the clicker and leave the message unchanged.
 
+## Refreshing a digest message
+
+Right-click a digest message → **Apps → Refresh PR status** (registered in the
+RawbTV guild; run `registerCommands.ts` after deploying). Anyone may use it. Only
+the clicked message is refreshed; other parts of the same digest are left alone.
+
+Each PR row is identified by the PR link in its text, then its button is rebuilt
+from GitHub's live state: **Merge** (open), **Open draft** (draft; the `[DRAFT]`
+prefix follows the live state), grey disabled **Merged by <user>**, or red disabled
+**Closed by <user>**. A row that already says *Merged by* is kept as is (merging is
+final), so the Discord user recorded by the Merge button stays; otherwise the GitHub
+login is used (`merged_by` of the PR, `closed_by` of its issue, which costs one
+extra request per closed PR). Reopened PRs get their Merge button back.
+
+Every lookup finishes before the message is edited; any GitHub failure leaves the
+message untouched and is reported privately. The message is re-read just before the
+edit so a Merge click during the lookups is not overwritten.
+
 ## Verification
 
 ```sh

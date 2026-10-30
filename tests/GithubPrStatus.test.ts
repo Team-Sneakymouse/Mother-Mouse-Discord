@@ -4,11 +4,14 @@ import { createServer } from "node:http";
 import { test } from "node:test";
 import { Client } from "discord.js";
 import GithubPrStatus, {
+	applyRowUpdates,
 	collectOpenPullRequests,
 	createDigestRunner,
 	createGithubApi,
+	fetchRowUpdates,
 	formatDigest,
 	handleMergeButton,
+	handleRefreshCommand,
 	markMerged,
 } from "../src/GithubPrStatus.ts";
 
@@ -488,4 +491,117 @@ test("collects every repository and open PR page, including private repositories
 	assert.ok(calls.every((call) => call.params.per_page === 100));
 	assert.ok(calls.filter((call) => call.path.endsWith("/pulls")).every((call) => call.params.state === "open"));
 	assert.equal(calls[0].params.type, "all");
+});
+
+function refreshHarness(live: Record<number, { state?: string; merged?: boolean; draft?: boolean; merged_by?: string; closed_by?: string | null }>) {
+	const message = formatDigest([1, 2, 3, 4, 5].map((number) => ({ repository: "Team-Sneakymouse/a", ...pr(number), draft: number === 2 })))[0];
+	const wire = JSON.parse(JSON.stringify(message)).components as unknown[];
+	const gets: string[] = [];
+	const api = {
+		get: async (path: string) => {
+			gets.push(path);
+			const number = Number(path.split("/").at(-1));
+			const pull = live[number];
+			if (!pull) throw new Error("unexpected request");
+			if (path.includes("/issues/")) return { data: { closed_by: pull.closed_by ? { login: pull.closed_by } : null } };
+			return {
+				data: { state: pull.state ?? "open", merged: !!pull.merged, draft: !!pull.draft, merged_by: pull.merged_by ? { login: pull.merged_by } : null },
+			};
+		},
+	};
+	return { wire, api, gets };
+}
+
+test("refresh mirrors live PR state, keeps a recorded Discord merger and only asks for closers of closed PRs", async () => {
+	const { wire, api, gets } = refreshHarness({
+		1: { draft: true },
+		2: {},
+		3: { state: "closed", merged: true, merged_by: "gh-merger" },
+		4: { state: "closed", closed_by: "gh-closer" },
+	});
+	const clicked = markMerged(wire, "ghpr-merge:a:5", "dani") as unknown[];
+	const updates = await fetchRowUpdates(api, clicked);
+	assert.deepEqual(gets, [
+		"/repos/Team-Sneakymouse/a/pulls/1",
+		"/repos/Team-Sneakymouse/a/pulls/2",
+		"/repos/Team-Sneakymouse/a/pulls/3",
+		"/repos/Team-Sneakymouse/a/pulls/4",
+		"/repos/Team-Sneakymouse/a/issues/4",
+	]);
+	const { buttons, texts } = inspect({ components: applyRowUpdates(clicked, updates) });
+	assert.deepEqual(
+		buttons.map(({ label, style, disabled }) => [label, style, !!disabled]),
+		[
+			["Open draft", 5, false],
+			["Merge", 3, false],
+			["Merged by gh-merger", 2, true],
+			["Closed by gh-closer", 4, true],
+			["Merged by dani", 2, true],
+		],
+	);
+	assert.equal(buttons[0].url, "https://github.com/Team-Sneakymouse/a/pull/1");
+	assert.equal(buttons[1].custom_id, "ghpr-merge:a:2");
+	const rows = texts.filter((text) => text.includes("/pull/"));
+	assert.ok(rows[0].startsWith("[DRAFT] [#1]"));
+	assert.ok(rows[1].startsWith("[#2]"));
+	assert.equal(texts[0], (inspect({ components: wire }).texts as string[])[0]);
+});
+
+test("a reopened PR gets its Merge button back and an unknown closer still shows Closed", async () => {
+	const { wire, api } = refreshHarness({ 1: { state: "closed", closed_by: null }, 2: {}, 3: {}, 4: {}, 5: {} });
+	const closed = applyRowUpdates(wire, await fetchRowUpdates(api, wire));
+	assert.equal(inspect({ components: closed }).buttons[0].label, "Closed");
+	const reopened = refreshHarness({ 1: {}, 2: {}, 3: {}, 4: {}, 5: {} });
+	const { buttons } = inspect({ components: applyRowUpdates(closed, await fetchRowUpdates(reopened.api, closed)) });
+	assert.deepEqual([buttons[0].label, buttons[0].style, !!buttons[0].disabled], ["Merge", 3, false]);
+});
+
+function refreshInteraction(wire: unknown[], options: { author?: string; latest?: unknown[] } = {}) {
+	const calls: string[] = [];
+	const toMessage = (components: unknown[]) => components.map((component) => ({ toJSON: () => component }));
+	const interaction = {
+		client: { user: { id: "bot" } },
+		targetMessage: {
+			author: { id: options.author ?? "bot" },
+			components: toMessage(wire),
+			fetch: async () => ({ components: toMessage(options.latest ?? wire) }),
+			edit: async (payload: unknown) => calls.push(`edit:${JSON.stringify(payload)}`),
+		},
+		reply: async (payload: { content: string }) => calls.push(`reply:${payload.content}`),
+		deferReply: async () => calls.push("deferReply"),
+		editReply: async (payload: { content: string }) => calls.push(`editReply:${payload.content}`),
+	};
+	return { interaction, calls };
+}
+
+test("refresh command edits only the targeted part and does not overwrite a merge clicked meanwhile", async () => {
+	const { wire, api } = refreshHarness({ 1: {}, 2: {}, 3: {}, 4: {}, 5: { state: "closed", merged: true, merged_by: "gh" } });
+	const latest = markMerged(wire, "ghpr-merge:a:5", "dani") as unknown[];
+	const { interaction, calls } = refreshInteraction(wire, { latest });
+	await handleRefreshCommand(interaction as never, api);
+	assert.equal(calls.length, 3);
+	assert.equal(calls[0], "deferReply");
+	const { buttons } = inspect(JSON.parse(calls[1].slice("edit:".length)));
+	assert.equal(buttons[4].label, "Merged by dani");
+	assert.equal(buttons[1].label, "Merge");
+	assert.equal(calls[2], "editReply:Refreshed 5 PRs: 4 open, 1 merged.");
+});
+
+test("refresh command refuses other messages and leaves the digest untouched when GitHub fails", async () => {
+	const { wire, api, gets } = refreshHarness({});
+	for (const target of [refreshInteraction(wire, { author: "someone" }), refreshInteraction([{ type: 10, content: "hello" }])]) {
+		await handleRefreshCommand(target.interaction as never, api);
+		assert.deepEqual(target.calls, ["reply:That is not a PR digest message."]);
+	}
+	assert.deepEqual(gets, []);
+	const failing = refreshInteraction(wire);
+	const originalError = console.error;
+	console.error = () => {};
+	try {
+		await handleRefreshCommand(failing.interaction as never, api);
+	} finally {
+		console.error = originalError;
+	}
+	assert.equal(failing.calls.length, 2);
+	assert.ok(failing.calls[1].startsWith("editReply:Could not refresh, nothing was changed"));
 });

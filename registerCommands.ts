@@ -35,6 +35,7 @@ import { data as StreamManager } from "./src/StreamManager.js";
 import { data as BuildTeamManagement } from "./src/BuildTeamManagement.js";
 import { data as SendMail } from "./src/SendMail.js";
 import { data as PluginUpdates } from "./src/PluginUpdates.js";
+import { data as GithubPrStatus } from "./src/GithubPrStatus.js";
 import { data as ReleaseChecklist } from "./src/ReleaseChecklist/index.js";
 
 const commands = {
@@ -52,6 +53,7 @@ const commands = {
 		...SendMail,
 		...PluginUpdates,
 		...SharedTodos,
+		...GithubPrStatus,
 	],
 	[GuildIds.TILII]: [...GitlabIssues],
 	[GuildIds.SNEAKYRP]: [],
