@@ -5,7 +5,7 @@ import { DEV_UPDATE_THREAD } from "../ReposiliteWebhook.js";
 import type { ArtifactSource } from "../utils/PluginDeployment.js";
 import { migrate, PostgresPushStore } from "./postgres.js";
 import type { PushMessage } from "./render.js";
-import { registerPushTrackingRoutes } from "./routes.js";
+import { type PullRequestAlert, registerPushTrackingRoutes } from "./routes.js";
 import { type ArtifactUpdate, type MessageSink, PushTracker } from "./tracker.js";
 
 const RAWBTV = "391355330241757205";
@@ -46,7 +46,7 @@ export type PushTracking = {
 };
 
 /** Must be called before the global JSON body parser is installed. */
-export default function PushTracking(client: Client, server: Express): PushTracking {
+export default function PushTracking(client: Client, server: Express, pullRequestAlert?: PullRequestAlert): PushTracking {
 	let sql: SQL | undefined;
 	let timer: ReturnType<typeof setInterval> | undefined;
 	const feature = (async () => {
@@ -65,7 +65,7 @@ export default function PushTracking(client: Client, server: Express): PushTrack
 			return undefined;
 		}
 	})();
-	registerPushTrackingRoutes(server, () => feature);
+	registerPushTrackingRoutes(server, () => feature, undefined, pullRequestAlert);
 	if (!process.env.GITHUB_WEBHOOK_SECRET) console.log("PushTracking: GitHub webhook disabled until GITHUB_WEBHOOK_SECRET is configured");
 	if (!process.env.WATCHTOWER_WEBHOOK_TOKEN) console.log("PushTracking: Watchtower webhook disabled until WATCHTOWER_WEBHOOK_TOKEN is configured");
 

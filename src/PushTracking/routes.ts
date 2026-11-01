@@ -16,6 +16,12 @@ export function validSignature(secret: string, body: Buffer, header: string | un
 type Ready = () => Promise<{ tracker: PushTracker; store: PushStore } | undefined>;
 
 /**
+ * Handles GitHub `pull_request` events. Returns undefined for events that are not announced; `send`
+ * runs only after the delivery is claimed, so redeliveries never post twice.
+ */
+export type PullRequestAlert = (payload: unknown) => { send(): Promise<unknown> } | undefined;
+
+/**
  * Registers `POST /github` and `POST /watchtower`. Call before any global body parser:
  * the GitHub signature covers the raw request body.
  */
@@ -26,6 +32,7 @@ export function registerPushTrackingRoutes(
 		github: () => process.env.GITHUB_WEBHOOK_SECRET,
 		watchtower: () => process.env.WATCHTOWER_WEBHOOK_TOKEN,
 	},
+	pullRequestAlert?: PullRequestAlert,
 ): void {
 	server.post("/github", express.raw({ type: () => true, limit: "5mb" }), async (req, res) => {
 		const secret = secrets.github();
@@ -35,13 +42,23 @@ export function registerPushTrackingRoutes(
 		const event = req.get("X-GitHub-Event");
 		const delivery = req.get("X-GitHub-Delivery");
 		if (event === "ping") return void res.sendStatus(200);
-		if (event !== "push" && event !== "workflow_run") return void res.sendStatus(204);
+		const pullRequest = event === "pull_request" ? pullRequestAlert : undefined;
+		if (event !== "push" && event !== "workflow_run" && !pullRequest) return void res.sendStatus(204);
 		if (!delivery || delivery.length > 100) return void res.sendStatus(400);
 		let payload: unknown;
 		try {
 			payload = JSON.parse(body.toString("utf8"));
 		} catch {
 			return void res.sendStatus(400);
+		}
+		let alert: ReturnType<PullRequestAlert>;
+		if (pullRequest) {
+			try {
+				alert = pullRequest(payload);
+			} catch {
+				return void res.sendStatus(400);
+			}
+			if (!alert) return void res.sendStatus(204);
 		}
 		const feature = await ready();
 		if (!feature) return void res.sendStatus(503);
@@ -52,7 +69,8 @@ export function registerPushTrackingRoutes(
 			return void res.sendStatus(503);
 		}
 		try {
-			if (event === "push") await feature.tracker.push(payload);
+			if (alert) await alert.send();
+			else if (event === "push") await feature.tracker.push(payload);
 			else await feature.tracker.workflowRun(payload);
 			res.sendStatus(202);
 		} catch (error) {

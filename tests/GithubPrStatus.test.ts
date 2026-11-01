@@ -10,9 +10,11 @@ import GithubPrStatus, {
 	createGithubApi,
 	fetchRowUpdates,
 	formatDigest,
+	formatPullRequestAlert,
 	handleMergeButton,
 	handleRefreshCommand,
 	markMerged,
+	pullRequestAlert,
 } from "../src/GithubPrStatus.ts";
 
 test("real HTTP authentication, rate-limit, server and timeout failures are logged without posting or leaking credentials", async () => {
@@ -604,4 +606,50 @@ test("refresh command refuses other messages and leaves the digest untouched whe
 	}
 	assert.equal(failing.calls.length, 2);
 	assert.ok(failing.calls[1].startsWith("editReply:Could not refresh, nothing was changed"));
+});
+
+const pullRequestEvent = (action: string, overrides: Record<string, unknown> = {}) => ({
+	action,
+	pull_request: { ...pr(7), draft: false, title: "@everyone Add **mail**" },
+	repository: repo("SneakyMail"),
+	...overrides,
+});
+
+test("pull request alerts announce only newly opened PRs, in the PR channel, with a Merge button", async () => {
+	const sent: { channel: string; message: unknown }[] = [];
+	const client = {
+		channels: { fetch: async (id: string) => ({ isSendable: () => true, send: async (message: unknown) => sent.push({ channel: id, message }) }) },
+	};
+	const alert = pullRequestAlert(client as never);
+	for (const action of ["closed", "reopened", "synchronize", "ready_for_review", "edited"]) assert.equal(alert(pullRequestEvent(action)), undefined);
+	const dependabot = pullRequestEvent("opened");
+	dependabot.pull_request.user = { login: "dependabot[bot]" };
+	assert.equal(alert(dependabot), undefined, "Dependabot PRs are left to the daily digest");
+	assert.throws(() => alert({ action: "opened" }));
+	assert.throws(() => alert(pullRequestEvent("opened", { repository: { full_name: "Elsewhere/SneakyMail" } })));
+	const pending = alert(pullRequestEvent("opened"));
+	assert.equal(sent.length, 0, "Nothing is posted until the delivery is claimed");
+	await pending?.send();
+	assert.equal(sent.length, 1);
+	assert.equal(sent[0].channel, "808030927937994772");
+	const { texts, buttons } = inspect(sent[0].message);
+	assert.equal(texts[0], "**New pull request in Team-Sneakymouse/SneakyMail**");
+	assert.ok(texts[1].startsWith("[#7](https://github.com/Team-Sneakymouse/SneakyMail/pull/7) "));
+	assert.ok(!texts[1].includes("@everyone") && !texts[1].includes("**mail**"));
+	assert.deepEqual(
+		buttons.map((button) => [button.custom_id, button.label]),
+		[["ghpr-merge:SneakyMail:7", "Merge"]],
+	);
+	const draft = inspect(formatPullRequestAlert({ repository: "Team-Sneakymouse/a", ...pr(1) }));
+	assert.ok(draft.texts[1].startsWith("[DRAFT] "));
+	assert.equal(draft.buttons[0].label, "Open draft");
+});
+
+test("the refresh command works on pull request alerts", async () => {
+	const wire = JSON.parse(JSON.stringify(formatPullRequestAlert({ repository: "Team-Sneakymouse/a", ...pr(3), draft: false }))).components as unknown[];
+	const { api } = refreshHarness({ 3: { state: "closed", closed_by: "gh" } });
+	const { interaction, calls } = refreshInteraction(wire);
+	await handleRefreshCommand(interaction as never, api);
+	assert.equal(calls[2], "editReply:Refreshed 1 PRs: 1 closed.");
+	assert.equal(inspect(JSON.parse(calls[1].slice("edit:".length))).buttons[0].label, "Closed by gh");
 });

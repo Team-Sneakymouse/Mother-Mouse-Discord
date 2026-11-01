@@ -80,12 +80,13 @@ redelivery is accepted.
 ## GitHub webhook
 
 Organization webhook → `https://mm-discord.rawb.tv/github`, content type
-`application/json`, secret `GITHUB_WEBHOOK_SECRET`, events **Pushes** and
-**Workflow runs**.
+`application/json`, secret `GITHUB_WEBHOOK_SECRET`, events **Pushes**,
+**Workflow runs** and **Pull requests**. Pull request events are not part of push
+tracking; they post new PR alerts ([github-pr-status.md](github-pr-status.md#new-pr-alerts)).
 
 - `X-Hub-Signature-256` is verified over the raw body before parsing. That's why
   the route is registered before the bot's global `express.json()`.
-- `ping` → 200; other events → 204; bad signature → 401; malformed payload → 400;
+- `ping` → 200; other events and pull request actions other than `opened` → 204; bad signature → 401; malformed payload → 400;
   duplicate delivery → 200; accepted → 202; missing secret or database → 503.
 - Only pushes to `refs/heads/<default branch>` are tracked; branch deletions and
   tags are ignored. Only workflow runs with `event: push` on the default branch are

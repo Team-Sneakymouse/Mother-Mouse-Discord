@@ -55,16 +55,20 @@ export default function GithubPrStatus(client: Client, token = process.env.GITHU
 	}
 	const run = createDigestRunner({
 		collect: () => collectOpenPullRequests(github),
-		send: async (message) => {
-			const channel = await client.channels.fetch("808030927937994772");
-			if (!channel?.isSendable()) throw new Error("Digest channel is not sendable");
-			return channel.send(message);
-		},
+		send: (message) => sendToPrChannel(client, message),
 		logError: (message) => console.error(message),
 	});
 	const job = CronJob.from({ cronTime: "0 0 12 * * *", onTick: run, start: false, timeZone: "Etc/UTC", waitForCompletion: true });
 	client.once("clientReady", () => job.start());
 	return job;
+}
+
+const PR_CHANNEL = "808030927937994772";
+
+async function sendToPrChannel(client: Client, message: MessageCreateOptions) {
+	const channel = await client.channels.fetch(PR_CHANNEL);
+	if (!channel?.isSendable()) throw new Error("PR channel is not sendable");
+	return channel.send(message);
 }
 
 function safeText(value: string, limit: number): string {
@@ -110,6 +114,16 @@ function pullButton(pull: PullRef & { draft: boolean }): ButtonBuilder {
 
 const DRAFT_PREFIX = "[DRAFT] ";
 const DIGEST_HEADER = "**Daily open PRs";
+const ALERT_HEADER = "**New pull request";
+const NO_MENTIONS = { parse: [], users: [], roles: [], repliedUser: false };
+
+function pullText(pull: OpenPullRequest): string {
+	return `${pull.draft ? DRAFT_PREFIX : ""}[#${pull.number}](https://github.com/${pull.repository}/pull/${pull.number}) ${safeText(pull.title, 300)} — ${safeText(pull.user?.login ?? "unknown author", 80)}`;
+}
+
+function pullSection(pull: OpenPullRequest, text = pullText(pull)): SectionBuilder {
+	return new SectionBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent(text)).setButtonAccessory(pullButton(pull));
+}
 
 export function formatDigest(pulls: readonly OpenPullRequest[]): MessageCreateOptions[] {
 	const sorted = [...pulls].sort((a, b) => (a.repository < b.repository ? -1 : a.repository > b.repository ? 1 : a.number - b.number));
@@ -118,7 +132,7 @@ export function formatDigest(pulls: readonly OpenPullRequest[]): MessageCreateOp
 	let length = 0;
 	let repository = "";
 	for (const pull of sorted) {
-		const text = `${pull.draft ? DRAFT_PREFIX : ""}[#${pull.number}](https://github.com/${pull.repository}/pull/${pull.number}) ${safeText(pull.title, 300)} — ${safeText(pull.user?.login ?? "unknown author", 80)}`;
+		const text = pullText(pull);
 		const heading = `**${safeText(pull.repository, 160)}**`;
 		let withHeading = repository !== pull.repository;
 		const cost = (withHeading ? 1 : 0) + PULL_COMPONENTS;
@@ -141,10 +155,19 @@ export function formatDigest(pulls: readonly OpenPullRequest[]): MessageCreateOp
 		];
 		for (const { pull, text, heading } of group) {
 			if (heading) components.push(new TextDisplayBuilder().setContent(heading));
-			components.push(new SectionBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent(text)).setButtonAccessory(pullButton(pull)));
+			components.push(pullSection(pull, text));
 		}
-		return { components, flags: MessageFlags.IsComponentsV2, allowedMentions: { parse: [], users: [], roles: [], repliedUser: false } };
+		return { components, flags: MessageFlags.IsComponentsV2, allowedMentions: NO_MENTIONS };
 	});
+}
+
+/** A single-PR message in the digest's row format, so the Merge button and refresh command work on it. */
+export function formatPullRequestAlert(pull: OpenPullRequest): MessageCreateOptions {
+	return {
+		components: [new TextDisplayBuilder().setContent(`${ALERT_HEADER} in ${safeText(pull.repository, 160)}**`), pullSection(pull)],
+		flags: MessageFlags.IsComponentsV2,
+		allowedMentions: NO_MENTIONS,
+	};
 }
 
 export function createDigestRunner(options: {
@@ -190,6 +213,23 @@ const pullRequestSchema = z.object({
 	draft: z.boolean(),
 });
 export type OpenPullRequest = z.infer<typeof pullRequestSchema> & { repository: string };
+
+const pullRequestEventSchema = z.object({ action: z.string(), pull_request: pullRequestSchema, repository: repositorySchema });
+
+/**
+ * Handler for GitHub `pull_request` webhook events: returns how to announce a newly opened PR, or
+ * undefined for every other action and for Dependabot. Throws a ZodError for malformed payloads.
+ */
+export function pullRequestAlert(client: Client) {
+	return (payload: unknown): { send(): Promise<unknown> } | undefined => {
+		const event = pullRequestEventSchema.parse(payload);
+		// Dependabot PRs still appear in the daily digest; they are just not announced one by one.
+		if (event.action !== "opened" || event.pull_request.user?.login === "dependabot[bot]") return;
+		const message = formatPullRequestAlert({ repository: event.repository.full_name, ...event.pull_request });
+		return { send: () => sendToPrChannel(client, message) };
+	};
+}
+
 type GithubGet = (path: string, options: { params: Record<string, string | number> }) => Promise<{ data: unknown }>;
 type MergeApi = { get: GithubGet; put(path: string): Promise<{ data: unknown }> };
 type GithubApi = { get: GithubGet; put?: MergeApi["put"] };
@@ -363,7 +403,7 @@ export function applyRowUpdates(components: readonly unknown[], updates: Readonl
 
 function isDigest(components: readonly unknown[]): boolean {
 	const first = components[0] as { type?: number; content?: unknown } | undefined;
-	return first?.type === 10 && typeof first.content === "string" && first.content.startsWith(DIGEST_HEADER);
+	return first?.type === 10 && typeof first.content === "string" && (first.content.startsWith(DIGEST_HEADER) || first.content.startsWith(ALERT_HEADER));
 }
 
 /** Refresh only the right-clicked digest message; other parts of the same digest are not touched. */

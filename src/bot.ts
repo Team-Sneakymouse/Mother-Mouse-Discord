@@ -50,7 +50,8 @@ TwitchShame(client, server);
 // GitHub signatures cover the raw body, which express.json() would consume.
 import PushTracking from "./PushTracking/index.js";
 import ReposiliteWebhook from "./ReposiliteWebhook.js";
-const pushTracking = process.env.PRODUCTION === "TRUE" ? PushTracking(client, server) : undefined;
+import { pullRequestAlert } from "./GithubPrStatus.js";
+const pushTracking = process.env.PRODUCTION === "TRUE" ? PushTracking(client, server, pullRequestAlert(client)) : undefined;
 if (process.env.PRODUCTION === "TRUE") ReposiliteWebhook(client, server, pushTracking);
 
 server.use(express.json());

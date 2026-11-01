@@ -449,3 +449,34 @@ test("signature check rejects missing and malformed headers", () => {
 	assert.equal(validSignature("s", body, "sha256=00"), false);
 	assert.equal(validSignature("s", body, `sha256=${createHmac("sha256", "s").update(body).digest("hex")}`), true);
 });
+
+test("GitHub receiver posts pull request alerts once per delivery and ignores other actions", async () => {
+	const posted: string[] = [];
+	const alert = (payload: unknown) => {
+		const { action, number } = payload as { action?: string; number?: number };
+		if (typeof number !== "number") throw new Error("malformed");
+		return action === "opened" ? { send: async () => posted.push(`#${number}`) } : undefined;
+	};
+	const app = express();
+	const { store, tracker } = setup();
+	registerPushTrackingRoutes(app, async () => ({ store, tracker }), { github: () => "secret", watchtower: () => undefined }, alert);
+	const server = app.listen(0, "127.0.0.1");
+	await new Promise((resolve) => server.once("listening", resolve));
+	const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}/github`;
+	try {
+		const post = (body: unknown, delivery?: string) => fetch(url, signed("secret", JSON.stringify(body), "pull_request", delivery));
+		assert.equal((await post({ action: "opened", number: 1 }, "pr-1")).status, 202);
+		assert.equal((await post({ action: "opened", number: 1 }, "pr-1")).status, 200);
+		assert.equal((await post({ action: "closed", number: 1 })).status, 204);
+		assert.equal((await post({ action: "opened" })).status, 400);
+		assert.deepEqual(posted, ["#1"]);
+	} finally {
+		await new Promise((resolve) => server.close(resolve));
+	}
+	const without = await serve({ github: "secret" });
+	try {
+		assert.equal((await fetch(`${without.url}/github`, signed("secret", "{}", "pull_request"))).status, 204);
+	} finally {
+		await without.close();
+	}
+});

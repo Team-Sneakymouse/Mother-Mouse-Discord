@@ -62,7 +62,26 @@ edits the digest message in place: only that button is replaced by a grey, disab
 stale. Failures (not mergeable, conflicts, missing token permission, already
 merged) are reported privately to the clicker and leave the message unchanged.
 
+## New PR alerts
+
+When a PR is opened in any Team-Sneakymouse repository, the bot posts a single-PR
+message in the same channel: **New pull request in <repo>** followed by the same row
+as in the digest (link, title, author, Merge or Open draft button). Only the
+`opened` action is announced; reopened PRs, drafts marked ready and other actions are
+not. PRs opened by Dependabot (`dependabot[bot]`) are not announced; they still
+appear in the daily digest, which has no exclusions. Other bots are announced.
+
+The alert arrives through the organization webhook that also drives push tracking
+(`POST /github`, see [push-tracking.md](push-tracking.md#github-webhook)), which
+must have the **Pull requests** event enabled. It shares that route's signature check
+and delivery deduplication, so it needs the push-tracking database; a redelivery
+never posts twice. If posting to Discord fails, the delivery is released and returns
+503, so it can be redelivered by hand from GitHub.
+
 ## Refreshing a digest message
+
+Works on digest messages and on new PR alerts.
+
 
 Right-click a digest message → **Apps → Refresh PR status** (registered in the
 RawbTV guild; run `registerCommands.ts` after deploying). Anyone may use it. Only
