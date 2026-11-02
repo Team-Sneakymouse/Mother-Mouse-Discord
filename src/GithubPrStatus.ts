@@ -1,6 +1,7 @@
 import axios from "axios";
 import { CronJob } from "cron";
 import {
+	ActionRowBuilder,
 	type APIButtonComponent,
 	type APIMessageTopLevelComponent,
 	ApplicationCommandType,
@@ -8,6 +9,7 @@ import {
 	type ButtonInteraction,
 	ButtonStyle,
 	type Client,
+	ContainerBuilder,
 	ContextMenuCommandBuilder,
 	escapeMarkdown,
 	type MessageContextMenuCommandInteraction,
@@ -15,7 +17,10 @@ import {
 	MessageFlags,
 	PermissionFlagsBits,
 	SectionBuilder,
+	SeparatorBuilder,
+	SeparatorSpacingSize,
 	TextDisplayBuilder,
+	ThumbnailBuilder,
 } from "discord.js";
 import { z } from "zod";
 
@@ -71,11 +76,12 @@ async function sendToPrChannel(client: Client, message: MessageCreateOptions) {
 	return channel.send(message);
 }
 
-function safeText(value: string, limit: number): string {
+function safeText(value: string, limit: number, escapes?: Parameters<typeof escapeMarkdown>[1]): string {
 	// biome-ignore lint/suspicious/noControlCharactersInRegex: Strip controls and bidi overrides from untrusted GitHub text.
 	const characters = Array.from(value.replace(/[\u0000-\u001f\u007f\u202a-\u202e\u2066-\u2069]/g, " "));
 	return (
-		escapeMarkdown(characters.slice(0, limit).join("").replace(/@/g, "@\u200b").replace(/</g, "‹").replace(/>/g, "›")) + (characters.length > limit ? "…" : "")
+		escapeMarkdown(characters.slice(0, limit).join("").replace(/@/g, "@\u200b").replace(/</g, "‹").replace(/>/g, "›"), escapes) +
+		(characters.length > limit ? "…" : "")
 	);
 }
 
@@ -233,18 +239,84 @@ export function pullRequestAlert(client: Client) {
 
 const issueEventSchema = z.object({
 	action: z.string(),
-	issue: z.object({ number: z.number().int().positive(), title: z.string(), user: z.object({ login: z.string() }).nullable() }),
+	issue: z.object({
+		number: z.number().int().positive(),
+		title: z.string(),
+		body: z.string().nullish(),
+		user: z.object({ login: z.string(), avatar_url: z.string().optional() }).nullable(),
+		labels: z.array(z.object({ name: z.string() })).optional(),
+	}),
 	repository: repositorySchema,
 });
 export type OpenIssue = z.infer<typeof issueEventSchema>["issue"] & { repository: string };
 
+const ISSUE_COLOR = 0x1f883d; // GitHub's "open issue" green
+const EXCERPT_LENGTH = 300;
+const MAX_LABELS = 5;
+const AVATAR = /^https:\/\/avatars\.githubusercontent\.com\/[A-Za-z0-9/_.?=&-]+$/;
+const EXCERPT_LINES = 8;
+// Inline formatting renders as on GitHub. Headings would outgrow the card title and masked links hide
+// where they lead, so those stay escaped; mentions and HTML are neutralised by safeText.
+const EXCERPT_ESCAPES = {
+	codeBlock: false,
+	inlineCode: false,
+	bold: false,
+	italic: false,
+	underline: false,
+	strikethrough: false,
+	spoiler: false,
+	codeBlockContent: false,
+	inlineCodeContent: false,
+	heading: true,
+	maskedLink: true,
+};
+
+/** The start of an issue body as a quote, without issue template comments; undefined when empty. */
+export function issueExcerpt(body: string | null | undefined, limit = EXCERPT_LENGTH): string | undefined {
+	const text = (body ?? "")
+		.replace(/<!--[\s\S]*?(-->|$)/g, "")
+		.replace(/\r\n?/g, "\n")
+		.replace(/[ \t]+\n/g, "\n")
+		.replace(/\n{3,}/g, "\n\n")
+		.trim();
+	if (!text) return;
+	const characters = Array.from(text);
+	const lines = characters.slice(0, limit).join("").trimEnd().split("\n");
+	const cut = characters.length > limit || lines.length > EXCERPT_LINES;
+	return (
+		lines
+			.slice(0, EXCERPT_LINES)
+			.map((line) => `> ${safeText(line, limit, EXCERPT_ESCAPES)}`)
+			.join("\n") + (cut ? "…" : "")
+	);
+}
+
 export function formatIssueAlert(issue: OpenIssue): MessageCreateOptions {
-	const row = `[#${issue.number}](https://github.com/${issue.repository}/issues/${issue.number}) ${safeText(issue.title, 300)} — ${safeText(issue.user?.login ?? "unknown author", 80)}`;
-	return {
-		components: [new TextDisplayBuilder().setContent(`${ISSUE_HEADER} in ${safeText(issue.repository, 160)}**`), new TextDisplayBuilder().setContent(row)],
-		flags: MessageFlags.IsComponentsV2,
-		allowedMentions: NO_MENTIONS,
-	};
+	const url = `https://github.com/${issue.repository}/issues/${issue.number}`;
+	const labels = (issue.labels ?? []).slice(0, MAX_LABELS).map((label) => safeText(label.name, 40));
+	if ((issue.labels?.length ?? 0) > MAX_LABELS) labels.push("…");
+	const byline = `-# Opened by **${safeText(issue.user?.login ?? "unknown author", 80)}**${labels.length ? ` · ${labels.join(", ")}` : ""}`;
+	const heading = [
+		new TextDisplayBuilder().setContent(`-# ${ISSUE_HEADER.slice(2)} in ${safeText(issue.repository, 160)}`),
+		new TextDisplayBuilder().setContent(`### #${issue.number} · ${safeText(issue.title, 200)}`),
+		new TextDisplayBuilder().setContent(byline),
+	];
+	const card = new ContainerBuilder().setAccentColor(ISSUE_COLOR);
+	const avatar = issue.user?.avatar_url;
+	if (avatar && AVATAR.test(avatar)) {
+		card.addSectionComponents(
+			new SectionBuilder().addTextDisplayComponents(...heading).setThumbnailAccessory(new ThumbnailBuilder().setURL(avatar).setDescription("Author avatar")),
+		);
+	} else {
+		card.addTextDisplayComponents(...heading);
+	}
+	card
+		.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small))
+		.addTextDisplayComponents(new TextDisplayBuilder().setContent(issueExcerpt(issue.body) ?? "-# No description provided."))
+		.addActionRowComponents(
+			new ActionRowBuilder<ButtonBuilder>().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel("Open issue").setURL(url)),
+		);
+	return { components: [card], flags: MessageFlags.IsComponentsV2, allowedMentions: NO_MENTIONS };
 }
 
 /**

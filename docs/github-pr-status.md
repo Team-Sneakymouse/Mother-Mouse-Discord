@@ -80,11 +80,21 @@ never posts twice. If posting to Discord fails, the delivery is released and ret
 
 ## New issue alerts
 
-When an issue is opened in any Team-Sneakymouse repository, the bot posts
-**New issue in <repo>** followed by the issue link, title and author in the same
-channel. It has no buttons and the refresh command does not apply to it. Only the
-`opened` action is announced. It uses the same webhook route, deduplication and
-failure handling as PR alerts; the organization webhook must also have the
+When an issue is opened in any Team-Sneakymouse repository, the bot posts a card in
+the same channel: a green container with the repository, `#number · title`, the
+author (with their GitHub avatar), up to five labels, the start of the description
+as a quote, and an **Open issue** link button. The refresh command does not apply to
+it. Only the `opened` action is announced.
+
+The description excerpt is at most 300 characters and 8 lines, ending in `…` when
+cut. Issue template comments (`<!-- … -->`) are dropped. Bold, italics, code and
+lists render as on GitHub; headings and masked links (`[text](url)`) are shown as
+plain text, and mentions and HTML are neutralised like everywhere else. Issues
+without a description show "No description provided." Avatars are only shown from
+`avatars.githubusercontent.com`.
+
+Issue alerts use the same webhook route, deduplication and failure handling as PR
+alerts; the organization webhook must also have the
 **Issues** event enabled.
 
 ## Refreshing a digest message

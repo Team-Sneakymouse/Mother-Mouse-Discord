@@ -15,6 +15,7 @@ import GithubPrStatus, {
 	handleMergeButton,
 	handleRefreshCommand,
 	issueAlert,
+	issueExcerpt,
 	markMerged,
 	pullRequestAlert,
 } from "../src/GithubPrStatus.ts";
@@ -656,31 +657,72 @@ test("the refresh command works on pull request alerts", async () => {
 	assert.equal(inspect(JSON.parse(calls[1].slice("edit:".length))).buttons[0].label, "Closed by gh");
 });
 
-test("issue alerts announce only newly opened issues, in the PR channel, with safe text and no buttons", async () => {
+const issueEvent = (action: string, overrides: Record<string, unknown> = {}) => ({
+	action,
+	issue: {
+		number: 12,
+		title: "@everyone Crash on **login**",
+		body: "<!-- template hint -->\r\nSteps: **click** login",
+		user: { login: "reporter", avatar_url: "https://avatars.githubusercontent.com/u/1?v=4" },
+		labels: [{ name: "bug" }, { name: "crash" }],
+	},
+	repository: repo("SneakyMail"),
+	...overrides,
+});
+
+test("issue alerts announce only newly opened issues, as a card in the PR channel", async () => {
 	const sent: { channel: string; message: unknown }[] = [];
 	const client = {
 		channels: { fetch: async (id: string) => ({ isSendable: () => true, send: async (message: unknown) => sent.push({ channel: id, message }) }) },
 	};
 	const alert = issueAlert(client as never);
-	const event = (action: string, overrides: Record<string, unknown> = {}) => ({
-		action,
-		issue: { number: 12, title: "@everyone Crash on **login**", user: { login: "reporter" } },
-		repository: repo("SneakyMail"),
-		...overrides,
-	});
-	for (const action of ["closed", "reopened", "edited", "labeled", "assigned"]) assert.equal(alert(event(action)), undefined);
+	for (const action of ["closed", "reopened", "edited", "labeled", "assigned"]) assert.equal(alert(issueEvent(action)), undefined);
 	assert.throws(() => alert({ action: "opened" }));
-	assert.throws(() => alert(event("opened", { repository: { full_name: "Elsewhere/SneakyMail" } })));
-	const pending = alert(event("opened"));
+	assert.throws(() => alert(issueEvent("opened", { repository: { full_name: "Elsewhere/SneakyMail" } })));
+	const pending = alert(issueEvent("opened"));
 	assert.equal(sent.length, 0, "Nothing is posted until the delivery is claimed");
 	await pending?.send();
 	assert.equal(sent.length, 1);
 	assert.equal(sent[0].channel, "808030927937994772");
+	const json = JSON.parse(JSON.stringify(sent[0].message));
+	assert.equal(json.components.length, 1);
+	assert.equal(json.components[0].type, 17, "One container card");
+	assert.equal(json.components[0].accent_color, 0x1f883d);
+	assert.equal(json.components[0].components[0].accessory.media.url, "https://avatars.githubusercontent.com/u/1?v=4");
 	const { texts, buttons } = inspect(sent[0].message);
-	assert.equal(texts[0], "**New issue in Team-Sneakymouse/SneakyMail**");
-	assert.ok(texts[1].startsWith("[#12](https://github.com/Team-Sneakymouse/SneakyMail/issues/12) "));
-	assert.ok(texts[1].endsWith(" — reporter"));
-	assert.ok(!texts[1].includes("@everyone") && !texts[1].includes("**login**"));
-	assert.equal(buttons.length, 0);
-	assert.ok(inspect(formatIssueAlert({ repository: "Team-Sneakymouse/a", number: 1, title: "x", user: null })).texts[1].endsWith(" — unknown author"));
+	assert.deepEqual(texts, [
+		"-# New issue in Team-Sneakymouse/SneakyMail",
+		"### #12 · @\u200beveryone Crash on \\*\\*login\\*\\*",
+		"-# Opened by **reporter** · bug, crash",
+		"> Steps: **click** login",
+	]);
+	assert.deepEqual(
+		buttons.map((button) => [button.label, button.url]),
+		[["Open issue", "https://github.com/Team-Sneakymouse/SneakyMail/issues/12"]],
+	);
+});
+
+test("issue cards fall back without a body, labels or a trusted avatar", () => {
+	const base = { repository: "Team-Sneakymouse/a", number: 1, title: "x" };
+	const card = (issue: Record<string, unknown>) => JSON.parse(JSON.stringify(formatIssueAlert({ ...base, ...issue } as never))).components[0];
+	const bare = card({ body: null, user: null });
+	assert.equal(bare.components[0].type, 10, "No section without an avatar");
+	const { texts } = inspect({ components: [bare] });
+	assert.equal(texts[2], "-# Opened by **unknown author**");
+	assert.equal(texts[3], "-# No description provided.");
+	assert.equal(card({ body: "<!-- only a template -->\n\n", user: { login: "u", avatar_url: "https://evil.example/a.png" } }).components[0].type, 10);
+	const many = inspect({ components: [card({ user: null, labels: "abcdef".split("").map((name) => ({ name })) })] });
+	assert.equal(many.texts[2], "-# Opened by **unknown author** · a, b, c, d, e, …");
+});
+
+test("issue excerpts keep inline formatting but neutralise headings, masked links, mentions and HTML, and stay short", () => {
+	assert.equal(issueExcerpt(undefined), undefined);
+	assert.equal(issueExcerpt("  \n<!-- unterminated template"), undefined);
+	assert.equal(
+		issueExcerpt("## Title\r\n- see [docs](https://evil.example) @here <b>`x`</b>\n\n\n\nend"),
+		"> \\## Title\n> - see \\[docs](https://evil.example) @\u200bhere ‹b›`x`‹/b›\n> \n> end",
+	);
+	assert.equal(issueExcerpt("a".repeat(400)), `> ${"a".repeat(300)}…`);
+	assert.equal(issueExcerpt("😀".repeat(301))?.length, 2 + 600 + 1, "Cut by characters, not UTF-16 units");
+	assert.equal(issueExcerpt(Array.from({ length: 12 }, (_, i) => `line ${i}`).join("\n")), `${Array.from({ length: 8 }, (_, i) => `> line ${i}`).join("\n")}…`);
 });
