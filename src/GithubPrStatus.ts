@@ -115,6 +115,7 @@ function pullButton(pull: PullRef & { draft: boolean }): ButtonBuilder {
 const DRAFT_PREFIX = "[DRAFT] ";
 const DIGEST_HEADER = "**Daily open PRs";
 const ALERT_HEADER = "**New pull request";
+const ISSUE_HEADER = "**New issue";
 const NO_MENTIONS = { parse: [], users: [], roles: [], repliedUser: false };
 
 function pullText(pull: OpenPullRequest): string {
@@ -226,6 +227,35 @@ export function pullRequestAlert(client: Client) {
 		// Dependabot PRs still appear in the daily digest; they are just not announced one by one.
 		if (event.action !== "opened" || event.pull_request.user?.login === "dependabot[bot]") return;
 		const message = formatPullRequestAlert({ repository: event.repository.full_name, ...event.pull_request });
+		return { send: () => sendToPrChannel(client, message) };
+	};
+}
+
+const issueEventSchema = z.object({
+	action: z.string(),
+	issue: z.object({ number: z.number().int().positive(), title: z.string(), user: z.object({ login: z.string() }).nullable() }),
+	repository: repositorySchema,
+});
+export type OpenIssue = z.infer<typeof issueEventSchema>["issue"] & { repository: string };
+
+export function formatIssueAlert(issue: OpenIssue): MessageCreateOptions {
+	const row = `[#${issue.number}](https://github.com/${issue.repository}/issues/${issue.number}) ${safeText(issue.title, 300)} — ${safeText(issue.user?.login ?? "unknown author", 80)}`;
+	return {
+		components: [new TextDisplayBuilder().setContent(`${ISSUE_HEADER} in ${safeText(issue.repository, 160)}**`), new TextDisplayBuilder().setContent(row)],
+		flags: MessageFlags.IsComponentsV2,
+		allowedMentions: NO_MENTIONS,
+	};
+}
+
+/**
+ * Handler for GitHub `issues` webhook events: returns how to announce a newly opened issue in the PR
+ * channel, or undefined for every other action. Throws a ZodError for malformed payloads.
+ */
+export function issueAlert(client: Client) {
+	return (payload: unknown): { send(): Promise<unknown> } | undefined => {
+		const event = issueEventSchema.parse(payload);
+		if (event.action !== "opened") return;
+		const message = formatIssueAlert({ repository: event.repository.full_name, ...event.issue });
 		return { send: () => sendToPrChannel(client, message) };
 	};
 }

@@ -78,6 +78,15 @@ and delivery deduplication, so it needs the push-tracking database; a redelivery
 never posts twice. If posting to Discord fails, the delivery is released and returns
 503, so it can be redelivered by hand from GitHub.
 
+## New issue alerts
+
+When an issue is opened in any Team-Sneakymouse repository, the bot posts
+**New issue in <repo>** followed by the issue link, title and author in the same
+channel. It has no buttons and the refresh command does not apply to it. Only the
+`opened` action is announced. It uses the same webhook route, deduplication and
+failure handling as PR alerts; the organization webhook must also have the
+**Issues** event enabled.
+
 ## Refreshing a digest message
 
 Works on digest messages and on new PR alerts.

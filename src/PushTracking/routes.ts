@@ -16,10 +16,13 @@ export function validSignature(secret: string, body: Buffer, header: string | un
 type Ready = () => Promise<{ tracker: PushTracker; store: PushStore } | undefined>;
 
 /**
- * Handles GitHub `pull_request` events. Returns undefined for events that are not announced; `send`
+ * Handles one GitHub event type. Returns undefined for events that are not announced; `send`
  * runs only after the delivery is claimed, so redeliveries never post twice.
  */
-export type PullRequestAlert = (payload: unknown) => { send(): Promise<unknown> } | undefined;
+export type WebhookAlert = (payload: unknown) => { send(): Promise<unknown> } | undefined;
+
+/** Announcement handlers for GitHub events that are not part of push tracking. */
+export type WebhookAlerts = { pull_request?: WebhookAlert; issues?: WebhookAlert };
 
 /**
  * Registers `POST /github` and `POST /watchtower`. Call before any global body parser:
@@ -32,7 +35,7 @@ export function registerPushTrackingRoutes(
 		github: () => process.env.GITHUB_WEBHOOK_SECRET,
 		watchtower: () => process.env.WATCHTOWER_WEBHOOK_TOKEN,
 	},
-	pullRequestAlert?: PullRequestAlert,
+	alerts: WebhookAlerts = {},
 ): void {
 	server.post("/github", express.raw({ type: () => true, limit: "5mb" }), async (req, res) => {
 		const secret = secrets.github();
@@ -42,8 +45,8 @@ export function registerPushTrackingRoutes(
 		const event = req.get("X-GitHub-Event");
 		const delivery = req.get("X-GitHub-Delivery");
 		if (event === "ping") return void res.sendStatus(200);
-		const pullRequest = event === "pull_request" ? pullRequestAlert : undefined;
-		if (event !== "push" && event !== "workflow_run" && !pullRequest) return void res.sendStatus(204);
+		const handler = event === "pull_request" ? alerts.pull_request : event === "issues" ? alerts.issues : undefined;
+		if (event !== "push" && event !== "workflow_run" && !handler) return void res.sendStatus(204);
 		if (!delivery || delivery.length > 100) return void res.sendStatus(400);
 		let payload: unknown;
 		try {
@@ -51,10 +54,10 @@ export function registerPushTrackingRoutes(
 		} catch {
 			return void res.sendStatus(400);
 		}
-		let alert: ReturnType<PullRequestAlert>;
-		if (pullRequest) {
+		let alert: ReturnType<WebhookAlert>;
+		if (handler) {
 			try {
-				alert = pullRequest(payload);
+				alert = handler(payload);
 			} catch {
 				return void res.sendStatus(400);
 			}

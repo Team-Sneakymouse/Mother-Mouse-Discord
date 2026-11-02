@@ -10,9 +10,11 @@ import GithubPrStatus, {
 	createGithubApi,
 	fetchRowUpdates,
 	formatDigest,
+	formatIssueAlert,
 	formatPullRequestAlert,
 	handleMergeButton,
 	handleRefreshCommand,
+	issueAlert,
 	markMerged,
 	pullRequestAlert,
 } from "../src/GithubPrStatus.ts";
@@ -652,4 +654,33 @@ test("the refresh command works on pull request alerts", async () => {
 	await handleRefreshCommand(interaction as never, api);
 	assert.equal(calls[2], "editReply:Refreshed 1 PRs: 1 closed.");
 	assert.equal(inspect(JSON.parse(calls[1].slice("edit:".length))).buttons[0].label, "Closed by gh");
+});
+
+test("issue alerts announce only newly opened issues, in the PR channel, with safe text and no buttons", async () => {
+	const sent: { channel: string; message: unknown }[] = [];
+	const client = {
+		channels: { fetch: async (id: string) => ({ isSendable: () => true, send: async (message: unknown) => sent.push({ channel: id, message }) }) },
+	};
+	const alert = issueAlert(client as never);
+	const event = (action: string, overrides: Record<string, unknown> = {}) => ({
+		action,
+		issue: { number: 12, title: "@everyone Crash on **login**", user: { login: "reporter" } },
+		repository: repo("SneakyMail"),
+		...overrides,
+	});
+	for (const action of ["closed", "reopened", "edited", "labeled", "assigned"]) assert.equal(alert(event(action)), undefined);
+	assert.throws(() => alert({ action: "opened" }));
+	assert.throws(() => alert(event("opened", { repository: { full_name: "Elsewhere/SneakyMail" } })));
+	const pending = alert(event("opened"));
+	assert.equal(sent.length, 0, "Nothing is posted until the delivery is claimed");
+	await pending?.send();
+	assert.equal(sent.length, 1);
+	assert.equal(sent[0].channel, "808030927937994772");
+	const { texts, buttons } = inspect(sent[0].message);
+	assert.equal(texts[0], "**New issue in Team-Sneakymouse/SneakyMail**");
+	assert.ok(texts[1].startsWith("[#12](https://github.com/Team-Sneakymouse/SneakyMail/issues/12) "));
+	assert.ok(texts[1].endsWith(" — reporter"));
+	assert.ok(!texts[1].includes("@everyone") && !texts[1].includes("**login**"));
+	assert.equal(buttons.length, 0);
+	assert.ok(inspect(formatIssueAlert({ repository: "Team-Sneakymouse/a", number: 1, title: "x", user: null })).texts[1].endsWith(" — unknown author"));
 });
