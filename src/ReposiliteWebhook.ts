@@ -3,7 +3,7 @@ import { type Client, MessageFlags } from "discord.js";
 import express, { type Express } from "express";
 import { z } from "zod";
 import { acquireDeploymentLock } from "./utils/DeploymentLock.js";
-import { type Artifact, type ArtifactSource, isProxy, PluginDeployment, type Server } from "./utils/PluginDeployment.js";
+import { type ArtifactSource, type Deployment, isProxy, PluginDeployment, type Server } from "./utils/PluginDeployment.js";
 
 export const DEV_UPDATE_THREAD = "1561330944395313255";
 export const DEV_SCOPE = ["Lords of Minecraft", "Dev Server"];
@@ -181,7 +181,7 @@ export class ReposiliteWorker {
 				continue;
 			}
 			try {
-				let deployed: Artifact;
+				let deployed: Deployment;
 				try {
 					deployed = await service.deploy(server.identifier, uploaded.id, { version: uploaded.version, scope: DEV_SCOPE });
 				} catch (error) {

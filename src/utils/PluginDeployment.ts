@@ -2,6 +2,7 @@ import { XMLParser, XMLValidator } from "fast-xml-parser";
 
 const MAVEN = "https://maven.sneakyrp.com";
 const GROUP = "io/github/team-sneakymouse";
+const UPDATE_FOLDER = "/plugins/.update";
 const parser = new XMLParser({ ignoreAttributes: true, parseTagValue: false, processEntities: false });
 export type DeploymentType = "paper-plugin" | "ignite-mod" | "velocity-plugin";
 const TYPES: DeploymentType[] = ["paper-plugin", "ignite-mod", "velocity-plugin"];
@@ -66,7 +67,8 @@ export function destination(types: DeploymentType[], server: Pick<Server, "descr
 	// Velocity has no update folder; the new JAR loads on the next proxy restart.
 	if (type === "velocity-plugin") return "/plugins";
 	// Paper consumes staged updates on startup and needs the installed JAR to find them.
-	return "/plugins/.update";
+	// deploy() switches to /plugins when the plugin is not installed yet.
+	return UPDATE_FOLDER;
 }
 
 export function artifactSource(pom: string, version: string): ArtifactSource | undefined {
@@ -83,6 +85,13 @@ export function oldFiles(files: RemoteFile[], artifact: Artifact): string[] {
 	const known = new Set(artifact.versions.filter((version) => version !== artifact.version).map((version) => `${artifact.id}-${version}.jar`));
 	return files.filter((file) => file.is_file && known.has(file.name)).map((file) => file.name);
 }
+
+// Every published copy of the artifact, including the version being deployed.
+function publishedFiles(files: RemoteFile[], artifact: Artifact): string[] {
+	return [...oldFiles(files, artifact), ...files.filter((file) => file.is_file && file.name === artifact.filename).map((file) => file.name)];
+}
+
+export type Deployment = Artifact & { firstInstall: boolean };
 
 export class PluginDeployment {
 	constructor(
@@ -198,23 +207,36 @@ export class PluginDeployment {
 		}
 	}
 
-	async announceUpdate(server: string, artifact: Pick<Artifact, "id" | "version">): Promise<void> {
+	async announceUpdate(server: string, artifact: Pick<Artifact, "id" | "version"> & { firstInstall?: boolean }): Promise<void> {
 		await this.api(`/servers/${encodeURIComponent(server)}/command`, {
-			command: `say Plugin ${artifact.id} ${artifact.version} updated. Restart the server to load it`,
+			command: `say Plugin ${artifact.id} ${artifact.version} ${artifact.firstInstall ? "installed" : "updated"}. Restart the server to load it`,
 		});
 	}
 
-	async deploy(server: string, id: string, options: DeploymentOptions = {}): Promise<Artifact> {
+	async deploy(server: string, id: string, options: DeploymentOptions = {}): Promise<Deployment> {
 		const current = await this.api<{ attributes: Server }>(`/servers/${encodeURIComponent(server)}`);
 		if (!(options.scope ?? ["Lords of Minecraft"]).every((phrase) => current.attributes.description?.includes(phrase)))
 			throw new Error("Client server description does not confirm deployment scope");
 		const artifact = await this.artifact(id, options.version);
 		if (!artifact) throw new Error("Latest release is no longer eligible for deployment");
 		// Checked before downloading or touching any server files.
-		const directory = destination(artifact.types, current.attributes);
+		let directory = destination(artifact.types, current.attributes);
 		const jar = await (await this.get(artifact.url)).arrayBuffer();
 		const bytes = new Uint8Array(jar);
 		if (bytes.length < 4 || bytes[0] !== 0x50 || bytes[1] !== 0x4b) throw new Error("Release is not a JAR archive");
+		let firstInstall = false;
+		let staleStaged: string[] = [];
+		if (directory === UPDATE_FOLDER) {
+			// Paper ignores staged JARs without an installed copy, so new plugins go straight into plugins.
+			await this.ensureDirectory(server, "/plugins");
+			const installed = await this.files(server, "/plugins");
+			if (!publishedFiles(installed, artifact).length) {
+				firstInstall = true;
+				directory = "/plugins";
+				// Leftover staged copies would replace the new install on the next restart.
+				if (installed.some((file) => !file.is_file && file.name === ".update")) staleStaged = publishedFiles(await this.files(server, UPDATE_FOLDER), artifact);
+			}
+		}
 		await this.ensureDirectory(server, directory);
 		const signed = await this.api<{ attributes: { url: string } }>(`/servers/${encodeURIComponent(server)}/files/upload`);
 		const upload = new URL(signed.attributes.url);
@@ -230,9 +252,10 @@ export class PluginDeployment {
 		try {
 			const previous = oldFiles(uploaded, artifact);
 			if (previous.length) await this.api(`/servers/${encodeURIComponent(server)}/files/delete`, { root: directory, files: previous });
+			if (staleStaged.length) await this.api(`/servers/${encodeURIComponent(server)}/files/delete`, { root: UPDATE_FOLDER, files: staleStaged });
 		} catch {
 			throw new Error(`${artifact.version} uploaded, but cleanup failed; check for older JARs before restarting`);
 		}
-		return artifact;
+		return { ...artifact, firstInstall };
 	}
 }

@@ -23,11 +23,17 @@ Dual-platform artifacts are still deployed to Paper dev servers.
 Targets must contain both case-sensitive phrases `Lords of Minecraft` and
 `Dev Server` in their application API description. Servers that also contain
 `Proxy` are never automatic targets. The client API description is
-checked again immediately before each upload. Artifacts deployed to a
-Paper server go to `plugins/.update/`, and Ignite mods go to `mods/`. Old published copies in the
-destination are deleted only after verifying the new upload. Installed Paper JARs
-remain for Paper's update mechanism. Configure Paper's update folder as `.update`.
-No server is restarted.
+checked again immediately before each upload. Paper plugins that already have a
+published JAR in `plugins/` go to `plugins/.update/`, because Paper only applies
+staged updates for installed plugins. Plugins that are not installed yet go
+straight into `plugins/`, and any staged copies of them in `plugins/.update/` are
+deleted so a restart cannot replace the new install. Installed JARs are recognized
+by exact published `<artifact>-<version>.jar` filenames (including the version
+being uploaded), not prefixes or classifier JARs. Ignite mods go to `mods/`. Old
+published copies in the destination are deleted only after verifying the new
+upload. Installed Paper JARs remain for Paper's update mechanism. Configure
+Paper's update folder as `.update`. This applies to automatic uploads and
+`/plugins update` alike. No server is restarted.
 
 Events are queued and deduplicated by ID in memory. Accepted events receive 202;
 duplicates receive 200. A reused ID with a different payload receives 409.

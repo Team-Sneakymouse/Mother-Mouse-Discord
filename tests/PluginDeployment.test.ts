@@ -29,9 +29,22 @@ test("catalog sorts same-day releases by precise Maven update time before versio
 	);
 });
 
-function setup(type = "paper-plugin", failUpload = false, failCleanup = false, badSize = false, description = "Lords of Minecraft - test") {
+// `installed` and `staged` override the listings of plugins and plugins/.update; by default both contain older copies.
+function setup(
+	type = "paper-plugin",
+	failUpload = false,
+	failCleanup = false,
+	badSize = false,
+	description = "Lords of Minecraft - test",
+	{ installed, staged }: { installed?: string[]; staged?: string[] } = {},
+) {
 	const events: { url: string; method: string; body?: any; headers: Headers }[] = [];
 	let uploaded = false;
+	let uploadDirectory: string | null = null;
+	const withUpload = (names: string[], directory: string) => [
+		...names.map((name) => file(name)),
+		...(uploaded && uploadDirectory === directory ? [file("Example-2.0.jar", badSize ? 0 : 4)] : []),
+	];
 	const request: Fetch = async (input, init) => {
 		const url = String(input);
 		const method = init?.method ?? "GET";
@@ -43,6 +56,7 @@ function setup(type = "paper-plugin", failUpload = false, failCleanup = false, b
 		if (url.includes("/upload/file")) {
 			if (failUpload) return new Response("failed", { status: 500 });
 			uploaded = true;
+			uploadDirectory = new URL(url).searchParams.get("directory");
 			return new Response(null, { status: 204 });
 		}
 		if (url.endsWith("/files/upload")) result = { attributes: { url: "https://wings.example/upload/file?token=signed" } };
@@ -54,6 +68,8 @@ function setup(type = "paper-plugin", failUpload = false, failCleanup = false, b
 					{ name: "mods", is_file: false },
 				]);
 			else if (directory === "/plugins/") result = listing([{ name: ".update", is_file: false }]);
+			else if (directory === "/plugins" && installed) result = listing([{ name: ".update", is_file: false }, ...withUpload(installed, directory)]);
+			else if (directory === "/plugins/.update" && staged) result = listing(withUpload(staged, directory));
 			else
 				result = listing([
 					file("Example-1.0.jar"),
@@ -153,6 +169,53 @@ test("update announcements send a console say command using the client API", asy
 	};
 	const service = new PluginDeployment("https://panel.example/api", "application-secret", "client-secret", request);
 	await service.announceUpdate("dev server", { id: "Example", version: "2.0" });
+});
+
+test("new Paper plugins upload into plugins and clear stale staged copies after verification", async () => {
+	const { service, events } = setup("paper-plugin", false, false, false, undefined, {
+		installed: ["Example-Other-1.0.jar", "Example-1.0-sources.jar"],
+		staged: ["Example-1.0.jar", "Example-2.0.jar", "Example-Other-1.0.jar"],
+	});
+	const deployment = await service.deploy("server", "Example");
+	assert.equal(deployment.firstInstall, true);
+	const uploadIndex = events.findIndex((event) => event.url.includes("/upload/file"));
+	assert.equal(new URL(events[uploadIndex].url).searchParams.get("directory"), "/plugins");
+	const deletes = events.filter((event) => event.url.endsWith("/delete"));
+	assert.deepEqual(
+		deletes.map((event) => event.body),
+		[{ root: "/plugins/.update", files: ["Example-1.0.jar", "Example-2.0.jar"] }],
+	);
+	assert.ok(events.indexOf(deletes[0]) > uploadIndex);
+});
+
+test("re-uploading the installed Paper version still stages it and keeps the installed JAR", async () => {
+	const { service, events } = setup("paper-plugin", false, false, false, undefined, { installed: ["Example-2.0.jar"], staged: ["Example-1.0.jar"] });
+	const deployment = await service.deploy("server", "Example");
+	assert.equal(deployment.firstInstall, false);
+	assert.equal(new URL(events.find((event) => event.url.includes("/upload/file"))!.url).searchParams.get("directory"), "/plugins/.update");
+	assert.deepEqual(
+		events.filter((event) => event.url.endsWith("/delete")).map((event) => event.body),
+		[{ root: "/plugins/.update", files: ["Example-1.0.jar"] }],
+	);
+});
+
+test("failed first-install verification never deletes files", async () => {
+	const { service, events } = setup("paper-plugin", false, false, true, undefined, { installed: [], staged: ["Example-1.0.jar"] });
+	await assert.rejects(service.deploy("server", "Example"), /Upload could not be verified/);
+	assert.equal(new URL(events.find((event) => event.url.includes("/upload/file"))!.url).searchParams.get("directory"), "/plugins");
+	assert.deepEqual(
+		events.filter((event) => event.url.endsWith("/delete")),
+		[],
+	);
+});
+
+test("first-install announcements say the plugin was installed", async () => {
+	const request: Fetch = async (_input, init) => {
+		assert.deepEqual(JSON.parse(init?.body as string), { command: "say Plugin Example 2.0 installed. Restart the server to load it" });
+		return new Response(null, { status: 204 });
+	};
+	const service = new PluginDeployment("https://panel.example/api", "application-secret", "client-secret", request);
+	await service.announceUpdate("server", { id: "Example", version: "2.0", firstInstall: true });
 });
 
 test("update announcements report command failures to the caller", async () => {
