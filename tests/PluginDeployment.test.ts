@@ -164,11 +164,11 @@ test("update announcements send a console say command using the client API", asy
 		assert.equal(String(input), "https://panel.example/api/client/servers/dev%20server/command");
 		assert.equal(init?.method, "POST");
 		assert.equal(new Headers(init?.headers).get("Authorization"), "Bearer client-secret");
-		assert.deepEqual(JSON.parse(init?.body as string), { command: "say Plugin Example 2.0 updated. Restart the server to load it" });
+		assert.deepEqual(JSON.parse(init?.body as string), { command: "say Plugin Example 2.0 updated at 3:05 PM EDT. Restart the server to load it" });
 		return new Response(null, { status: 204 });
 	};
 	const service = new PluginDeployment("https://panel.example/api", "application-secret", "client-secret", request);
-	await service.announceUpdate("dev server", { id: "Example", version: "2.0" });
+	await service.announceUpdate("dev server", { id: "Example", version: "2.0" }, new Date("2026-07-02T19:05:00Z"));
 });
 
 test("new Paper plugins upload into plugins and clear stale staged copies after verification", async () => {
@@ -211,11 +211,11 @@ test("failed first-install verification never deletes files", async () => {
 
 test("first-install announcements say the plugin was installed", async () => {
 	const request: Fetch = async (_input, init) => {
-		assert.deepEqual(JSON.parse(init?.body as string), { command: "say Plugin Example 2.0 installed. Restart the server to load it" });
+		assert.deepEqual(JSON.parse(init?.body as string), { command: "say Plugin Example 2.0 installed at 2:05 PM EST. Restart the server to load it" });
 		return new Response(null, { status: 204 });
 	};
 	const service = new PluginDeployment("https://panel.example/api", "application-secret", "client-secret", request);
-	await service.announceUpdate("server", { id: "Example", version: "2.0", firstInstall: true });
+	await service.announceUpdate("server", { id: "Example", version: "2.0", firstInstall: true }, new Date("2026-11-02T19:05:00Z"));
 });
 
 test("update announcements report command failures to the caller", async () => {

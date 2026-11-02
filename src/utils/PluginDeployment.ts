@@ -3,6 +3,7 @@ import { XMLParser, XMLValidator } from "fast-xml-parser";
 const MAVEN = "https://maven.sneakyrp.com";
 const GROUP = "io/github/team-sneakymouse";
 const UPDATE_FOLDER = "/plugins/.update";
+const announcementTime = new Intl.DateTimeFormat("en-US", { timeZone: "America/Toronto", hour: "numeric", minute: "2-digit", timeZoneName: "short" });
 const parser = new XMLParser({ ignoreAttributes: true, parseTagValue: false, processEntities: false });
 export type DeploymentType = "paper-plugin" | "ignite-mod" | "velocity-plugin";
 const TYPES: DeploymentType[] = ["paper-plugin", "ignite-mod", "velocity-plugin"];
@@ -207,9 +208,9 @@ export class PluginDeployment {
 		}
 	}
 
-	async announceUpdate(server: string, artifact: Pick<Artifact, "id" | "version"> & { firstInstall?: boolean }): Promise<void> {
+	async announceUpdate(server: string, artifact: Pick<Artifact, "id" | "version"> & { firstInstall?: boolean }, now = new Date()): Promise<void> {
 		await this.api(`/servers/${encodeURIComponent(server)}/command`, {
-			command: `say Plugin ${artifact.id} ${artifact.version} ${artifact.firstInstall ? "installed" : "updated"}. Restart the server to load it`,
+			command: `say Plugin ${artifact.id} ${artifact.version} ${artifact.firstInstall ? "installed" : "updated"} at ${announcementTime.format(now)}. Restart the server to load it`,
 		});
 	}
 
