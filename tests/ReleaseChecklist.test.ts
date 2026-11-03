@@ -279,3 +279,90 @@ test("capacity and invalid names leave the original card intact", async () => {
 	await h.run(blank);
 	expect(h.state()).toEqual(release);
 });
+
+const readinessButtons = (components: any[]) => components[0].components.filter((c: any) => c.type === 9).map((section: any) => section.accessory);
+
+const expectEmojiOnly = (button: any, emoji: string) => {
+	expect(button.type).toBe(2);
+	expect(button.emoji).toMatchObject({ name: emoji });
+	expect(button.emoji.id ?? null).toBeNull();
+	expect(button.label).toBeUndefined();
+};
+
+test("readiness buttons are emoji only: ✅ marks an unready feature ready and ❌ marks a ready feature unready", () => {
+	const release: Release = {
+		...empty(),
+		features: [
+			{ id: "one", name: "One", ready: false },
+			{ id: "two", name: "Two", ready: true },
+		],
+	};
+	const rendered = renderRelease(release);
+	const [mark, unmark] = readinessButtons(rendered.components);
+	expectEmojiOnly(mark, "✅");
+	expect(mark.custom_id).toBe(`${PREFIX}ready:one:0`);
+	expect(mark.style).toBe(3); // ButtonStyle.Success
+	expect(mark.disabled).toBe(false);
+	expectEmojiOnly(unmark, "❌");
+	expect(unmark.custom_id).toBe(`${PREFIX}ready:two:1`);
+	expect(unmark.style).toBe(2); // ButtonStyle.Secondary
+	expect(unmark.disabled).toBe(false);
+	const json = JSON.stringify(rendered.components);
+	expect(json).not.toContain("Mark ready");
+	expect(json).not.toContain("Mark unready");
+	expect(readRelease(JSON.parse(json))).toEqual(release);
+});
+
+test("archived cards keep emoji-only readiness buttons disabled with no label", () => {
+	const release: Release = {
+		...empty(),
+		closed: true,
+		features: [
+			{ id: "one", name: "One", ready: false },
+			{ id: "two", name: "Two", ready: true },
+		],
+	};
+	const rendered = renderRelease(release);
+	const [mark, unmark] = readinessButtons(rendered.components);
+	expectEmojiOnly(mark, "✅");
+	expect(mark.custom_id).toBe(`${PREFIX}ready:one:0`);
+	expect(mark.style).toBe(3);
+	expect(mark.disabled).toBe(true);
+	expectEmojiOnly(unmark, "❌");
+	expect(unmark.custom_id).toBe(`${PREFIX}ready:two:1`);
+	expect(unmark.style).toBe(2);
+	expect(unmark.disabled).toBe(true);
+	expect(readRelease(JSON.parse(JSON.stringify(rendered.components)))).toEqual(release);
+});
+
+test("ready and unready clicks rerender the public card with the opposite emoji-only button", async () => {
+	const h = harness();
+	await h.run(h.interaction("add-submit:123:", "modal", "Emoji feature"));
+	const id = h.state().features[0].id;
+	let [button] = readinessButtons(renderRelease(h.state()).components);
+	expectEmojiOnly(button, "✅");
+	expect(button.custom_id).toBe(`${PREFIX}ready:${id}:0`);
+
+	const ready = h.interaction(`ready:${id}:0`);
+	await h.run(ready);
+	expect(ready.acknowledgement).toBe("direct");
+	expect(h.state().features[0].ready).toBe(true);
+	[button] = readinessButtons(ready.responses[0].components);
+	expectEmojiOnly(button, "❌");
+	expect(button.custom_id).toBe(`${PREFIX}ready:${id}:1`);
+	expect(button.style).toBe(2);
+	expect(button.disabled).toBe(false);
+	expect(JSON.stringify(ready.responses[0].components)).not.toContain("Mark");
+
+	const unready = h.interaction(button.custom_id.slice(PREFIX.length));
+	await h.run(unready);
+	expect(unready.acknowledgement).toBe("direct");
+	expect(h.state().features[0].ready).toBe(false);
+	[button] = readinessButtons(unready.responses[0].components);
+	expectEmojiOnly(button, "✅");
+	expect(button.custom_id).toBe(`${PREFIX}ready:${id}:0`);
+	expect(button.style).toBe(3);
+	expect(button.disabled).toBe(false);
+	expect(JSON.stringify(unready.responses[0].components)).not.toContain("Mark");
+	expect(h.messageEdits).toHaveLength(0);
+});
