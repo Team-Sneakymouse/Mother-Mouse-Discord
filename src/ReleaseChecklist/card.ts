@@ -50,7 +50,7 @@ export function renderRelease(release: Release) {
 				.setButtonAccessory(
 					new ButtonBuilder()
 						.setCustomId(`${PREFIX}ready:${feature.id}:${feature.ready ? 1 : 0}`)
-						.setLabel(feature.ready ? "Mark unready" : "Mark ready")
+						.setEmoji({ name: feature.ready ? "❌" : "✅" })
 						.setStyle(feature.ready ? ButtonStyle.Secondary : ButtonStyle.Success)
 						.setDisabled(release.closed),
 				),
