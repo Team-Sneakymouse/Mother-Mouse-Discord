@@ -169,7 +169,7 @@ export class PushTracker {
 		let reason: string | undefined;
 		if (status === "success" && (await this.skippedAsDocsOnly(event.repository.full_name, run.id, attempt))) {
 			status = "skipped";
-			reason = "docs-only push";
+			reason = "docs-only";
 		}
 		await this.store.setStage(push.id, {
 			kind: "workflow",
