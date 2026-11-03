@@ -628,3 +628,35 @@ test("untracked artifacts, missing source metadata and tracker failures fall bac
 		assert.match(notifications[1], /Uploaded/);
 	}
 });
+
+test("in-game announcements carry the release's commit subject; lookup failures do not block deployment", async () => {
+	const source = { repository: "Team-Sneakymouse/Example", commit: "abc1234" };
+	for (const [lookup, expected] of [
+		[async () => "Fix the thing", "Fix the thing"],
+		[async () => assert.fail("GitHub unavailable"), undefined],
+	] as const) {
+		const store = memoryStore();
+		await store.accept(event);
+		const { service, calls } = fakeService();
+		(service as any).artifact = async () => ({ types: ["paper-plugin"], source });
+		const subjects: unknown[] = [];
+		(service as any).announceUpdate = async (_server: string, artifact: { subject?: string }) => void subjects.push(artifact.subject);
+		const lookups: unknown[] = [];
+		await new ReposiliteWorker(
+			store,
+			() => service as unknown as PluginDeployment,
+			async () => {},
+			() => now,
+			undefined,
+			async (given) => {
+				lookups.push(given);
+				return lookup();
+			},
+		).tick();
+		assert.equal(store.jobs[0].status, "completed");
+		assert.equal(calls.length, 2);
+		assert.equal(lookups.length, 1, "The commit is looked up once per job");
+		assert.deepEqual(lookups[0], source);
+		assert.deepEqual(subjects, [expected, expected]);
+	}
+});

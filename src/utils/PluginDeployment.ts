@@ -208,10 +208,25 @@ export class PluginDeployment {
 		}
 	}
 
-	async announceUpdate(server: string, artifact: Pick<Artifact, "id" | "version"> & { firstInstall?: boolean }, now = new Date()): Promise<void> {
-		await this.api(`/servers/${encodeURIComponent(server)}/command`, {
-			command: `say Plugin ${artifact.id} ${artifact.version} ${artifact.firstInstall ? "installed" : "updated"} at ${announcementTime.format(now)}. Restart the server to load it`,
-		});
+	/** `subject` is the first line of the release's commit message; without it the message asks for a restart. */
+	async announceUpdate(
+		server: string,
+		artifact: Pick<Artifact, "id" | "version"> & { firstInstall?: boolean; subject?: string },
+		now = new Date(),
+	): Promise<void> {
+		// biome-ignore lint/suspicious/noControlCharactersInRegex: Strip controls and legacy § formatting from commit text.
+		const subject = artifact.subject
+			?.replace(/§.?|[\u0000-\u001f\u007f]/gsu, "")
+			.trim()
+			.slice(0, 200);
+		const message = [
+			"",
+			{ text: "[Plugin] ", color: "gold" },
+			{ text: artifact.id, color: "aqua" },
+			{ text: ` ${artifact.firstInstall ? "installed" : "updated"} at ${announcementTime.format(now)}: `, color: "gray" },
+			subject ? { text: subject, color: "white" } : { text: "Restart the server to load it", color: "yellow" },
+		];
+		await this.api(`/servers/${encodeURIComponent(server)}/command`, { command: `tellraw @a ${JSON.stringify(message)}` });
 	}
 
 	async deploy(server: string, id: string, options: DeploymentOptions = {}): Promise<Deployment> {

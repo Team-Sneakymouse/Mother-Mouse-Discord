@@ -2,6 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 import { type Client, MessageFlags } from "discord.js";
 import express, { type Express } from "express";
 import { z } from "zod";
+import { createGithubApi } from "./GithubPrStatus.js";
 import { acquireDeploymentLock } from "./utils/DeploymentLock.js";
 import { type ArtifactSource, type Deployment, isProxy, PluginDeployment, type Server } from "./utils/PluginDeployment.js";
 
@@ -37,6 +38,18 @@ export interface DeploymentTracker {
 	/** Returns false when no tracked push matches; the worker then posts its own message. */
 	artifact(source: ArtifactSource, update: { id: string; status: DeploymentStatus; text: string }): Promise<boolean>;
 }
+/** First line of a commit's message, or undefined when it cannot be looked up. */
+export type CommitSubject = (source: ArtifactSource) => Promise<string | undefined>;
+
+export function githubCommitSubject(token: string): CommitSubject {
+	const api = createGithubApi(token);
+	return async ({ repository, commit }) => {
+		const response = await api.get(`/repos/${repository}/commits/${commit}`, { timeout: 5000 });
+		const message = (response.data as { commit?: { message?: unknown } })?.commit?.message;
+		return typeof message === "string" ? message.split(/\r?\n/)[0] : undefined;
+	};
+}
+
 export interface EventStore {
 	accept(event: UploadEvent): Promise<boolean>;
 	next(): Promise<WebhookJob | undefined>;
@@ -99,6 +112,7 @@ export class ReposiliteWorker {
 		private notify: (content: string, job: WebhookJob) => Promise<void>,
 		private now: () => number = Date.now,
 		private tracker?: DeploymentTracker,
+		private commitSubject?: CommitSubject,
 	) {}
 	async tick(): Promise<void> {
 		if (this.running) return;
@@ -172,6 +186,7 @@ export class ReposiliteWorker {
 				`Deploying **${uploaded.id}** \`${uploaded.version}\` (${artifact.types.join(", ")}) to ${job.targets.length} dev server(s).`,
 			);
 		}
+		const subject = await this.subject(job);
 		const failures: string[] = [];
 		for (const server of job.targets) {
 			if (job.completed.includes(server.identifier)) continue;
@@ -189,7 +204,7 @@ export class ReposiliteWorker {
 					continue;
 				}
 				try {
-					await service.announceUpdate(server.identifier, deployed);
+					await service.announceUpdate(server.identifier, { ...deployed, subject });
 				} catch {
 					console.error(`Reposilite: update announcement failed for ${server.name}; deployment processing continues`);
 				}
@@ -208,6 +223,15 @@ export class ReposiliteWorker {
 				? `Uploaded **${uploaded.id}** \`${uploaded.version}\` to ${job.targets.map((server) => server.name).join(", ")}.`
 				: `Skipped **${uploaded.id}** \`${uploaded.version}\`: no matching dev servers.`,
 		);
+	}
+	/** Lookup failures only cost the in-game announcement its commit subject. */
+	private async subject(job: WebhookJob): Promise<string | undefined> {
+		if (!job.source || !this.commitSubject || !job.targets?.some((server) => !job.completed.includes(server.identifier))) return;
+		try {
+			return await this.commitSubject(job.source);
+		} catch {
+			console.error("Reposilite: commit message lookup failed; announcing without it");
+		}
 	}
 	/** Updates the tracked push's message, or this upload's own message when no push matches. */
 	private async report(job: WebhookJob, status: DeploymentStatus, content: string): Promise<void> {
@@ -302,6 +326,7 @@ export default function ReposiliteWebhook(client: Client, server: Express, track
 		createDevUpdateNotifier(client, store),
 		Date.now,
 		tracker,
+		process.env.GITHUB_TOKEN?.trim() ? githubCommitSubject(process.env.GITHUB_TOKEN.trim()) : undefined,
 	);
 	const tick = () => {
 		void worker.tick().catch(() => console.error("Reposilite: queue processing failed; will retry"));

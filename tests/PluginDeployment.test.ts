@@ -159,16 +159,19 @@ test("Paper replacement is verified before staging cleanup and preserves install
 	assert.ok(events.every((event) => !event.url.endsWith("/power")));
 });
 
-test("update announcements send a console say command using the client API", async () => {
+const tellraw = (action: string, last: object) =>
+	`tellraw @a ${JSON.stringify(["", { text: "[Plugin] ", color: "gold" }, { text: "Example", color: "aqua" }, { text: action, color: "gray" }, last])}`;
+
+test("update announcements send a colored tellraw with the commit subject using the client API", async () => {
 	const request: Fetch = async (input, init) => {
 		assert.equal(String(input), "https://panel.example/api/client/servers/dev%20server/command");
 		assert.equal(init?.method, "POST");
 		assert.equal(new Headers(init?.headers).get("Authorization"), "Bearer client-secret");
-		assert.deepEqual(JSON.parse(init?.body as string), { command: "say Plugin Example 2.0 updated at 3:05 PM EDT. Restart the server to load it" });
+		assert.deepEqual(JSON.parse(init?.body as string), { command: tellraw(" updated at 3:05 PM EDT: ", { text: "Fix the thing", color: "white" }) });
 		return new Response(null, { status: 204 });
 	};
 	const service = new PluginDeployment("https://panel.example/api", "application-secret", "client-secret", request);
-	await service.announceUpdate("dev server", { id: "Example", version: "2.0" }, new Date("2026-07-02T19:05:00Z"));
+	await service.announceUpdate("dev server", { id: "Example", version: "2.0", subject: "Fix \u00A7cthe thing\n" }, new Date("2026-07-02T19:05:00Z"));
 });
 
 test("new Paper plugins upload into plugins and clear stale staged copies after verification", async () => {
@@ -209,9 +212,11 @@ test("failed first-install verification never deletes files", async () => {
 	);
 });
 
-test("first-install announcements say the plugin was installed", async () => {
+test("first-install announcements without a commit subject ask for a restart", async () => {
 	const request: Fetch = async (_input, init) => {
-		assert.deepEqual(JSON.parse(init?.body as string), { command: "say Plugin Example 2.0 installed at 2:05 PM EST. Restart the server to load it" });
+		assert.deepEqual(JSON.parse(init?.body as string), {
+			command: tellraw(" installed at 2:05 PM EST: ", { text: "Restart the server to load it", color: "yellow" }),
+		});
 		return new Response(null, { status: 204 });
 	};
 	const service = new PluginDeployment("https://panel.example/api", "application-secret", "client-secret", request);
