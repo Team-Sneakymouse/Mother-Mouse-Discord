@@ -65,6 +65,23 @@ export const watchtowerSchema = z.object({
 
 export type ArtifactUpdate = { id: string; status: StageStatus; text: string };
 
+/** A job of a workflow run attempt, as listed by GitHub's Actions API. */
+export type RunJob = { name: string; conclusion: string | null };
+/** Lists the jobs of one workflow run attempt. */
+export type RunJobs = (repo: string, run: number, attempt: number) => Promise<RunJob[]>;
+
+/**
+ * The shared `ci` workflows start with a gate job with the ID `changes`; on a docs-only push it
+ * succeeds and skips every other job. GitHub still reports such a run as a success.
+ * Reusable workflow jobs are named `<caller job> / <job>`.
+ */
+const GATE = /(?:^|\/ )changes$/;
+export function docsOnly(jobs: RunJob[]): boolean {
+	const gate = jobs.filter((job) => GATE.test(job.name));
+	const rest = jobs.filter((job) => !GATE.test(job.name));
+	return gate.length > 0 && gate.every((job) => job.conclusion === "success") && rest.length > 0 && rest.every((job) => job.conclusion === "skipped");
+}
+
 export interface MessageSink {
 	send(message: PushMessage): Promise<string>;
 	/** Rejects with `{ code: 10008 }` when the message was deleted. */
@@ -105,6 +122,7 @@ export class PushTracker {
 		private store: PushStore,
 		private sink: MessageSink,
 		private now: () => number = Date.now,
+		private jobs?: RunJobs,
 	) {}
 
 	/** GitHub `push` event. */
@@ -143,17 +161,33 @@ export class PushTracker {
 		if (run.event !== "push" || run.head_branch !== event.repository.default_branch) return;
 		const push = await this.store.upsertPush(event.repository.full_name, run.head_sha.toLowerCase());
 		const key = String(run.workflow_id);
-		const status = workflowStatus(run);
+		let status = workflowStatus(run);
 		const attempt = run.run_attempt ?? 1;
 		// GitHub may deliver a run's events late; never let an older run, attempt or phase replace a newer one.
 		const current = (await this.store.stages(push.id)).find((stage) => stage.kind === "workflow" && stage.key === key);
 		if (current && compareProgress([run.id, attempt, PHASE[status]], progressOf(current)) < 0) return;
+		let reason: string | undefined;
+		if (status === "success" && (await this.skippedAsDocsOnly(event.repository.full_name, run.id, attempt))) {
+			status = "skipped";
+			reason = "docs-only push";
+		}
 		await this.store.setStage(push.id, {
 			kind: "workflow",
 			key,
 			status,
-			detail: { name: run.name ?? "Workflow", url: run.html_url, attempt, run: run.id },
+			detail: { name: run.name ?? "Workflow", url: run.html_url, attempt, run: run.id, ...(reason ? { reason } : {}) },
 		});
+	}
+
+	/** Whether a successful run skipped all its work because the push only changed docs. Lookup errors count as no. */
+	private async skippedAsDocsOnly(repo: string, run: number, attempt: number): Promise<boolean> {
+		if (!this.jobs) return false;
+		try {
+			return docsOnly(await this.jobs(repo, run, attempt));
+		} catch (error) {
+			console.error(`PushTracking: could not list jobs of ${repo} run ${run}: ${(error as Error)?.message ?? error}`);
+			return false;
+		}
 	}
 
 	/** Progress of an automatic dev-server deployment. Returns false when no tracked push matches. */

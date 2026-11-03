@@ -6,7 +6,7 @@ import express from "express";
 import { COLOR, renderPush } from "../src/PushTracking/render.ts";
 import { registerPushTrackingRoutes, validSignature } from "../src/PushTracking/routes.ts";
 import { MemoryPushStore, type Push } from "../src/PushTracking/store.ts";
-import { githubRepo, type MessageSink, PushTracker } from "../src/PushTracking/tracker.ts";
+import { docsOnly, githubRepo, type MessageSink, PushTracker, type RunJob } from "../src/PushTracking/tracker.ts";
 
 const REPO = "Team-Sneakymouse/SneakyMail";
 const sha = (n: number) => n.toString(16).padStart(4, "0") + "b".repeat(36);
@@ -132,6 +132,54 @@ test("parallel workflows each get a line and any failure colors the message", as
 	await tracker.flush();
 	assert.match(discord.messages.get("m1")!, /\n❌ CI · \[Build\].* — failure\n✅ CI · \[Validate\].* — success$/);
 	assert.equal(discord.colors.get("m1"), COLOR.failure);
+});
+
+test("a run whose gate skipped every other job is shown as a skipped docs-only push", async () => {
+	const store = new MemoryPushStore();
+	const discord = fakeSink();
+	const lookups: string[] = [];
+	const jobs: Record<number, RunJob[]> = {
+		77: [
+			{ name: "publish / changes", conclusion: "success" },
+			{ name: "publish / publish", conclusion: "skipped" },
+		],
+		78: [
+			{ name: "publish / changes", conclusion: "success" },
+			{ name: "publish / publish", conclusion: "success" },
+		],
+	};
+	const tracker = new PushTracker(store, discord.sink, Date.now, async (repo, run, attempt) => {
+		lookups.push(`${repo}#${run}.${attempt}`);
+		if (!jobs[run]) throw new Error("not found");
+		return jobs[run];
+	});
+	await tracker.push(pushEvent(sha(1), sha(0)));
+	await tracker.workflowRun(runEvent(sha(1), "in_progress"));
+	await tracker.workflowRun(runEvent(sha(1), "completed", "success"));
+	await tracker.flush();
+	assert.match(discord.messages.get("m1")!, /\n⏭️ CI · \[Build and publish\].* — skipped \(docs-only push\)$/);
+	assert.equal(discord.colors.get("m1"), COLOR.skipped);
+	assert.deepEqual(lookups, [`${REPO}#77.1`], "Only successful runs are looked up");
+
+	await tracker.push(pushEvent(sha(2), sha(1)));
+	await tracker.workflowRun(runEvent(sha(2), "completed", "success", { id: 78, run_attempt: 2 }));
+	await tracker.push(pushEvent(sha(3), sha(2)));
+	await tracker.workflowRun(runEvent(sha(3), "completed", "success", { id: 79 }));
+	await tracker.flush();
+	assert.match(discord.messages.get("m2")!, /\n✅ CI .* — success \(attempt 2\)$/);
+	assert.match(discord.messages.get("m3")!, /\n✅ CI .* — success$/, "A failed lookup keeps the run's own result");
+	assert.equal(discord.colors.get("m3"), COLOR.success);
+});
+
+test("docs-only detection needs a successful gate and every other job skipped", () => {
+	const job = (name: string, conclusion: string | null): RunJob => ({ name, conclusion });
+	assert.equal(docsOnly([job("changes", "success"), job("publish", "skipped")]), true);
+	assert.equal(docsOnly([job("deploy / changes", "success"), job("deploy / build", "skipped"), job("deploy / push", "skipped")]), true);
+	assert.equal(docsOnly([job("publish", "skipped")]), false, "No gate");
+	assert.equal(docsOnly([job("changes", "success")]), false, "Nothing gated");
+	assert.equal(docsOnly([job("changes", "failure"), job("publish", "skipped")]), false);
+	assert.equal(docsOnly([job("changes", "success"), job("publish", "success")]), false);
+	assert.equal(docsOnly([job("check-changes", "success"), job("publish", "skipped")]), false, "Only the exact job ID counts");
 });
 
 test("deployments match release commit prefixes and include earlier pushes that never deployed", async () => {

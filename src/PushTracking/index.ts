@@ -1,12 +1,14 @@
 import { SQL } from "bun";
 import { type Client, ContainerBuilder, MessageFlags, SeparatorBuilder, SeparatorSpacingSize, TextDisplayBuilder } from "discord.js";
 import type { Express } from "express";
+import { z } from "zod";
+import { createGithubApi } from "../GithubPrStatus.js";
 import { DEV_UPDATE_THREAD } from "../ReposiliteWebhook.js";
 import type { ArtifactSource } from "../utils/PluginDeployment.js";
 import { migrate, PostgresPushStore } from "./postgres.js";
 import type { PushMessage } from "./render.js";
 import { registerPushTrackingRoutes, type WebhookAlerts } from "./routes.js";
-import { type ArtifactUpdate, type MessageSink, PushTracker } from "./tracker.js";
+import { type ArtifactUpdate, type MessageSink, PushTracker, type RunJobs } from "./tracker.js";
 
 const RAWBTV = "391355330241757205";
 /** Watchtower cannot report this bot's own update (it is restarting), so the bot reports it on startup. */
@@ -39,6 +41,17 @@ export function threadSink(client: Client, threadId = DEV_UPDATE_THREAD): Messag
 	};
 }
 
+const jobsSchema = z.object({ jobs: z.array(z.object({ name: z.string(), conclusion: z.string().nullable() })) });
+
+/** Job lookup through the Actions API. Short timeout: it runs while GitHub waits for the webhook response. */
+export function githubRunJobs(token: string): RunJobs {
+	const api = createGithubApi(token);
+	return async (repo, run, attempt) => {
+		const response = await api.get(`/repos/${repo}/actions/runs/${run}/attempts/${attempt}/jobs`, { params: { per_page: 100 }, timeout: 5000 });
+		return jobsSchema.parse(response.data).jobs;
+	};
+}
+
 export type PushTracking = {
 	/** Hook for the Reposilite worker. Resolves false when tracking is unavailable or no push matches. */
 	artifact(source: ArtifactSource, update: ArtifactUpdate): Promise<boolean>;
@@ -59,7 +72,9 @@ export default function PushTracking(client: Client, server: Express, alerts: We
 			await migrate(sql);
 			const store = new PostgresPushStore(sql);
 			await store.pruneDeliveries(30);
-			return { store, tracker: new PushTracker(store, threadSink(client)) };
+			const token = process.env.GITHUB_TOKEN?.trim();
+			if (!token) console.log("PushTracking: docs-only runs show as success until GITHUB_TOKEN is configured");
+			return { store, tracker: new PushTracker(store, threadSink(client), Date.now, token ? githubRunJobs(token) : undefined) };
 		} catch (error) {
 			console.error(`PushTracking: database setup failed; tracking is disabled: ${(error as Error)?.message ?? error}`);
 			return undefined;

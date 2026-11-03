@@ -17,6 +17,7 @@ export const COLOR = {
 	success: 0x2ecc71,
 	failure: 0xe74c3c,
 	superseded: 0x95a5a6,
+	skipped: 0x99aab5,
 } as const;
 
 /** A message rendered into one colored container. Sections are separated by a divider. */
@@ -39,8 +40,9 @@ function stageLine(stage: Stage): string {
 	const url = string(stage.detail.url);
 	if (stage.kind === "workflow") {
 		const name = plain(string(stage.detail.name) ?? "Workflow", 100);
-		const attempt = Number(stage.detail.attempt) > 1 ? ` (attempt ${Number(stage.detail.attempt)})` : "";
-		return `${emoji} CI · ${url ? `[${name}](<${url}>)` : name} — ${stage.status}${attempt}`;
+		const reason = string(stage.detail.reason);
+		const notes = [reason && plain(reason, 100), Number(stage.detail.attempt) > 1 && `attempt ${Number(stage.detail.attempt)}`].filter(Boolean);
+		return `${emoji} CI · ${url ? `[${name}](<${url}>)` : name} — ${stage.status}${notes.length ? ` (${notes.join(", ")})` : ""}`;
 	}
 	if (stage.kind === "artifact") {
 		// The Reposilite worker supplies trusted, already formatted progress text.
@@ -56,6 +58,7 @@ function overall(push: Push, stages: Stage[], deployedVia: unknown): number {
 	if (deployedVia) return COLOR.success;
 	if (stages.some((stage) => stage.status === "failure")) return COLOR.failure;
 	if (stages.some((stage) => stage.status === "running" || stage.status === "queued")) return COLOR.running;
+	if (stages.length && stages.every((stage) => stage.status === "skipped")) return COLOR.skipped;
 	return stages.length ? COLOR.success : COLOR.pushed;
 }
 
