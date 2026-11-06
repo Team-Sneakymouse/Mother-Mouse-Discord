@@ -156,6 +156,12 @@ disabled.
   restarts.
 - `stages`: one row per push + kind + key, with status and details.
 
+Every insert into `pushes` and every change of its `version` (which every stage
+update also bumps) sends `NOTIFY discord_push_tracking` with the push ID as payload
+(trigger `pushes_notify`). Storing the message ID or render progress does not.
+SneakyPipeMonitor listens to it to show running pipelines in Minecraft; the
+payload and the tables are its interface, so keep them compatible.
+
 Without `PGHOST` the feature is disabled and the routes return 503. Database setup
 failures are logged and also disable it.
 

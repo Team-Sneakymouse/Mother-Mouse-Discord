@@ -39,6 +39,18 @@ const MIGRATIONS = [
 		primary key (push_id, kind, key)
 	);
 	`,
+	// Every change to a push or its stages bumps pushes.version, so one trigger covers them all.
+	// Listeners (SneakyPipeMonitor) get the push ID; Postgres merges duplicates within a transaction.
+	`
+	create function discord_push_tracking.notify_push_change() returns trigger language plpgsql as $$
+	begin
+		perform pg_notify('discord_push_tracking', new.id::text);
+		return null;
+	end
+	$$;
+	create trigger pushes_notify after insert or update of version on discord_push_tracking.pushes
+		for each row execute function discord_push_tracking.notify_push_change();
+	`,
 ];
 
 type Row = {
