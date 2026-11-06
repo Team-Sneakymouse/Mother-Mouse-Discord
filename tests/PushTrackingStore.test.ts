@@ -113,8 +113,25 @@ test("PostgreSQL store follows the store contract and migrations are repeatable"
 		await migrate(sql);
 		await Promise.all([migrate(sql), migrate(sql)]);
 		const [{ versions }] = await sql<Array<{ versions: number }>>`select count(*)::integer as versions from discord_push_tracking.migrations`;
-		assert.equal(versions, 1);
+		assert.equal(versions, 2);
 		const store = new PostgresPushStore(sql);
+
+		// Changes notify listeners with the push ID; storing the message ID or render progress does not.
+		const notified: string[] = [];
+		const subscription = await sql.listen("discord_push_tracking", (payload: string) => notified.push(payload));
+		const watched = await store.upsertPush("Team-Sneakymouse/Notify", sha(20));
+		await store.setStage(watched.id, { kind: "workflow", key: "1", status: "running", detail: {} });
+		await store.setMessage(watched.id, "1");
+		await store.rendered(watched.id, 99);
+		const settle = async (count: number) => {
+			for (let i = 0; i < 50 && notified.length < count; i++) await Bun.sleep(20);
+			await Bun.sleep(100);
+		};
+		await settle(2);
+		assert.deepEqual(notified, [String(watched.id), String(watched.id)]);
+		await subscription.unlisten();
+		await sql`delete from discord_push_tracking.pushes where id = ${watched.id}`;
+
 		await contract(store);
 		await sql`update discord_push_tracking.deliveries set received_at = now() - interval '40 days' where id = 'd1'`;
 		await store.pruneDeliveries(30);
