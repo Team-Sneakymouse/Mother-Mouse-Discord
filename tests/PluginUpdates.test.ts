@@ -562,3 +562,52 @@ test("the release menu only offers releases compatible with the selected server"
 		);
 	}
 });
+
+test("release options mark exact versions already installed or staged on the selected server", async () => {
+	const target = message(renderState(state(), [], artifacts));
+	const presence = new Map([
+		["Plugin0", { installed: true, staged: false }],
+		["Plugin1", { installed: false, staged: true }],
+		["Plugin2", { installed: true, staged: true }],
+		["Plugin3", { installed: false, staged: false }],
+	]);
+	const checked: string[][] = [];
+	const service = {
+		servers: async () => [backend],
+		catalog: async () => ({ artifacts, failures: [] }),
+		presence: async (_server: unknown, listed: Artifact[]) => {
+			checked.push(listed.map((artifact) => artifact.id));
+			return presence;
+		},
+	} as unknown as PluginDeployment;
+	const event = click(target.result, customId(state(), "artifacts"), ["Plugin3"]);
+	await new PluginUpdatesController(() => service).component(event.interaction);
+	assert.deepEqual(event.replies, []);
+	assert.equal(checked[0].length, artifacts.length);
+	const options = (target.edits.at(-1)!.components[0].toJSON() as any).components[0].options;
+	assert.deepEqual(
+		options.slice(0, 4).map((option: any) => [option.description, option.emoji?.name]),
+		[
+			["2026.10.12 · installed · paper-plugin", "✅"],
+			["2026.10.12 · staged · paper-plugin", "⏳"],
+			["2026.10.12 · installed + staged · paper-plugin", "✅"],
+			["2026.10.12 · paper-plugin", undefined],
+		],
+	);
+});
+
+test("a failed presence check still renders the release menu without markers", async () => {
+	const target = message(renderState(state(), [], artifacts));
+	const service = {
+		servers: async () => [backend],
+		catalog: async () => ({ artifacts, failures: [] }),
+		presence: async () => {
+			throw new Error("panel down");
+		},
+	} as unknown as PluginDeployment;
+	const event = click(target.result, customId(state(), "next"));
+	await new PluginUpdatesController(() => service).component(event.interaction);
+	assert.deepEqual(event.replies, []);
+	const options = (target.edits.at(-1)!.components[0].toJSON() as any).components[0].options;
+	assert.ok(options.every((option: any) => option.emoji === undefined));
+});

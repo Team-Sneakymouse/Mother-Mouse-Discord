@@ -1,5 +1,5 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, EmbedBuilder, type Message, StringSelectMenuBuilder } from "discord.js";
-import type { Artifact, Server } from "./PluginDeployment.js";
+import type { Artifact, Presence, Server } from "./PluginDeployment.js";
 
 export type UpdateState = {
 	owner: string;
@@ -82,7 +82,20 @@ export function pending(state: UpdateState): string[] {
 	return state.selected.filter((id) => !state.completed.some((item) => item.id === id));
 }
 
-export function renderState(state: UpdateState, servers: Pick<Server, "identifier" | "name">[] = [], artifacts: Artifact[] = [], status?: string) {
+function presenceLabel(presence: Presence | undefined): { text: string; emoji?: string } {
+	if (presence?.installed && presence.staged) return { text: " · installed + staged", emoji: "✅" };
+	if (presence?.installed) return { text: " · installed", emoji: "✅" };
+	if (presence?.staged) return { text: " · staged", emoji: "⏳" };
+	return { text: "" };
+}
+
+export function renderState(
+	state: UpdateState,
+	servers: Pick<Server, "identifier" | "name">[] = [],
+	artifacts: Artifact[] = [],
+	status?: string,
+	presence: Map<string, Presence> = new Map(),
+) {
 	// Reserve a completion marker, backticks and a newline for every selected ID.
 	// Leave room for the embed title, description and field names within 6,000 characters.
 	if (state.selected.reduce((size, id) => size + id.length + 5, 0) > 5000)
@@ -123,12 +136,17 @@ export function renderState(state: UpdateState, servers: Pick<Server, "identifie
 					.setMinValues(0)
 					.setMaxValues(visible.length)
 					.addOptions(
-						visible.map((artifact) => ({
-							label: artifact.id,
-							value: artifact.id,
-							description: `${artifact.version} · ${artifact.types.join(", ")}`.slice(0, 100),
-							default: state.selected.includes(artifact.id),
-						})),
+						visible.map((artifact) => {
+							const marker = presenceLabel(presence.get(artifact.id));
+							return {
+								label: artifact.id,
+								value: artifact.id,
+								// The marker comes before the types so long versions do not truncate it.
+								description: `${artifact.version}${marker.text} · ${artifact.types.join(", ")}`.slice(0, 100),
+								default: state.selected.includes(artifact.id),
+								...(marker.emoji ? { emoji: { name: marker.emoji } } : {}),
+							};
+						}),
 					);
 			}
 			components.push(new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(menu));

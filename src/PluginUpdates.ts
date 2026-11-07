@@ -141,12 +141,18 @@ export class PluginUpdatesController {
 				const [servers, catalog] = await Promise.all([service.servers(), service.catalog()]);
 				const server = servers.find((item) => item.identifier === state.server?.identifier);
 				if (!server) throw new Error("Selected server is no longer in scope");
+				const artifacts = catalog.artifacts.filter((artifact) => compatible(artifact.types, server));
+				// The markers are only a hint; a failed check must not block selecting releases.
+				const presence = await Promise.resolve()
+					.then(() => service.presence(server, artifacts))
+					.catch(() => undefined);
 				await message.edit(
 					renderState(
 						state,
 						[],
-						catalog.artifacts.filter((artifact) => compatible(artifact.types, server)),
+						artifacts,
 						catalog.failures.length ? `${catalog.failures.length} artifacts could not be read and are omitted.` : undefined,
+						presence,
 					),
 				);
 			} finally {

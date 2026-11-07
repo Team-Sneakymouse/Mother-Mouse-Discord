@@ -379,3 +379,37 @@ test("automatic discovery and final client check require both description phrase
 	);
 	await assert.rejects(service.deploy("dev", "Example", { version: "1.0", scope }), /does not confirm/);
 });
+
+test("presence reports exact release JARs installed or staged per destination and treats unreadable folders as empty", async () => {
+	const listed: string[] = [];
+	const request: Fetch = async (input) => {
+		const directory = new URL(String(input)).searchParams.get("directory")!;
+		listed.push(directory);
+		if (directory === "/plugins") return Response.json(listing([file("Paper-2.0.jar"), file("Staged-1.0.jar"), { name: "Both-2.0.jar", is_file: false }]));
+		if (directory === "/plugins/.update") return Response.json(listing([file("Staged-2.0.jar"), file("Paper-2.0.jar")]));
+		return new Response("missing", { status: 404 });
+	};
+	const service = new PluginDeployment("https://panel.example/api", "application-secret", "client-secret", request);
+	const release = (id: string, types: Artifact["types"]): Artifact => ({
+		id,
+		version: "2.0",
+		types,
+		versions: ["1.0", "2.0"],
+		url: "",
+		filename: `${id}-2.0.jar`,
+	});
+	const presence = await service.presence({ identifier: "server", name: "Server", description: "Lords of Minecraft" }, [
+		release("Paper", ["paper-plugin"]),
+		release("Staged", ["paper-plugin"]),
+		release("Both", ["paper-plugin", "velocity-plugin"]),
+		release("Mod", ["ignite-mod"]),
+		release("Proxy", ["velocity-plugin"]),
+	]);
+	assert.deepEqual(Object.fromEntries(presence), {
+		Paper: { installed: true, staged: true },
+		Staged: { installed: false, staged: true },
+		Both: { installed: false, staged: false },
+		Mod: { installed: false, staged: false },
+	});
+	assert.deepEqual(listed.sort(), ["/mods", "/plugins", "/plugins/.update"]);
+});

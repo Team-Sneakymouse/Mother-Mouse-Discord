@@ -93,6 +93,8 @@ function publishedFiles(files: RemoteFile[], artifact: Artifact): string[] {
 }
 
 export type Deployment = Artifact & { firstInstall: boolean };
+/** Whether the exact release JAR is in the server's live folder, or staged for Paper's next restart. */
+export type Presence = { installed: boolean; staged: boolean };
 
 export class PluginDeployment {
 	constructor(
@@ -206,6 +208,39 @@ export class PluginDeployment {
 			if (!existing) await this.api(`/servers/${encodeURIComponent(server)}/files/create-folder`, { root, name });
 			root = `${root}${name}/`;
 		}
+	}
+
+	/** Checks which releases already have their exact JAR on the server. Unreadable folders count as empty. */
+	async presence(server: Server, artifacts: Artifact[]): Promise<Map<string, Presence>> {
+		const types = artifacts.map((artifact) => typeFor(artifact.types, server));
+		const directories = new Set<string>();
+		for (const type of types) {
+			if (type === "ignite-mod") directories.add("/mods");
+			else if (type) directories.add("/plugins");
+			if (type === "paper-plugin") directories.add(UPDATE_FOLDER);
+		}
+		const listings = new Map(
+			await Promise.all(
+				[...directories].map(async (directory) => {
+					const names = await this.files(server.identifier, directory).then(
+						(files) => new Set(files.filter((file) => file.is_file).map((file) => file.name)),
+						() => new Set<string>(),
+					);
+					return [directory, names] as const;
+				}),
+			),
+		);
+		const has = (directory: string, name: string) => listings.get(directory)?.has(name) ?? false;
+		const result = new Map<string, Presence>();
+		artifacts.forEach((artifact, index) => {
+			const type = types[index];
+			if (!type) return;
+			result.set(artifact.id, {
+				installed: has(type === "ignite-mod" ? "/mods" : "/plugins", artifact.filename),
+				staged: type === "paper-plugin" && has(UPDATE_FOLDER, artifact.filename),
+			});
+		});
+		return result;
 	}
 
 	/** `subject` is the first line of the release's commit message; without it the message asks for a restart. */
