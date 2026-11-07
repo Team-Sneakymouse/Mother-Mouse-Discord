@@ -51,6 +51,12 @@ const MIGRATIONS = [
 	create trigger pushes_notify after insert or update of version on discord_push_tracking.pushes
 		for each row execute function discord_push_tracking.notify_push_change();
 	`,
+	// Earlier writes bound JSON.stringify output, which Bun encoded again, storing JSON strings.
+	// Neither update touches version, so no listener is notified and no message is re-rendered.
+	`
+	update discord_push_tracking.stages set detail = (detail #>> '{}')::jsonb where jsonb_typeof(detail) = 'string';
+	update discord_push_tracking.pushes set commits = (commits #>> '{}')::jsonb where jsonb_typeof(commits) = 'string';
+	`,
 ];
 
 type Row = {
@@ -69,6 +75,7 @@ type Row = {
 	rendered_version: number;
 };
 
+// Rows written before migration 3 may come back as JSON strings.
 const json = (value: unknown) => (typeof value === "string" ? JSON.parse(value) : value);
 
 function push(row: Row): Push {
@@ -147,7 +154,8 @@ export class PostgresPushStore implements PushStore {
 				returning *`;
 			return push(row);
 		}
-		const commits = details.commits ? JSON.stringify(details.commits) : null;
+		// Bind values themselves: Bun serializes them for jsonb, so a stringified value would be encoded twice.
+		const commits = details.commits ?? null;
 		const [row] = await this.sql<Row[]>`
 			insert into discord_push_tracking.pushes (repo, sha, before_sha, pusher, commits, compare_url, forced)
 			values (${repo}, ${sha}, ${details.before}, ${details.pusher}, ${commits}::jsonb, ${details.compareUrl}, ${details.forced})
@@ -183,7 +191,7 @@ export class PostgresPushStore implements PushStore {
 		await this.sql.begin(async (tx) => {
 			await tx`
 				insert into discord_push_tracking.stages (push_id, kind, key, status, detail)
-				values (${pushId}, ${stage.kind}, ${stage.key}, ${stage.status}, ${JSON.stringify(stage.detail)}::jsonb)
+				values (${pushId}, ${stage.kind}, ${stage.key}, ${stage.status}, ${stage.detail}::jsonb)
 				on conflict (push_id, kind, key) do update set status = excluded.status, detail = excluded.detail, updated_at = now()`;
 			await tx`update discord_push_tracking.pushes set version = version + 1, updated_at = now() where id = ${pushId}`;
 		});

@@ -113,7 +113,7 @@ test("PostgreSQL store follows the store contract and migrations are repeatable"
 		await migrate(sql);
 		await Promise.all([migrate(sql), migrate(sql)]);
 		const [{ versions }] = await sql<Array<{ versions: number }>>`select count(*)::integer as versions from discord_push_tracking.migrations`;
-		assert.equal(versions, 2);
+		assert.equal(versions, 3);
 		const store = new PostgresPushStore(sql);
 
 		// Changes notify listeners with the push ID; storing the message ID or render progress does not.
@@ -133,6 +133,15 @@ test("PostgreSQL store follows the store contract and migrations are repeatable"
 		await sql`delete from discord_push_tracking.pushes where id = ${watched.id}`;
 
 		await contract(store);
+		// Values are stored as JSON, not JSON strings, so SQL and other readers can look inside them.
+		const types = await sql<Array<{ value: string }>>`
+			select 'commits:' || coalesce(jsonb_typeof(commits), 'null') as value from discord_push_tracking.pushes
+			union select 'detail:' || jsonb_typeof(detail) from discord_push_tracking.stages
+			order by 1`;
+		assert.deepEqual(
+			types.map((row) => row.value),
+			["commits:array", "commits:null", "detail:object"],
+		);
 		await sql`update discord_push_tracking.deliveries set received_at = now() - interval '40 days' where id = 'd1'`;
 		await store.pruneDeliveries(30);
 		assert.equal(await store.claimDelivery("d1", "github"), true, "Old delivery IDs are pruned");
