@@ -57,8 +57,8 @@
 			"explanation": "Lets players switch between multiple characters/identities on DvZ and LoM."
 		},
 		{
-			"name": "SneakyConfigurableVoice",
-			"url": "https://github.com/Team-Sneakymouse/SneakyConfigurableVoice",
+			"name": "SneakyVoiceChat",
+			"url": "https://github.com/Team-Sneakymouse/SneakyVoiceChat",
 			"explanation": "Simple Voice Chat addon that sets voice hear-distance by permission (for races, roles, scenes)."
 		},
 		{
@@ -202,7 +202,7 @@
 				"SneakyCastBar",
 				"SneakyCellPhones",
 				"SneakyCharacterManager",
-				"SneakyConfigurableVoice",
+				"SneakyVoiceChat",
 				"SneakyDiscordLink",
 				"SneakyDispatch",
 				"SneakyJobBoard",
@@ -281,7 +281,7 @@
 			"labels": [
 				"BubbleChat",
 				"SlashMe",
-				"SneakyConfigurableVoice",
+				"SneakyVoiceChat",
 				"SneakyAIController",
 				"SneakyCellPhones",
 				"SneakySTTEvents",
