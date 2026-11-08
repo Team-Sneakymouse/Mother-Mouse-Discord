@@ -593,7 +593,7 @@ test("release options mark exact versions installed or staged, older versions an
 			["2026.10.12 · staged · paper-plugin", "⏳"],
 			["2026.10.12 · installed + staged · paper-plugin", "✅"],
 			["2026.10.12 · older version installed · paper-plugin", "🔄"],
-			["2026.10.12 · not installed · paper-plugin", "🆕"],
+			["2026.10.12 · not installed · paper-plugin", "📴"],
 			["2026.10.12 · paper-plugin", undefined],
 		],
 	);
