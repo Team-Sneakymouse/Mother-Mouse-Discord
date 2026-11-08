@@ -86,6 +86,9 @@ function presenceLabel(presence: Presence | undefined): { text: string; emoji?: 
 	if (presence?.installed && presence.staged) return { text: " · installed + staged", emoji: "✅" };
 	if (presence?.installed) return { text: " · installed", emoji: "✅" };
 	if (presence?.staged) return { text: " · staged", emoji: "⏳" };
+	if (presence?.outdated) return { text: " · older version installed", emoji: "🔄" };
+	if (presence) return { text: " · not installed", emoji: "🆕" };
+	// No check result: show no marker rather than claim the plugin is missing.
 	return { text: "" };
 }
 

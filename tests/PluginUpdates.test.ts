@@ -563,13 +563,14 @@ test("the release menu only offers releases compatible with the selected server"
 	}
 });
 
-test("release options mark exact versions already installed or staged on the selected server", async () => {
+test("release options mark exact versions installed or staged, older versions and missing plugins on the selected server", async () => {
 	const target = message(renderState(state(), [], artifacts));
 	const presence = new Map([
-		["Plugin0", { installed: true, staged: false }],
-		["Plugin1", { installed: false, staged: true }],
-		["Plugin2", { installed: true, staged: true }],
-		["Plugin3", { installed: false, staged: false }],
+		["Plugin0", { installed: true, staged: false, outdated: false }],
+		["Plugin1", { installed: false, staged: true, outdated: true }],
+		["Plugin2", { installed: true, staged: true, outdated: false }],
+		["Plugin3", { installed: false, staged: false, outdated: true }],
+		["Plugin4", { installed: false, staged: false, outdated: false }],
 	]);
 	const checked: string[][] = [];
 	const service = {
@@ -586,11 +587,13 @@ test("release options mark exact versions already installed or staged on the sel
 	assert.equal(checked[0].length, artifacts.length);
 	const options = (target.edits.at(-1)!.components[0].toJSON() as any).components[0].options;
 	assert.deepEqual(
-		options.slice(0, 4).map((option: any) => [option.description, option.emoji?.name]),
+		options.slice(0, 6).map((option: any) => [option.description, option.emoji?.name]),
 		[
 			["2026.10.12 · installed · paper-plugin", "✅"],
 			["2026.10.12 · staged · paper-plugin", "⏳"],
 			["2026.10.12 · installed + staged · paper-plugin", "✅"],
+			["2026.10.12 · older version installed · paper-plugin", "🔄"],
+			["2026.10.12 · not installed · paper-plugin", "🆕"],
 			["2026.10.12 · paper-plugin", undefined],
 		],
 	);

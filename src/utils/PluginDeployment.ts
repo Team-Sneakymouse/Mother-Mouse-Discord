@@ -93,8 +93,11 @@ function publishedFiles(files: RemoteFile[], artifact: Artifact): string[] {
 }
 
 export type Deployment = Artifact & { firstInstall: boolean };
-/** Whether the exact release JAR is in the server's live folder, or staged for Paper's next restart. */
-export type Presence = { installed: boolean; staged: boolean };
+/**
+ * Whether the exact release JAR is in the server's live folder or staged for Paper's next restart,
+ * and whether an older published version is in either. All false means the plugin is missing.
+ */
+export type Presence = { installed: boolean; staged: boolean; outdated: boolean };
 
 export class PluginDeployment {
 	constructor(
@@ -235,9 +238,13 @@ export class PluginDeployment {
 		artifacts.forEach((artifact, index) => {
 			const type = types[index];
 			if (!type) return;
+			const live = type === "ignite-mod" ? "/mods" : "/plugins";
+			const folders = type === "paper-plugin" ? [live, UPDATE_FOLDER] : [live];
+			const older = artifact.versions.filter((version) => version !== artifact.version).map((version) => `${artifact.id}-${version}.jar`);
 			result.set(artifact.id, {
-				installed: has(type === "ignite-mod" ? "/mods" : "/plugins", artifact.filename),
+				installed: has(live, artifact.filename),
 				staged: type === "paper-plugin" && has(UPDATE_FOLDER, artifact.filename),
+				outdated: folders.some((directory) => older.some((name) => has(directory, name))),
 			});
 		});
 		return result;
