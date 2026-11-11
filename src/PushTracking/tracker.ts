@@ -35,6 +35,7 @@ const workflowSchema = z.object({
 		id: z.number(),
 		workflow_id: z.number(),
 		name: z.string().nullish(),
+		path: z.string().nullish(),
 		head_sha: sha,
 		head_branch: z.string().nullish(),
 		event: z.string(),
@@ -73,7 +74,8 @@ export type RunJobs = (repo: string, run: number, attempt: number) => Promise<Ru
 /**
  * The shared `ci` workflows start with a gate job with the ID `changes`; on a docs-only push it
  * succeeds and skips every other job. GitHub still reports such a run as a success.
- * Reusable workflow jobs are named `<caller job> / <job>`.
+ * The Actions API lists job names, not IDs: the gate must have no `name:`, so that its name is its ID.
+ * Reusable workflow jobs are named `<caller job> / <job>`. Contract: docs/push-tracking.md.
  */
 const GATE = /(?:^|\/ )changes$/;
 export function docsOnly(jobs: RunJob[]): boolean {
@@ -175,7 +177,8 @@ export class PushTracker {
 			kind: "workflow",
 			key,
 			status,
-			detail: { name: run.name ?? "Workflow", url: run.html_url, attempt, run: run.id, ...(reason ? { reason } : {}) },
+			// `path` is the workflow file; unlike `name`, it survives a rename of the display name.
+			detail: { name: run.name ?? "Workflow", ...(run.path ? { path: run.path } : {}), url: run.html_url, attempt, run: run.id, ...(reason ? { reason } : {}) },
 		});
 	}
 

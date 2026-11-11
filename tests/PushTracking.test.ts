@@ -66,6 +66,7 @@ function runEvent(head: string, status: string, conclusion: string | null = null
 			id: 77,
 			workflow_id: 5,
 			name: "Build and publish",
+			path: ".github/workflows/publish.yml",
 			head_sha: head,
 			head_branch: "main",
 			event: "push",
@@ -157,7 +158,7 @@ test("a run whose gate skipped every other job is shown as a skipped docs-only p
 	await tracker.workflowRun(runEvent(sha(1), "in_progress"));
 	await tracker.workflowRun(runEvent(sha(1), "completed", "success"));
 	await tracker.flush();
-	assert.match(discord.messages.get("m1")!, /\n⏭️ CI · \[Build and publish\].* — skipped \(docs-only push\)$/);
+	assert.match(discord.messages.get("m1")!, /\n⏭️ CI · \[Build and publish\].* — skipped \(docs-only\)$/);
 	assert.equal(discord.colors.get("m1"), COLOR.skipped);
 	assert.deepEqual(lookups, [`${REPO}#77.1`], "Only successful runs are looked up");
 
@@ -357,6 +358,7 @@ test("late workflow events never replace a newer run, attempt or phase", async (
 	await tracker.workflowRun(runEvent(sha(1), "queued", null, { run_attempt: 2 }));
 	assert.equal((await stage()).status, "success");
 	assert.equal((await stage()).detail.attempt, 2);
+	assert.equal((await stage()).detail.path, ".github/workflows/publish.yml", "The workflow file is stored next to its display name");
 	await tracker.workflowRun(runEvent(sha(1), "queued", null, { run_attempt: 3 }));
 	assert.equal((await stage()).status, "queued", "A new attempt starts over");
 	await tracker.workflowRun(runEvent(sha(1), "completed", "success", { id: 70, run_attempt: 9 }));

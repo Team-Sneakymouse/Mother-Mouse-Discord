@@ -13,7 +13,9 @@ missed runs while offline. No LLM or external/Hermes cron is involved.
 - Prefer a fine-grained PAT owned by an account with access to Team-Sneakymouse,
   resource owner **Team-Sneakymouse**, **all repositories**, **Pull requests: Read
   and write** (write is needed for the Merge buttons), **Contents: Read and write**
-  (merging requires it) and the automatically included **Metadata: Read** permission. Obtain organization
+  (merging requires it), **Actions: Read** (push tracking lists a run's jobs to detect
+  docs-only runs, see [push-tracking.md](push-tracking.md#docs-only-runs)) and the
+  automatically included **Metadata: Read** permission. Obtain organization
   approval where required. A classic PAT needs `repo` for private repositories and
   SSO authorization if the organization requires it.
 - The bot enumerates every repository GitHub exposes to that token, including

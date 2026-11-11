@@ -66,6 +66,26 @@ event fills in its commits ("Waiting for push details from GitHub"). Repository
 names match case-insensitively; release versions carry 7-character hashes, which
 are matched as SHA prefixes.
 
+### Docs-only runs
+
+GitHub reports a run whose gate skipped all the work as a success. The bot shows it
+as `skipped (docs-only)` instead: for every successful run it lists the run's jobs
+(Actions API, `GITHUB_TOKEN`) and checks that the gate job succeeded and every other
+job was skipped. A failed lookup keeps the run's own result.
+
+The contract with the workflows (`Team-Sneakymouse/ci` `docker-deploy.yml` and
+`gradle-publish.yml`, and any workflow with its own gate, such as
+craftengine-resources' `candidate.yml` and `validate.yml`):
+
+- The gate job has the ID `changes` and **no `name:`**. The Actions API lists job
+  names, not IDs, so a `name:` or another ID turns docs-only skips into "success".
+- In a reusable workflow the job is listed as `<caller job> / changes`, which also
+  matches. Deeper nesting matches as long as the name ends in `/ changes`.
+- Every other job of the run is skipped when the gate says no.
+
+A push that starts no workflow at all (path filters, `paths-ignore`) gets no CI
+line and stays in the "pushed" color.
+
 Updates that match no tracked push still get a message. Reposilite uploads use
 their own per-upload message, as before. Watchtower updates of untracked images get
 a one-line "Updated container" message. If the database is unavailable, the
@@ -154,7 +174,12 @@ disabled.
   `version` / `rendered_version` counters. Every change increments `version`, and
   rows with `version > rendered_version` get rendered, so pending edits survive
   restarts.
-- `stages`: one row per push + kind + key, with status and details.
+- `stages`: one row per push + kind + key, with status and details. A workflow
+  stage's key is GitHub's `workflow_id`; its detail has `name` (the display name),
+  `path` (the workflow file, e.g. `.github/workflows/candidate.yml`; absent on rows
+  written before November 2026), `url`, `run`, `attempt` and, for docs-only runs,
+  `reason`. Readers that pick out a workflow should prefer `path`: it survives a
+  rename of the display name.
 
 Every insert into `pushes` and every change of its `version` (which every stage
 update also bumps) sends `NOTIFY discord_push_tracking` with the push ID as payload
@@ -172,6 +197,7 @@ failures are logged and also disable it.
 | `PGHOST`, `PGUSER`, `PGPASSWORD`, `PGDATABASE` | Database (already in `/MotherMouse`) |
 | `GITHUB_WEBHOOK_SECRET` | GitHub webhook secret |
 | `WATCHTOWER_WEBHOOK_TOKEN` | Bearer token in Watchtower's notification URL |
+| `GITHUB_TOKEN` | Lists a run's jobs for [docs-only runs](#docs-only-runs); needs **Actions: Read** ([github-pr-status.md](github-pr-status.md#configuration-and-permissions)). Without it they show as success |
 | `GIT_SHA` | Set by CI at build time; nothing to configure |
 
 The bot posts in the same thread as before, with the same permissions.
