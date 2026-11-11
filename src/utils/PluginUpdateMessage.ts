@@ -6,11 +6,30 @@ export type UpdateState = {
 	server?: { identifier: string; name: string };
 	stage: "servers" | "select" | "upload";
 	page: number;
-	selected: string[];
+	selected: Release[];
 	completed: { id: string }[];
 };
+/** The version shown when the release was selected. Messages from before versions were pinned have none and upload the latest. */
+export type Release = { id: string; version?: string };
 export const PREFIX = "plugin-update:";
 const artifactId = /^[A-Za-z0-9_][A-Za-z0-9_.+-]{0,99}$/;
+const mavenVersion = /^[A-Za-z0-9_][A-Za-z0-9_.+-]{0,99}$/;
+
+/** Menu option value. Neither part can contain "@"; Discord caps values at 100 characters, so longer pairs stay unpinned. */
+export function optionValue(release: Release): string {
+	const value = release.version ? `${release.id}@${release.version}` : release.id;
+	return value.length <= 100 ? value : release.id;
+}
+
+export function parseOptionValue(value: string): Release {
+	const [id, version, ...rest] = value.split("@");
+	if (rest.length || !artifactId.test(id) || (version !== undefined && !mavenVersion.test(version))) throw new Error("Invalid release option");
+	return version === undefined ? { id } : { id, version };
+}
+
+function releaseLine(release: Release, done: boolean): string {
+	return `${done ? "✅ " : ""}\`${release.id}${release.version ? ` ${release.version}` : ""}\``;
+}
 
 export function customId(state: UpdateState, action: string): string {
 	return `${PREFIX}${state.owner}:${state.server?.identifier ?? "-"}:${state.stage}:${state.page}:${action}`;
@@ -27,14 +46,15 @@ export function readState(message: Pick<Message, "components" | "embeds">): Upda
 		.flatMap((row) => (row.type === ComponentType.ActionRow ? row.components : []))
 		.flatMap((component) => ("customId" in component && component.customId?.startsWith(PREFIX) ? [component.customId] : []));
 	const route = parseRoute(ids[0] ?? "");
-	const selected: string[] = [];
+	const selected: Release[] = [];
 	const completed: UpdateState["completed"] = [];
 	for (const field of message.embeds[0]?.fields ?? []) {
 		if (field.name === "Releases") {
 			for (const line of field.value.split("\n")) {
-				const match = /^(✅ )?`([^`]+)`$/.exec(line);
-				if (!match || !artifactId.test(match[2])) throw new Error("Invalid release in deployment message");
-				selected.push(match[2]);
+				const match = /^(✅ )?`([^` ]+)(?: ([^` ]+))?`$/.exec(line);
+				if (!match || !artifactId.test(match[2]) || (match[3] !== undefined && !mavenVersion.test(match[3])))
+					throw new Error("Invalid release in deployment message");
+				selected.push(match[3] === undefined ? { id: match[2] } : { id: match[2], version: match[3] });
 				if (match[1]) completed.push({ id: match[2] });
 			}
 		} else if (field.name === "Selected releases") {
@@ -42,7 +62,7 @@ export function readState(message: Pick<Message, "components" | "embeds">): Upda
 			for (const line of field.value.split("\n")) {
 				const id = line.replace(/^`|`$/g, "");
 				if (!artifactId.test(id)) throw new Error("Invalid selected artifact in deployment message");
-				selected.push(id);
+				selected.push({ id });
 			}
 		} else if (field.name === "Uploaded releases") {
 			for (const line of field.value.split("\n")) {
@@ -52,7 +72,9 @@ export function readState(message: Pick<Message, "components" | "embeds">): Upda
 			}
 		}
 	}
-	if (new Set(selected).size !== selected.length || completed.some((item) => !selected.includes(item.id))) throw new Error("Invalid deployment selection");
+	const selectedIds = selected.map((release) => release.id);
+	if (new Set(selectedIds).size !== selectedIds.length || completed.some((item) => !selectedIds.includes(item.id)))
+		throw new Error("Invalid deployment selection");
 	return {
 		owner: route.owner,
 		stage: route.stage,
@@ -78,8 +100,8 @@ function fields(name: string, lines: string[]) {
 	return result;
 }
 
-export function pending(state: UpdateState): string[] {
-	return state.selected.filter((id) => !state.completed.some((item) => item.id === id));
+export function pending(state: UpdateState): Release[] {
+	return state.selected.filter((release) => !state.completed.some((item) => item.id === release.id));
 }
 
 function presenceLabel(presence: Presence | undefined): { text: string; emoji?: string } {
@@ -99,9 +121,9 @@ export function renderState(
 	status?: string,
 	presence: Map<string, Presence> = new Map(),
 ) {
-	// Reserve a completion marker, backticks and a newline for every selected ID.
+	// Reserve a completion marker, backticks, a space and a newline for every selected release.
 	// Leave room for the embed title, description and field names within 6,000 characters.
-	if (state.selected.reduce((size, id) => size + id.length + 5, 0) > 5000)
+	if (state.selected.reduce((size, release) => size + release.id.length + (release.version?.length ?? 0) + 6, 0) > 5000)
 		throw new Error("Too many selected releases for one Discord message. Deploy them in separate batches.");
 	const embed = new EmbedBuilder()
 		.setTitle(state.server ? `Server: ${state.server.name}`.slice(0, 256) : "Minecraft release deployment")
@@ -109,7 +131,12 @@ export function renderState(
 		.addFields(
 			...fields(
 				"Releases",
-				state.selected.map((id) => `${state.completed.some((item) => item.id === id) ? "✅ " : ""}\`${id}\``),
+				state.selected.map((release) =>
+					releaseLine(
+						release,
+						state.completed.some((item) => item.id === release.id),
+					),
+				),
 			),
 		);
 	const controls = new ActionRowBuilder<ButtonBuilder>();
@@ -143,10 +170,10 @@ export function renderState(
 							const marker = presenceLabel(presence.get(artifact.id));
 							return {
 								label: artifact.id,
-								value: artifact.id,
+								value: optionValue(artifact),
 								// The marker comes before the types so long versions do not truncate it.
 								description: `${artifact.version}${marker.text} · ${artifact.types.join(", ")}`.slice(0, 100),
-								default: state.selected.includes(artifact.id),
+								default: state.selected.some((release) => release.id === artifact.id),
 								...(marker.emoji ? { emoji: { name: marker.emoji } } : {}),
 							};
 						}),
@@ -174,14 +201,16 @@ export function renderState(
 					.setStyle(ButtonStyle.Primary)
 					.setDisabled(!state.selected.length),
 			);
-		content = `${status ?? (state.stage === "select" ? `${state.selected.length} selected. Latest releases will be uploaded; older copies in the destination will be removed. No restart.` : content)}\nPage ${state.page + 1}/${pages}`;
+		content = `${status ?? (state.stage === "select" ? `${state.selected.length} selected. The listed versions will be uploaded; older copies in the destination will be removed. No restart.` : content)}\nPage ${state.page + 1}/${pages}`;
 	}
 	controls.addComponents(new ButtonBuilder().setCustomId(customId(state, "reset")).setLabel("Reset").setStyle(ButtonStyle.Secondary));
 	if (controls.components.length) components.push(controls);
 	return { content, embeds: [embed], components, allowedMentions: { parse: [] as never[] } };
 }
 
+/** `displayed` and `values` are menu option values, which pin the version shown in the menu. */
 export function selectArtifacts(state: UpdateState, displayed: string[], values: string[]): void {
-	if (values.some((id) => !displayed.includes(id))) throw new Error("Selection does not match this menu");
-	state.selected = [...state.selected.filter((id) => !displayed.includes(id)), ...values];
+	if (values.some((value) => !displayed.includes(value))) throw new Error("Selection does not match this menu");
+	const shown = displayed.map((value) => parseOptionValue(value).id);
+	state.selected = [...state.selected.filter((release) => !shown.includes(release.id)), ...values.map(parseOptionValue)];
 }

@@ -15,7 +15,7 @@ import {
 } from "discord.js";
 import { PluginUpdatesController } from "../src/PluginUpdates.ts";
 import { type Artifact, type PluginDeployment } from "../src/utils/PluginDeployment.ts";
-import { customId, pending, readState, renderState, selectArtifacts, type UpdateState } from "../src/utils/PluginUpdateMessage.ts";
+import { customId, optionValue, pending, readState, renderState, selectArtifacts, type UpdateState } from "../src/utils/PluginUpdateMessage.ts";
 
 // discord.js types these constructors as private, but the tests need real instances.
 const rowData = (row: { toJSON(): unknown }) => row.toJSON() as APIActionRowComponent<APIComponentInMessageActionRow>;
@@ -33,6 +33,9 @@ const artifacts: Artifact[] = Array.from({ length: 30 }, (_, index) => ({
 	url: "https://example.test/plugin.jar",
 }));
 const backend = { identifier: "abcdefgh", name: "Test server", description: "Lords of Minecraft" };
+/** Releases pinned to the version the test catalog shows. */
+const pinned = (...ids: string[]) => ids.map((id) => ({ id, version: "2026.10.12" }));
+const pendingIds = (selection: UpdateState) => pending(selection).map((release) => release.id);
 function state(): UpdateState {
 	return { owner, server: { identifier: "abcdefgh", name: "Test server" }, stage: "select", page: 0, selected: [], completed: [] };
 }
@@ -131,7 +134,7 @@ for (const stage of ["servers", "select", "upload", "finished"] as const) {
 		const selection = state();
 		selection.stage = stage === "finished" ? "upload" : stage;
 		selection.page = 1;
-		selection.selected = ["Plugin0", "Plugin1"];
+		selection.selected = pinned("Plugin0", "Plugin1");
 		selection.completed = [{ id: "Plugin0" }];
 		if (stage === "finished") selection.completed.push({ id: "Plugin1" });
 		const servers = Array.from({ length: 30 }, (_, index) => ({ identifier: `server${index}`, name: `Server ${index}` }));
@@ -161,7 +164,7 @@ for (const failure of ["empty", "error"]) {
 	test(`reset preserves deployment progress when refreshed server lookup is ${failure}`, async () => {
 		const selection = state();
 		selection.stage = "upload";
-		selection.selected = ["Plugin0", "Plugin1"];
+		selection.selected = pinned("Plugin0", "Plugin1");
 		selection.completed = [{ id: "Plugin0" }];
 		const target = message(renderState(selection));
 		const service = {
@@ -180,18 +183,18 @@ for (const failure of ["empty", "error"]) {
 
 test("selection and completed uploads survive a message round trip without process state", () => {
 	const original = state();
-	original.selected = ["Plugin0", "Plugin27"];
+	original.selected = pinned("Plugin0", "Plugin27");
 	original.page = 1;
 	original.completed = [{ id: "Plugin0" }];
 	const restored = readState(message(renderState(original, [], artifacts)).result);
 	assert.deepEqual(restored, original);
-	assert.deepEqual(pending(restored), ["Plugin27"]);
+	assert.deepEqual(pendingIds(restored), ["Plugin27"]);
 });
 
 test("retry migrates an existing deployment message and skips its recorded successes", async () => {
 	const selection = state();
 	selection.stage = "upload";
-	selection.selected = ["Plugin0", "Plugin1"];
+	selection.selected = pinned("Plugin0", "Plugin1");
 	const target = message(renderState(selection));
 	target.result.embeds = [
 		makeEmbed({
@@ -202,7 +205,7 @@ test("retry migrates an existing deployment message and skips its recorded succe
 			],
 		}),
 	];
-	assert.deepEqual(pending(readState(target.result)), ["Plugin1"]);
+	assert.deepEqual(pendingIds(readState(target.result)), ["Plugin1"]);
 	const deployed: string[] = [];
 	const service = {
 		async deploy(_server: string, id: string) {
@@ -214,36 +217,86 @@ test("retry migrates an existing deployment message and skips its recorded succe
 	await new PluginUpdatesController(() => service).component(event.interaction);
 	assert.deepEqual(event.replies, []);
 	assert.deepEqual(deployed, ["Plugin1"]);
-	assert.deepEqual(pending(readState(target.result)), []);
+	assert.deepEqual(pendingIds(readState(target.result)), []);
 	assert.deepEqual(target.result.embeds[0].fields, [{ name: "Releases", value: "✅ `Plugin0`\n✅ `Plugin1`" }]);
 });
 
 test("selections across pages use displayed artifact IDs when the catalog changes", () => {
 	const selection = state();
-	selectArtifacts(selection, ["Plugin0", "Plugin1"], ["Plugin1"]);
-	selectArtifacts(selection, ["Plugin25", "Plugin26"], ["Plugin26"]);
-	selectArtifacts(selection, ["Plugin0", "Plugin1"], []);
-	assert.deepEqual(selection.selected, ["Plugin26"]);
-	assert.throws(() => selectArtifacts(selection, ["Plugin0"], ["Unexpected"]), /does not match/);
+	selectArtifacts(selection, ["Plugin0@1.0", "Plugin1@1.0"], ["Plugin1@1.0"]);
+	selectArtifacts(selection, ["Plugin25@1.0", "Plugin26@1.0"], ["Plugin26@1.0"]);
+	selectArtifacts(selection, ["Plugin0@2.0", "Plugin1@2.0"], []);
+	assert.deepEqual(selection.selected, [{ id: "Plugin26", version: "1.0" }]);
+	assert.throws(() => selectArtifacts(selection, ["Plugin0@1.0"], ["Unexpected@1.0"]), /does not match/);
+});
+
+test("selections pin the version shown in the menu, even after a newer release appears", () => {
+	const selection = state();
+	selectArtifacts(selection, ["Plugin0@2026.10.10-55ed6ac7430e"], ["Plugin0@2026.10.10-55ed6ac7430e"]);
+	// Selecting on another page keeps the pin; reselecting the same plugin from a newer menu replaces it.
+	selectArtifacts(selection, ["Plugin25@1.0"], ["Plugin25@1.0"]);
+	assert.deepEqual(selection.selected, [
+		{ id: "Plugin0", version: "2026.10.10-55ed6ac7430e" },
+		{ id: "Plugin25", version: "1.0" },
+	]);
+	selectArtifacts(selection, ["Plugin0@2026.10.11-aaaaaaaaaaaa"], ["Plugin0@2026.10.11-aaaaaaaaaaaa"]);
+	assert.deepEqual(
+		selection.selected.find((release) => release.id === "Plugin0"),
+		{ id: "Plugin0", version: "2026.10.11-aaaaaaaaaaaa" },
+	);
+});
+
+test("option values fall back to the plugin ID when the pinned value exceeds Discord's limit", () => {
+	assert.equal(optionValue({ id: "Plugin0", version: "1.0" }), "Plugin0@1.0");
+	assert.equal(optionValue({ id: "P".repeat(60), version: "1".repeat(40) }), "P".repeat(60));
+	assert.equal(optionValue({ id: "Plugin0" }), "Plugin0");
+});
+
+test("the deployment message lists each release with its pinned version", () => {
+	const selection = state();
+	selection.stage = "upload";
+	selection.selected = [{ id: "Plugin0", version: "2026.10.10-55ed6ac7430e" }, { id: "Plugin1" }];
+	selection.completed = [{ id: "Plugin0" }];
+	const target = message(renderState(selection));
+	assert.deepEqual(target.result.embeds[0].fields, [{ name: "Releases", value: "✅ `Plugin0 2026.10.10-55ed6ac7430e`\n`Plugin1`" }]);
+	assert.deepEqual(readState(target.result), selection);
+});
+
+test("uploads deploy the pinned versions", async () => {
+	const selection = state();
+	selection.selected = [{ id: "Plugin0", version: "2026.10.10-55ed6ac7430e" }, { id: "Plugin1" }];
+	const target = message(renderState(selection, [], artifacts));
+	const calls: unknown[] = [];
+	const service = {
+		async deploy(server: string, id: string, options: unknown) {
+			calls.push([server, id, options]);
+			return artifacts[0];
+		},
+	} as unknown as PluginDeployment;
+	await new PluginUpdatesController(() => service).component(click(target.result, customId(selection, "upload")).interaction);
+	assert.deepEqual(calls, [
+		["abcdefgh", "Plugin0", { version: "2026.10.10-55ed6ac7430e" }],
+		["abcdefgh", "Plugin1", { version: undefined }],
+	]);
 });
 
 test("a new controller continues an old message and preserves selections while paging", async () => {
 	const selection = state();
-	selection.selected = ["Plugin0"];
+	selection.selected = pinned("Plugin0");
 	const target = message(renderState(selection, [], artifacts));
 	const service = { servers: async () => [backend], catalog: async () => ({ artifacts, failures: [] }) } as unknown as PluginDeployment;
 	await new PluginUpdatesController(() => service).component(click(target.result, customId(selection, "next")).interaction);
 	const restored = readState(target.result);
 	assert.equal(restored.page, 1);
-	assert.deepEqual(restored.selected, ["Plugin0"]);
-	await new PluginUpdatesController(() => service).component(click(target.result, customId(restored, "artifacts"), ["Plugin28"]).interaction);
-	assert.deepEqual(readState(target.result).selected, ["Plugin0", "Plugin28"]);
+	assert.deepEqual(restored.selected, pinned("Plugin0"));
+	await new PluginUpdatesController(() => service).component(click(target.result, customId(restored, "artifacts"), ["Plugin28@2026.10.12"]).interaction);
+	assert.deepEqual(readState(target.result).selected, pinned("Plugin0", "Plugin28"));
 });
 
 test("retry skips recorded successes and persists each new success before starting the next upload", async () => {
 	const selection = state();
 	selection.stage = "upload";
-	selection.selected = ["Plugin0", "Plugin1", "Plugin2"];
+	selection.selected = pinned("Plugin0", "Plugin1", "Plugin2");
 	selection.completed = [{ id: "Plugin0" }];
 	const target = message(renderState(selection));
 	const deployed: string[] = [];
@@ -258,12 +311,12 @@ test("retry skips recorded successes and persists each new success before starti
 	await new PluginUpdatesController(() => service).component(click(target.result, customId(selection, "retry")).interaction);
 	assert.deepEqual(deployed, ["Plugin1", "Plugin2"]);
 	assertResetControl(target.result);
-	assert.ok(target.result.embeds[0].fields.some((field) => field.value.includes("✅ `Plugin1`")));
+	assert.ok(target.result.embeds[0].fields.some((field) => field.value.includes("✅ `Plugin1 2026.10.12`")));
 });
 
 test("failed releases remain retryable after a new controller is created", async () => {
 	const selection = state();
-	selection.selected = ["Plugin0", "Plugin1"];
+	selection.selected = pinned("Plugin0", "Plugin1");
 	const target = message(renderState(selection, [], artifacts));
 	const first = {
 		async deploy(_server: string, id: string) {
@@ -274,7 +327,7 @@ test("failed releases remain retryable after a new controller is created", async
 	const initialClick = click(target.result, customId(selection, "upload"));
 	await new PluginUpdatesController(() => first).component(initialClick.interaction);
 	const restored = readState(target.result);
-	assert.deepEqual(pending(restored), ["Plugin1"]);
+	assert.deepEqual(pendingIds(restored), ["Plugin1"]);
 	assert.equal(initialClick.replies[0].flags, 64);
 	const deployed: string[] = [];
 	const second = {
@@ -290,7 +343,7 @@ test("failed releases remain retryable after a new controller is created", async
 test("retry after an upload but before recording success repeats that artifact", async () => {
 	const selection = state();
 	selection.stage = "upload";
-	selection.selected = ["Plugin0"];
+	selection.selected = pinned("Plugin0");
 	const target = message(renderState(selection, [], [], "Uploading Plugin0…"));
 	let calls = 0;
 	const service = {
@@ -306,12 +359,12 @@ test("retry after an upload but before recording success repeats that artifact",
 
 test("failure to persist an upload stops the batch and the next controller retries the unrecorded upload", async () => {
 	const selection = state();
-	selection.selected = ["Plugin0", "Plugin1"];
+	selection.selected = pinned("Plugin0", "Plugin1");
 	const target = message(renderState(selection, [], artifacts));
 	const edit = target.result.edit.bind(target.result);
 	let failSave = true;
 	(target.result as any).edit = async (payload: ReturnType<typeof renderState>) => {
-		if (failSave && payload.embeds[0].toJSON().fields?.some((field) => field.value.includes("✅ `Plugin0`"))) {
+		if (failSave && payload.embeds[0].toJSON().fields?.some((field) => field.value.includes("✅ `Plugin0 2026.10.12`"))) {
 			failSave = false;
 			throw new Error("Discord write failed");
 		}
@@ -327,7 +380,7 @@ test("failure to persist an upload stops the batch and the next controller retri
 	await new PluginUpdatesController(() => service).component(click(target.result, customId(selection, "upload")).interaction);
 	assert.deepEqual(deployed, ["Plugin0"]);
 	const restored = readState(target.result);
-	assert.deepEqual(pending(restored), ["Plugin0", "Plugin1"]);
+	assert.deepEqual(pendingIds(restored), ["Plugin0", "Plugin1"]);
 	await new PluginUpdatesController(() => service).component(click(target.result, customId(restored, "retry")).interaction);
 	assert.deepEqual(deployed, ["Plugin0", "Plugin0", "Plugin1"]);
 });
@@ -394,7 +447,7 @@ for (const action of ["server", "reset"]) {
 test("a stale click cannot overwrite a freshly changed message", async () => {
 	const selection = state();
 	const stale = message(renderState(selection, [], artifacts));
-	const updated = message(renderState({ ...selection, selected: ["Plugin0"] }, [], artifacts));
+	const updated = message(renderState({ ...selection, selected: pinned("Plugin0") }, [], artifacts));
 	(stale.result as any).fetch = async () => updated.result;
 	const event = click(stale.result, customId(selection, "artifacts"), ["Plugin1"]);
 	await new PluginUpdatesController().component(event.interaction);
@@ -427,7 +480,7 @@ for (const change of ["content", "route", "options", "disabled"]) {
 
 test("a fetch that mutates cached embed fields still detects a stale click", async () => {
 	const selection = state();
-	selection.selected = ["Plugin0"];
+	selection.selected = pinned("Plugin0");
 	const target = message(renderState(selection, [], artifacts));
 	target.result.fetch = async () => {
 		target.result.embeds[0].fields[0].value = "`Plugin1`";
@@ -441,7 +494,7 @@ test("a fetch that mutates cached embed fields still detects a stale click", asy
 
 test("message lock rejects concurrent retries and server lock rejects another message's upload", async () => {
 	const selection = state();
-	selection.selected = ["Plugin0"];
+	selection.selected = pinned("Plugin0");
 	const target = message(renderState(selection, [], artifacts));
 	let release!: () => void;
 	let started!: () => void;
@@ -500,7 +553,7 @@ for (const guildId of ["foreign-guild", null]) {
 for (const denied of ["other non-admin", "other admin", "foreign guild", "forged author"]) {
 	test(`persistent controls reject ${denied} before side effects`, async () => {
 		const selection = state();
-		selection.selected = ["Plugin0"];
+		selection.selected = pinned("Plugin0");
 		const target = message(renderState(selection, [], artifacts));
 		const otherUser = denied.startsWith("other");
 		const event = click(target.result, customId(selection, "upload"), [], otherUser ? "999999999999999999" : owner, {
@@ -519,10 +572,10 @@ for (const denied of ["other non-admin", "other admin", "foreign guild", "forged
 
 test("Discord component IDs and persisted embed fields stay within API limits", () => {
 	const selection = state();
-	// 250 IDs of 15 characters each exactly fill the 5,000-character reserved budget.
-	selection.selected = Array.from({ length: 250 }, (_, index) => `PluginName${String(index).padStart(5, "0")}`);
+	// 125 releases with 14-character IDs and 20-character versions exactly fill the 5,000-character reserved budget.
+	selection.selected = Array.from({ length: 125 }, (_, index) => ({ id: `PluginName${String(index).padStart(4, "0")}`, version: "2026.10.10-55ed6ac74" }));
 	assert.deepEqual(readState(message(renderState(selection, [], artifacts)).result), selection);
-	selection.completed = selection.selected.map((id) => ({ id }));
+	selection.completed = selection.selected.map(({ id }) => ({ id }));
 	const rendered = renderState(selection, [], artifacts);
 	const embed = rendered.embeds[0].toJSON();
 	assert.ok(embed.fields!.every((field) => field.value.length <= 1024));
@@ -533,7 +586,7 @@ test("Discord component IDs and persisted embed fields stay within API limits", 
 			if ("custom_id" in component) assert.ok(component.custom_id!.length <= 100);
 		}
 	assert.deepEqual(readState(message(rendered).result), selection);
-	assert.throws(() => renderState({ ...selection, selected: [...selection.selected, "OneMore"] }, [], artifacts), /separate batches/);
+	assert.throws(() => renderState({ ...selection, selected: [...selection.selected, { id: "OneMore" }] }, [], artifacts), /separate batches/);
 });
 
 test("the release menu only offers releases compatible with the selected server", async () => {
@@ -558,7 +611,7 @@ test("the release menu only offers releases compatible with the selected server"
 		const menu = target.edits.at(-1)!.components[0].toJSON() as any;
 		assert.deepEqual(
 			menu.components[0].options.map((option: { value: string }) => option.value),
-			expected,
+			expected.map((id) => `${id}@2026.10.12`),
 		);
 	}
 });
@@ -581,7 +634,7 @@ test("release options mark exact versions installed or staged, older versions an
 			return presence;
 		},
 	} as unknown as PluginDeployment;
-	const event = click(target.result, customId(state(), "artifacts"), ["Plugin3"]);
+	const event = click(target.result, customId(state(), "artifacts"), ["Plugin3@2026.10.12"]);
 	await new PluginUpdatesController(() => service).component(event.interaction);
 	assert.deepEqual(event.replies, []);
 	assert.equal(checked[0].length, artifacts.length);

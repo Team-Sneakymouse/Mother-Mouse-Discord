@@ -179,10 +179,10 @@ export class PluginUpdatesController {
 			await message.edit(
 				renderState(state, [], [], "Uploading releases. Retry remaining becomes available after an interruption; no server restart is performed."),
 			);
-			for (const id of pending(state)) {
+			for (const { id, version } of pending(state)) {
 				await message.edit(renderState(state, [], [], `Uploading **${id}** (${state.completed.length}/${state.selected.length} completed)…`));
 				try {
-					await service.deploy(server, id);
+					await service.deploy(server, id, { version });
 				} catch (error) {
 					await this.error(interaction, new Error(`${id}: ${error instanceof Error ? error.message : "Unexpected error"}`));
 					continue;
