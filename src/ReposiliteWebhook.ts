@@ -8,6 +8,9 @@ import { type ArtifactSource, type Deployment, isProxy, PluginDeployment, type S
 
 export const DEV_UPDATE_THREAD = "1561330944395313255";
 export const DEV_SCOPE = ["Lords of Minecraft", "Dev Server"];
+export const RESOURCEBUILDER_SCOPE = ["Lords of Minecraft", "Resource Builder"];
+/** Resource builders only receive these Paper plugins (exact artifact IDs). */
+export const RESOURCEBUILDER_PLUGINS = ["sneakydb", "SneakyResourceOps"];
 const eventSchema = z.object({
 	event: z.literal("artifact.uploaded"),
 	schemaVersion: z.literal(1),
@@ -24,7 +27,8 @@ export type WebhookJob = {
 	status: string;
 	attempts: number;
 	next_attempt: string;
-	targets: Pick<Server, "identifier" | "name">[] | null;
+	/** `scope` is re-checked against the client API description right before each upload. */
+	targets: (Pick<Server, "identifier" | "name"> & { scope: string[] })[] | null;
 	completed: string[];
 	notified: boolean;
 	last_error: string;
@@ -147,7 +151,7 @@ export class ReposiliteWorker {
 					await this.report(
 						job,
 						"running",
-						`Automatic deployment of \`${job.payload.path}\` is waiting to retry (attempt ${attempts}/12). ${job.completed.length}/${job.targets?.length ?? "?"} dev server(s) completed.`,
+						`Automatic deployment of \`${job.payload.path}\` is waiting to retry (attempt ${attempts}/12). ${job.completed.length}/${job.targets?.length ?? "?"} server(s) completed.`,
 					);
 				}
 			}
@@ -170,7 +174,15 @@ export class ReposiliteWorker {
 			return;
 		}
 		if (job.targets === null) {
-			job.targets = (await service.servers(DEV_SCOPE)).filter((server) => !isProxy(server)).map(({ identifier, name }) => ({ identifier, name }));
+			const targets = new Map<string, NonNullable<WebhookJob["targets"]>[number]>();
+			const add = (servers: Server[], scope: string[]) => {
+				for (const { identifier, name, description } of servers)
+					if (!isProxy({ description }) && !targets.has(identifier)) targets.set(identifier, { identifier, name, scope });
+			};
+			add(await service.servers(DEV_SCOPE), DEV_SCOPE);
+			if (RESOURCEBUILDER_PLUGINS.includes(uploaded.id) && artifact.types.includes("paper-plugin"))
+				add(await service.servers(RESOURCEBUILDER_SCOPE), RESOURCEBUILDER_SCOPE);
+			job.targets = [...targets.values()];
 			await this.store.update(job.id, { targets: job.targets });
 		}
 		if (job.source === undefined) {
@@ -183,7 +195,7 @@ export class ReposiliteWorker {
 			await this.report(
 				job,
 				"running",
-				`Deploying **${uploaded.id}** \`${uploaded.version}\` (${artifact.types.join(", ")}) to ${job.targets.length} dev server(s).`,
+				`Deploying **${uploaded.id}** \`${uploaded.version}\` (${artifact.types.join(", ")}) to ${job.targets.length} server(s).`,
 			);
 		}
 		const subject = await this.subject(job);
@@ -198,7 +210,7 @@ export class ReposiliteWorker {
 			try {
 				let deployed: Deployment;
 				try {
-					deployed = await service.deploy(server.identifier, uploaded.id, { version: uploaded.version, scope: DEV_SCOPE });
+					deployed = await service.deploy(server.identifier, uploaded.id, { version: uploaded.version, scope: server.scope });
 				} catch (error) {
 					failures.push(`${server.name}: ${error instanceof Error ? error.message : "Unexpected error"}`);
 					continue;
@@ -221,7 +233,7 @@ export class ReposiliteWorker {
 			job.targets.length ? "success" : "skipped",
 			job.targets.length
 				? `Uploaded **${uploaded.id}** \`${uploaded.version}\` to ${job.targets.map((server) => server.name).join(", ")}.`
-				: `Skipped **${uploaded.id}** \`${uploaded.version}\`: no matching dev servers.`,
+				: `Skipped **${uploaded.id}** \`${uploaded.version}\`: no matching servers.`,
 		);
 	}
 	/** Lookup failures only cost the in-game announcement its commit subject. */

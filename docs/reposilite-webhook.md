@@ -22,8 +22,11 @@ Dual-platform artifacts are still deployed to Paper dev servers.
 
 Targets must contain both case-sensitive phrases `Lords of Minecraft` and
 `Dev Server` in their application API description. Servers that also contain
-`Proxy` are never automatic targets. The client API description is
-checked again immediately before each upload. Paper plugins that already have a
+`Proxy` are never automatic targets. Paper plugins `sneakydb` and
+`SneakyResourceOps` (exact, case-sensitive artifact IDs) additionally go to
+servers whose description contains `Lords of Minecraft` and `Resource Builder`;
+no other artifact is deployed to those automatically. The client API description is
+checked again, against the phrases that selected the server, immediately before each upload. Paper plugins that already have a
 published JAR in `plugins/` go to `plugins/.update/`, because Paper only applies
 staged updates for installed plugins. Plugins that are not installed yet go
 straight into `plugins/`, and any staged copies of them in `plugins/.update/` are

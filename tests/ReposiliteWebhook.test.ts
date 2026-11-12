@@ -9,6 +9,8 @@ import {
 	DEV_SCOPE,
 	type EventStore,
 	MemoryEventStore,
+	RESOURCEBUILDER_PLUGINS,
+	RESOURCEBUILDER_SCOPE,
 	registerReposiliteRoute,
 	ReposiliteWorker,
 	type UploadEvent,
@@ -241,6 +243,40 @@ test("Velocity plugins are not deployed automatically and proxies are never auto
 		backend.calls.map((call) => call.server),
 		["dev-one"],
 	);
+});
+
+test("resource builders only receive the allowlisted Paper plugins, with their own deployment scope", async () => {
+	const servers = async (scope: string[]) =>
+		scope === RESOURCEBUILDER_SCOPE
+			? [
+					{ identifier: "builder", name: "Builder", description: "Lords of Minecraft Resource Builder" },
+					{ identifier: "dev-one", name: "Dev one", description: "Lords of Minecraft Dev Server Resource Builder" },
+					{ identifier: "builder-proxy", name: "Builder proxy", description: "Lords of Minecraft Resource Builder Proxy" },
+				]
+			: [{ identifier: "dev-one", name: "Dev one", description: "Lords of Minecraft Dev Server" }];
+	const run = async (id: string, types: string[]) => {
+		const store = memoryStore();
+		await store.accept({ ...event, path: `io/github/team-sneakymouse/${id}/1.0/${id}-1.0.jar` });
+		const backend = fakeService();
+		backend.service.artifact = async () => ({ types }) as any;
+		backend.service.servers = servers as any;
+		await new ReposiliteWorker(
+			store,
+			() => backend.service as unknown as PluginDeployment,
+			async () => {},
+			() => now,
+		).tick();
+		assert.equal(store.jobs[0].status, "completed");
+		return backend.calls.map((call) => ({ server: call.server, scope: (call.options as { scope: string[] }).scope }));
+	};
+	for (const id of RESOURCEBUILDER_PLUGINS)
+		assert.deepEqual(await run(id, ["paper-plugin"]), [
+			{ server: "dev-one", scope: DEV_SCOPE },
+			{ server: "builder", scope: RESOURCEBUILDER_SCOPE },
+		]);
+	assert.deepEqual(await run("Example", ["paper-plugin"]), [{ server: "dev-one", scope: DEV_SCOPE }]);
+	assert.deepEqual(await run("sneakydb", ["ignite-mod"]), [{ server: "dev-one", scope: DEV_SCOPE }]);
+	assert.deepEqual(await run("SneakyDB", ["paper-plugin"]), [{ server: "dev-one", scope: DEV_SCOPE }]);
 });
 
 test("missing POM is retried later and unsupported deployment properties are ignored", async () => {
@@ -483,7 +519,7 @@ test("each uploaded version gets one thread message edited across retries and ne
 	assert.equal(discord.sent.length, 1);
 	assert.equal(discord.thread.archived, false);
 	assert.deepEqual(discord.sent[0].allowedMentions, { parse: [] });
-	assert.match(discord.edits.at(-1)!.content, /waiting to retry.*1\/2 dev server/);
+	assert.match(discord.edits.at(-1)!.content, /waiting to retry.*1\/2 server/);
 	assert.equal(store.jobs[0].message_id, "message-1");
 	store.jobs[0].next_attempt = new Date(now).toISOString();
 	fail = false;
@@ -543,7 +579,7 @@ test("terminal failure edits the existing message, and no matching servers do no
 		() => now,
 	).tick();
 	assert.equal(store.jobs[1].status, "completed");
-	assert.match(discord.edits.at(-1)?.content ?? discord.sent.at(-1)!.content, /Skipped.*no matching dev servers/);
+	assert.match(discord.edits.at(-1)?.content ?? discord.sent.at(-1)!.content, /Skipped.*no matching servers/);
 });
 
 test("deleted update messages are replaced while transient edit failures never create duplicates", async () => {
