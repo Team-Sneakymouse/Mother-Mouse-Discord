@@ -1,1 +1,5 @@
+# Store text as LF and check it out as LF on every OS.
+* text=auto eol=lf
 docker-entrypoint.sh text eol=lf
+*.bat text eol=crlf
+*.cmd text eol=crlf
