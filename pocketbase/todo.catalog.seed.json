@@ -278,16 +278,7 @@
 		},
 		{
 			"name": "Bungo",
-			"labels": [
-				"BubbleChat",
-				"SlashMe",
-				"SneakyVoiceChat",
-				"SneakyAIController",
-				"SneakyCellPhones",
-				"SneakySTTEvents",
-				"SneakyVaults",
-				"SneakyEntityTweaks"
-			],
+			"labels": ["BubbleChat", "SlashMe", "SneakyVoiceChat", "SneakyAIController", "SneakyCellPhones", "SneakySTTEvents", "SneakyVaults", "SneakyEntityTweaks"],
 			"child_groups": [],
 			"assigned_user_id": "146065389460127745"
 		},

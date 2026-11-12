@@ -26,7 +26,10 @@ Targets must contain both case-sensitive phrases `Lords of Minecraft` and
 `SneakyResourceOps` (exact, case-sensitive artifact IDs) additionally go to
 servers whose description contains `Lords of Minecraft` and `Resource Builder`;
 no other artifact is deployed to those automatically. The client API description is
-checked again, against the phrases that selected the server, immediately before each upload. Paper plugins that already have a
+checked again, against the phrases that selected the server, immediately before each upload.
+Before adding or changing a scope, check it against the panel's real descriptions with
+`bun tools/TestPelicanServers.ts`. It reads the Pelican credentials from a local `.env`,
+so it runs on a developer machine only, never in CI or tests. Paper plugins that already have a
 published JAR in `plugins/` go to `plugins/.update/`, because Paper only applies
 staged updates for installed plugins. Plugins that are not installed yet go
 straight into `plugins/`, and any staged copies of them in `plugins/.update/` are

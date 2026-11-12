@@ -1,0 +1,27 @@
+name: Check
+
+permissions:
+  contents: read
+
+# Docs-only pushes start no run here, so push tracking's docs-only detection
+# (docs/push-tracking.md#docs-only-runs) still sees only the deploy workflow's gate.
+on:
+  push:
+    branches: ["main"]
+    paths-ignore: ["**.md", "docs/**", "LICENSE*"]
+  pull_request:
+    paths-ignore: ["**.md", "docs/**", "LICENSE*"]
+
+jobs:
+  check:
+    runs-on: [self-hosted, Linux, X64, alphaarcadeus]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
+      - run: bun install --frozen-lockfile
+      # CI has no .env: tests needing live credentials must skip without them.
+      - run: bun run typecheck
+      - run: bun test
+      - run: bun run format:check

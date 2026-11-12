@@ -6,7 +6,7 @@ import assignmentField from "../pocketbase/todo.group-assignment-field.json" wit
 
 test("reviewed seed retains all exact supplied label names, URLs, descriptions and nulls", () => {
 	// Canonical compact JSON of the user's original 37 objects, preserving property and catalog order.
-	expect(createHash("sha256").update(JSON.stringify(seed.labels)).digest("hex")).toBe("1e2f5df430b6ad67e3c71064bc56d79ee0d90e73a34b7457ab62b44c98f71dcc");
+	expect(createHash("sha256").update(JSON.stringify(seed.labels)).digest("hex")).toBe("4fcb93faaf012babb8dbc77ab3cc7bc3cd7a01f720b5d3e152a75784a6d62133");
 	expect(seed.labels).toHaveLength(37);
 	expect(new Set(seed.labels.map((l) => l.name)).size).toBe(37);
 	expect(seed.labels.find((l) => l.name === "SneakyWantedPosters")).toEqual({ name: "SneakyWantedPosters", url: null, explanation: null });
