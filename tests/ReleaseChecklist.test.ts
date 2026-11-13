@@ -289,7 +289,7 @@ const expectEmojiOnly = (button: any, emoji: string) => {
 	expect(button.label).toBeUndefined();
 };
 
-test("readiness buttons are emoji only: ✅ marks an unready feature ready and ❌ marks a ready feature unready", () => {
+test("readiness buttons are emoji only and gray: ❌ shows on an unready feature and ✅ on a ready one", () => {
 	const release: Release = {
 		...empty(),
 		features: [
@@ -299,11 +299,11 @@ test("readiness buttons are emoji only: ✅ marks an unready feature ready and �
 	};
 	const rendered = renderRelease(release);
 	const [mark, unmark] = readinessButtons(rendered.components);
-	expectEmojiOnly(mark, "✅");
+	expectEmojiOnly(mark, "❌");
 	expect(mark.custom_id).toBe(`${PREFIX}ready:one:0`);
-	expect(mark.style).toBe(3); // ButtonStyle.Success
+	expect(mark.style).toBe(2); // ButtonStyle.Secondary
 	expect(mark.disabled).toBe(false);
-	expectEmojiOnly(unmark, "❌");
+	expectEmojiOnly(unmark, "✅");
 	expect(unmark.custom_id).toBe(`${PREFIX}ready:two:1`);
 	expect(unmark.style).toBe(2); // ButtonStyle.Secondary
 	expect(unmark.disabled).toBe(false);
@@ -324,11 +324,11 @@ test("archived cards keep emoji-only readiness buttons disabled with no label", 
 	};
 	const rendered = renderRelease(release);
 	const [mark, unmark] = readinessButtons(rendered.components);
-	expectEmojiOnly(mark, "✅");
+	expectEmojiOnly(mark, "❌");
 	expect(mark.custom_id).toBe(`${PREFIX}ready:one:0`);
-	expect(mark.style).toBe(3);
+	expect(mark.style).toBe(2);
 	expect(mark.disabled).toBe(true);
-	expectEmojiOnly(unmark, "❌");
+	expectEmojiOnly(unmark, "✅");
 	expect(unmark.custom_id).toBe(`${PREFIX}ready:two:1`);
 	expect(unmark.style).toBe(2);
 	expect(unmark.disabled).toBe(true);
@@ -340,7 +340,7 @@ test("ready and unready clicks rerender the public card with the opposite emoji-
 	await h.run(h.interaction("add-submit:123:", "modal", "Emoji feature"));
 	const id = h.state().features[0].id;
 	let [button] = readinessButtons(renderRelease(h.state()).components);
-	expectEmojiOnly(button, "✅");
+	expectEmojiOnly(button, "❌");
 	expect(button.custom_id).toBe(`${PREFIX}ready:${id}:0`);
 
 	const ready = h.interaction(`ready:${id}:0`);
@@ -348,7 +348,7 @@ test("ready and unready clicks rerender the public card with the opposite emoji-
 	expect(ready.acknowledgement).toBe("direct");
 	expect(h.state().features[0].ready).toBe(true);
 	[button] = readinessButtons(ready.responses[0].components);
-	expectEmojiOnly(button, "❌");
+	expectEmojiOnly(button, "✅");
 	expect(button.custom_id).toBe(`${PREFIX}ready:${id}:1`);
 	expect(button.style).toBe(2);
 	expect(button.disabled).toBe(false);
@@ -359,9 +359,9 @@ test("ready and unready clicks rerender the public card with the opposite emoji-
 	expect(unready.acknowledgement).toBe("direct");
 	expect(h.state().features[0].ready).toBe(false);
 	[button] = readinessButtons(unready.responses[0].components);
-	expectEmojiOnly(button, "✅");
+	expectEmojiOnly(button, "❌");
 	expect(button.custom_id).toBe(`${PREFIX}ready:${id}:0`);
-	expect(button.style).toBe(3);
+	expect(button.style).toBe(2);
 	expect(button.disabled).toBe(false);
 	expect(JSON.stringify(unready.responses[0].components)).not.toContain("Mark");
 	expect(h.messageEdits).toHaveLength(0);
