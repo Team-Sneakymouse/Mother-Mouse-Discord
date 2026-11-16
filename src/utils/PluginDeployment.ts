@@ -23,12 +23,19 @@ export type Artifact = {
 export type Server = { identifier: string; name: string; description: string };
 export type DeploymentOptions = { version?: string; scope?: string[] };
 export type Fetch = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
+/** How the Maven server is read. Requests are anonymous unless both credentials are set. */
+export type MavenOptions = { username?: string; password?: string; repository?: string };
 type Listing<T> = { data: { attributes: T }[]; meta?: { pagination?: { current_page: number; total_pages: number } } };
 type RemoteFile = { name: string; is_file: boolean; size: number };
 
 function segment(value: string): string {
 	if (!/^[A-Za-z0-9_][A-Za-z0-9_.+-]*$/.test(value)) throw new Error("Invalid Maven path segment");
 	return encodeURIComponent(value);
+}
+
+/** Maven settings from environment variables; pass `process.env` where the service is constructed. */
+export function mavenOptions(env: Record<string, string | undefined>): MavenOptions {
+	return { username: env.MAVEN_USERNAME, password: env.MAVEN_PASSWORD, repository: env.MAVEN_REPOSITORY };
 }
 
 export function parseXml(xml: string): any {
@@ -100,21 +107,35 @@ export type Deployment = Artifact & { firstInstall: boolean };
 export type Presence = { installed: boolean; staged: boolean; outdated: boolean };
 
 export class PluginDeployment {
+	private repository: string;
+	/** Basic credentials for the Maven server; undefined reads anonymously. */
+	private mavenAuthorization?: string;
 	constructor(
 		private host: string,
 		private applicationKey: string,
 		private clientKey: string,
 		private request: Fetch = fetch,
+		maven: MavenOptions = {},
 	) {
 		const url = new URL(host);
 		if (url.protocol !== "https:") throw new Error("PELICAN_API_HOST must use HTTPS");
 		this.host = host.replace(/\/+$/, "");
+		this.repository = maven.repository || "releases";
+		// The message leaves the value out, in case a secret was put in the wrong variable.
+		if (!/^[A-Za-z0-9_-]+$/.test(this.repository)) throw new Error("MAVEN_REPOSITORY must be a single path segment of letters, digits, _ or -");
+		if (maven.username && maven.password) this.mavenAuthorization = `Basic ${Buffer.from(`${maven.username}:${maven.password}`).toString("base64")}`;
 	}
 
 	private async get(url: string, init: RequestInit = {}): Promise<Response> {
 		const response = await this.request(url, { ...init, signal: AbortSignal.timeout(120_000) });
 		if (!response.ok) throw new Error(`Request failed (HTTP ${response.status})`);
 		return response;
+	}
+
+	/** Reads from the Maven server, the only origin that receives the Maven credentials. */
+	private async maven(url: string): Promise<Response> {
+		if (!url.startsWith(`${MAVEN}/`)) throw new Error("Not a Maven URL");
+		return this.get(url, this.mavenAuthorization ? { headers: { Authorization: this.mavenAuthorization } } : {});
 	}
 
 	private async api<T>(path: string, body?: unknown, api: "client" | "application" = "client"): Promise<T> {
@@ -143,14 +164,14 @@ export class PluginDeployment {
 	}
 
 	async artifact(id: string, requestedVersion?: string): Promise<Artifact | undefined> {
-		const base = `${MAVEN}/releases/${GROUP}/${segment(id)}`;
-		const readMetadata = async () => parseXml(await (await this.get(`${base}/maven-metadata.xml`)).text()).metadata?.versioning;
+		const base = `${MAVEN}/${this.repository}/${GROUP}/${segment(id)}`;
+		const readMetadata = async () => parseXml(await (await this.maven(`${base}/maven-metadata.xml`)).text()).metadata?.versioning;
 		let metadata = requestedVersion === undefined ? await readMetadata() : undefined;
 		const version = requestedVersion ?? (metadata?.release || metadata?.latest)?.trim();
 		if (!version || version.endsWith("-SNAPSHOT")) return;
 		const filename = `${id}-${version}.jar`;
 		const release = `${base}/${segment(version)}/${segment(id)}-${segment(version)}`;
-		const pom = await (await this.get(`${release}.pom`)).text();
+		const pom = await (await this.maven(`${release}.pom`)).text();
 		const types = deploymentTypes(pom);
 		if (!types) return;
 		// Exact-version webhooks can reject libraries before metadata is published or readable.
@@ -173,7 +194,9 @@ export class PluginDeployment {
 	}
 
 	async catalog(): Promise<{ artifacts: Artifact[]; failures: string[] }> {
-		const listing = (await (await this.get(`${MAVEN}/api/maven/details/releases/${GROUP}`)).json()) as { files: { name: string; type: string }[] };
+		const listing = (await (await this.maven(`${MAVEN}/api/maven/details/${this.repository}/${GROUP}`)).json()) as {
+			files: { name: string; type: string }[];
+		};
 		const artifacts: Artifact[] = [];
 		const failures: string[] = [];
 		const directories = listing.files.filter((file) => file.type === "DIRECTORY");
@@ -279,7 +302,7 @@ export class PluginDeployment {
 		if (!artifact) throw new Error("Latest release is no longer eligible for deployment");
 		// Checked before downloading or touching any server files.
 		let directory = destination(artifact.types, current.attributes);
-		const jar = await (await this.get(artifact.url)).arrayBuffer();
+		const jar = await (await this.maven(artifact.url)).arrayBuffer();
 		const bytes = new Uint8Array(jar);
 		if (bytes.length < 4 || bytes[0] !== 0x50 || bytes[1] !== 0x4b) throw new Error("Release is not a JAR archive");
 		let firstInstall = false;

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { data } from "../src/PluginUpdates.ts";
-import { type Artifact, deploymentTypes, type Fetch, oldFiles, PluginDeployment } from "../src/utils/PluginDeployment.ts";
+import { type Artifact, deploymentTypes, type Fetch, type MavenOptions, mavenOptions, oldFiles, PluginDeployment } from "../src/utils/PluginDeployment.ts";
 
 const metadata = `<metadata><versioning><release>2.0</release><latest>3.0-SNAPSHOT</latest><versions><version>1.0</version><version>2.0</version></versions></versioning></metadata>`;
 const pom = (type: string) => `<project><properties><sneakyrp.deployment.type>${type}</sneakyrp.deployment.type></properties></project>`;
@@ -30,13 +30,14 @@ test("catalog sorts same-day releases by precise Maven update time before versio
 });
 
 // `installed` and `staged` override the listings of plugins and plugins/.update; by default both contain older copies.
+// `maven` is passed to the service as its Maven settings.
 function setup(
 	type = "paper-plugin",
 	failUpload = false,
 	failCleanup = false,
 	badSize = false,
 	description = "Lords of Minecraft - test",
-	{ installed, staged }: { installed?: string[]; staged?: string[] } = {},
+	{ installed, staged, maven }: { installed?: string[]; staged?: string[]; maven?: MavenOptions } = {},
 ) {
 	const events: { url: string; method: string; body?: any; headers: Headers }[] = [];
 	let uploaded = false;
@@ -50,6 +51,8 @@ function setup(
 		const method = init?.method ?? "GET";
 		events.push({ url, method, body: typeof init?.body === "string" ? JSON.parse(init.body) : init?.body, headers: new Headers(init?.headers) });
 		let result: unknown;
+		if (url.includes("/api/maven/details/")) return Response.json({ files: [{ name: "Example", type: "DIRECTORY" }] });
+		if (url.includes("/application/servers?")) return Response.json(listing([{ identifier: "server", name: "Server", description }]));
 		if (url.endsWith("maven-metadata.xml")) return new Response(metadata);
 		if (url.endsWith(".pom")) return new Response(pom(type));
 		if (url.endsWith(".jar")) return new Response(new Uint8Array([0x50, 0x4b, 3, 4]));
@@ -82,8 +85,113 @@ function setup(
 		else throw new Error(`Unexpected request ${url}`);
 		return Response.json(result);
 	};
-	return { service: new PluginDeployment("https://panel.example/api/", "application-secret", "client-secret", request), events };
+	return { service: new PluginDeployment("https://panel.example/api/", "application-secret", "client-secret", request, maven), events };
 }
+
+const MAVEN_ORIGIN = "https://maven.sneakyrp.com";
+// One kind per Maven request the service makes; every other request goes to Pelican or its upload URL.
+function mavenKind(url: string): "listing" | "metadata" | "pom" | "jar" | undefined {
+	if (!url.startsWith(`${MAVEN_ORIGIN}/`)) return;
+	if (url.startsWith(`${MAVEN_ORIGIN}/api/maven/details/`)) return "listing";
+	if (url.endsWith("/maven-metadata.xml")) return "metadata";
+	return url.endsWith(".pom") ? "pom" : url.endsWith(".jar") ? "jar" : assert.fail(`Unexpected Maven request ${url}`);
+}
+// Lists the catalog, deploys a release and lists servers: every kind of request the service can send.
+async function everyRequest(maven?: MavenOptions) {
+	const { service, events } = setup("paper-plugin", false, false, false, undefined, { maven });
+	assert.deepEqual(
+		(await service.catalog()).artifacts.map((artifact) => artifact.id),
+		["Example"],
+	);
+	await service.deploy("server", "Example");
+	await service.servers();
+	return events;
+}
+
+test("Maven credentials are sent as Basic authorization with every Maven read and to no other host", async () => {
+	// RFC 7617's example pair.
+	const events = await everyRequest({ username: "Aladdin", password: "open sesame" });
+	const authorization = (event: (typeof events)[number]) => event.headers.get("Authorization");
+	for (const kind of ["listing", "metadata", "pom", "jar"]) {
+		const requests = events.filter((event) => mavenKind(event.url) === kind);
+		assert.ok(requests.length, `No ${kind} request was sent`);
+		for (const event of requests) assert.equal(authorization(event), "Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ==", event.url);
+	}
+	const others = events.filter((event) => !mavenKind(event.url));
+	const sentTo = (prefix: string) => others.filter((event) => event.url.startsWith(prefix));
+	const client = sentTo("https://panel.example/api/client/");
+	const application = sentTo("https://panel.example/api/application/");
+	const uploads = sentTo("https://wings.example/upload/file");
+	assert.ok(client.length && application.length);
+	assert.equal(uploads.length, 1);
+	assert.equal(client.length + application.length + uploads.length, others.length);
+	for (const event of client) assert.equal(authorization(event), "Bearer client-secret");
+	for (const event of application) assert.equal(authorization(event), "Bearer application-secret");
+	assert.equal(authorization(uploads[0]), null);
+});
+
+test("Maven reads stay anonymous unless both the username and the password are set", async () => {
+	for (const maven of [
+		undefined,
+		{},
+		{ username: "Aladdin" },
+		{ password: "open sesame" },
+		{ username: "", password: "open sesame" },
+		{ username: "Aladdin", password: "" },
+	]) {
+		const requests = (await everyRequest(maven)).filter((event) => mavenKind(event.url));
+		assert.deepEqual(new Set(requests.map((event) => mavenKind(event.url))), new Set(["listing", "metadata", "pom", "jar"]));
+		for (const event of requests) assert.equal(event.headers.has("Authorization"), false, event.url);
+	}
+});
+
+test("Maven credentials never appear in the error of a rejected Maven read", async () => {
+	const request: Fetch = async () => new Response("Unauthorized", { status: 401 });
+	const service = new PluginDeployment("https://panel.example/api", "application", "client", request, { username: "Aladdin", password: "open sesame" });
+	// The whole message is fixed, so it cannot carry the username, the password or their encoded form.
+	for (const read of [() => service.artifact("Example"), () => service.artifact("Example", "1.0"), () => service.catalog()])
+		await assert.rejects(read(), { message: "Request failed (HTTP 401)" });
+});
+
+test("the Maven repository is configurable for every kind of Maven read and defaults to releases", async () => {
+	const group = "io/github/team-sneakymouse";
+	for (const [maven, repository] of [
+		[undefined, "releases"],
+		[{ repository: "" }, "releases"],
+		[{ repository: "sneakymouse" }, "sneakymouse"],
+		[{ repository: "my_repo-2" }, "my_repo-2"],
+	] as const) {
+		const urls = (await everyRequest(maven)).map((event) => event.url).filter(mavenKind);
+		assert.deepEqual(
+			[...new Set(urls)].sort(),
+			[
+				`${MAVEN_ORIGIN}/api/maven/details/${repository}/${group}`,
+				`${MAVEN_ORIGIN}/${repository}/${group}/Example/maven-metadata.xml`,
+				`${MAVEN_ORIGIN}/${repository}/${group}/Example/2.0/Example-2.0.pom`,
+				`${MAVEN_ORIGIN}/${repository}/${group}/Example/2.0/Example-2.0.jar`,
+			].sort(),
+		);
+	}
+});
+
+test("an invalid Maven repository is rejected at construction without repeating its value", () => {
+	for (const repository of ["releases/private", "../private", "..", "releases?x=1", "re leases", " ", "releases\n", "sneakymouse/"])
+		assert.throws(() => new PluginDeployment("https://panel.example/api", "application", "client", undefined, { repository }), {
+			message: "MAVEN_REPOSITORY must be a single path segment of letters, digits, _ or -",
+		});
+});
+
+test("Maven settings come from MAVEN_USERNAME, MAVEN_PASSWORD and MAVEN_REPOSITORY", () => {
+	assert.deepEqual(
+		mavenOptions({ MAVEN_USERNAME: "Aladdin", MAVEN_PASSWORD: "open sesame", MAVEN_REPOSITORY: "sneakymouse", PELICAN_CLIENT_KEY: "unrelated" }),
+		{
+			username: "Aladdin",
+			password: "open sesame",
+			repository: "sneakymouse",
+		},
+	);
+	assert.deepEqual(mavenOptions({}), { username: undefined, password: undefined, repository: undefined });
+});
 
 test("only explicit supported deployment properties qualify, including namespaced Maven POMs", () => {
 	assert.deepEqual(deploymentTypes(pom("paper-plugin")), ["paper-plugin"]);

@@ -9,7 +9,7 @@ import {
 	PermissionFlagsBits,
 	SlashCommandBuilder,
 } from "discord.js";
-import { compatible, PluginDeployment } from "./utils/PluginDeployment.js";
+import { compatible, mavenOptions, PluginDeployment } from "./utils/PluginDeployment.js";
 import { acquireDeploymentLock } from "./utils/DeploymentLock.js";
 import { parseRoute, pending, PREFIX, readState, renderState, selectArtifacts, type UpdateState } from "./utils/PluginUpdateMessage.js";
 
@@ -27,7 +27,7 @@ function deployment(): PluginDeployment {
 	const applicationKey = process.env.PELICAN_APPLICATION_KEY;
 	const clientKey = process.env.PELICAN_CLIENT_KEY;
 	if (!host || !applicationKey || !clientKey) throw new Error("PELICAN_API_HOST, PELICAN_APPLICATION_KEY and PELICAN_CLIENT_KEY must be configured");
-	return new PluginDeployment(host, applicationKey, clientKey);
+	return new PluginDeployment(host, applicationKey, clientKey, fetch, mavenOptions(process.env));
 }
 
 function snapshot(message: Message) {
