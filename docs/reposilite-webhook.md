@@ -6,9 +6,20 @@ In production, the bot receives `POST /reposilite`. Configure the same secret as
 the payload's UUID. Keep the existing `PELICAN_API_HOST`,
 `PELICAN_APPLICATION_KEY`, and `PELICAN_CLIENT_KEY` configured.
 
-Only main unclassified JARs in repository `releases`, group
-`io.github.team-sneakymouse`, are queued. Checksums, signatures, POMs, metadata,
-sources, javadoc, other groups, and snapshots receive 204 and are ignored.
+Three optional variables in the same Infisical folder control how the bot reads
+Maven (metadata, POMs, JARs and the artifact listing), for automatic uploads and
+`/plugins update` alike. With both `MAVEN_USERNAME` and `MAVEN_PASSWORD` set,
+those reads use HTTP Basic authentication; with either missing they stay
+anonymous. The credentials are sent to the Maven server only, never to Pelican
+or its upload URL. `MAVEN_REPOSITORY` (default `releases`) names the repository
+read from. It must consist of letters, digits, `_` or `-`; any other value stops
+deployments with an error.
+
+Only main unclassified JARs in repository `releases` or `sneakymouse` (its new
+name; both serve the same files), group `io.github.team-sneakymouse`, are
+queued. The artifact is always read through `MAVEN_REPOSITORY`, whichever name
+the event carries. Checksums, signatures, POMs, metadata, sources, javadoc,
+other groups, other repositories, and snapshots receive 204 and are ignored.
 The exact uploaded version's POM must explicitly declare
 `sneakyrp.deployment.type` as a comma-separated list of `paper-plugin`,
 `ignite-mod` and `velocity-plugin`, for example `paper-plugin,velocity-plugin`

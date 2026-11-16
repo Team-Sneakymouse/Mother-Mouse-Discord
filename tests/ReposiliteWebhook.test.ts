@@ -101,6 +101,43 @@ test("path filter only accepts main release JARs in the configured group", () =>
 	assert.equal(uploadedArtifact({ ...event, repository: "snapshots" }), undefined);
 });
 
+test("repository filter accepts releases and its new name sneakymouse and ignores every other repository", () => {
+	for (const repository of ["releases", "sneakymouse"]) assert.deepEqual(uploadedArtifact({ ...event, repository }), { id: "Example", version: "1.0" });
+	for (const repository of ["thirdparty", "snapshots", "private", "Releases", "sneakymouse-private", "releases/", ""])
+		assert.equal(uploadedArtifact({ ...event, repository }), undefined);
+});
+
+test("an upload event from sneakymouse is looked up through the configured read repository, not the event's", async () => {
+	for (const [maven, repository] of [
+		[undefined, "releases"],
+		[{ repository: "sneakymouse" }, "sneakymouse"],
+	] as const) {
+		for (const eventRepository of ["releases", "sneakymouse"]) {
+			const store = memoryStore();
+			await store.accept({ ...event, repository: eventRepository });
+			const requests: string[] = [];
+			const service = new PluginDeployment(
+				"https://panel.example/api",
+				"application-secret",
+				"client-secret",
+				async (input) => {
+					requests.push(String(input));
+					return new Response("<project/>");
+				},
+				maven,
+			);
+			await new ReposiliteWorker(
+				store,
+				() => service,
+				async () => {},
+				() => now,
+			).tick();
+			assert.equal(store.jobs[0].status, "ignored");
+			assert.deepEqual(requests, [`https://maven.sneakyrp.com/${repository}/io/github/team-sneakymouse/Example/1.0/Example-1.0.pom`]);
+		}
+	}
+});
+
 test("an unsupported JAR with unavailable Maven metadata is ignored without deployment notifications", async () => {
 	const store = memoryStore();
 	await store.accept({
@@ -446,6 +483,11 @@ test("HTTP receiver authenticates, validates, filters, and deduplicates in memor
 		assert.equal(store.jobs.length, 1);
 		assert.equal(await send(), 200);
 		assert.equal(store.jobs.length, 1);
+		assert.equal(await send({ ...event, id: "f4fa61fb-1eb1-45e2-9c58-70d4af566431", repository: "thirdparty" }), 204);
+		assert.equal(store.jobs.length, 1);
+		assert.equal(await send({ ...event, id: "e4fa61fb-1eb1-45e2-9c58-70d4af566431", repository: "sneakymouse" }), 202);
+		assert.equal(store.jobs.length, 2);
+		assert.equal(store.jobs[1].payload.repository, "sneakymouse");
 		configuredToken = undefined;
 		assert.equal(await send(), 503);
 		configuredToken = "secret";

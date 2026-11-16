@@ -4,13 +4,18 @@ import express, { type Express } from "express";
 import { z } from "zod";
 import { createGithubApi } from "./GithubPrStatus.js";
 import { acquireDeploymentLock } from "./utils/DeploymentLock.js";
-import { type ArtifactSource, type Deployment, isProxy, PluginDeployment, type Server } from "./utils/PluginDeployment.js";
+import { type ArtifactSource, type Deployment, isProxy, mavenOptions, PluginDeployment, type Server } from "./utils/PluginDeployment.js";
 
 export const DEV_UPDATE_THREAD = "1561330944395313255";
 export const DEV_SCOPE = ["Lords of Minecraft", "Dev Server"];
 export const RESOURCEBUILDER_SCOPE = ["Lords of Minecraft", "Resource Builder"];
 /** Resource builders only receive these Paper plugins (exact artifact IDs). */
 export const RESOURCEBUILDER_PLUGINS = ["sneakydb", "SneakyResourceOps"];
+/**
+ * Repositories whose uploads are deployed. `sneakymouse` is the new name of `releases` and both serve the same
+ * files, so artifacts are read through the configured `MAVEN_REPOSITORY`, not through the event's name.
+ */
+export const UPLOAD_REPOSITORIES = ["releases", "sneakymouse"];
 const eventSchema = z.object({
 	event: z.literal("artifact.uploaded"),
 	schemaVersion: z.literal(1),
@@ -61,7 +66,7 @@ export interface EventStore {
 }
 
 export function uploadedArtifact(event: UploadEvent): { id: string; version: string } | undefined {
-	if (event.repository !== "releases") return;
+	if (!UPLOAD_REPOSITORIES.includes(event.repository)) return;
 	const parts = event.path.split("/");
 	if (parts.length !== 6 || parts.slice(0, 3).join("/") !== "io/github/team-sneakymouse") return;
 	const [, , , id, version, filename] = parts;
@@ -333,7 +338,7 @@ export default function ReposiliteWebhook(client: Client, server: Express, track
 				app = process.env.PELICAN_APPLICATION_KEY,
 				key = process.env.PELICAN_CLIENT_KEY;
 			if (!host || !app || !key) throw new Error("Pelican API credentials are missing");
-			return new PluginDeployment(host, app, key);
+			return new PluginDeployment(host, app, key, fetch, mavenOptions(process.env));
 		},
 		createDevUpdateNotifier(client, store),
 		Date.now,
