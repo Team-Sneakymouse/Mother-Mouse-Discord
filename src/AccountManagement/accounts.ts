@@ -1,4 +1,3 @@
-import PocketBase, { ClientResponseError, RecordModel } from "pocketbase";
 import {
 	ActionRowBuilder,
 	ButtonBuilder,
@@ -15,12 +14,13 @@ import {
 	TextDisplayBuilder,
 	ThumbnailBuilder,
 } from "discord.js";
-import { AccountRecord, ButtonIds, UserRecord } from "./types.js";
+import { AccountStore, MinecraftAccount, TwitchIdentity } from "./store.js";
+import { ButtonIds } from "./types.js";
 
 export class AccountManagementInterface {
 	constructor(
 		public customIds: ButtonIds,
-		public db: PocketBase,
+		public store: AccountStore,
 	) {}
 
 	async HandleButton(interaction: ButtonInteraction) {
@@ -40,30 +40,17 @@ export class AccountManagementInterface {
 	}
 
 	async buildInterface(interaction: Interaction, selectedAccount: string | null = null) {
-		const userRecord = await this.db
-			.collection("lom2_users")
-			.getFirstListItem<UserRecord>(`discord_id="${interaction.user.id}"`)
-			.catch(async (err: ClientResponseError) => {
-				if (err.status === 404) {
-					return await this.db.collection("lom2_users").create<UserRecord>({
-						name: (interaction.member as GuildMember)?.displayName ?? interaction.user.username,
-						discord_id: interaction.user.id,
-						twitch: null, // Initialize with no Twitch account linked
-					});
-				}
-				throw err; // Other errors should be thrown
-			});
-
-		const accountRecords = await this.db.collection("lom2_accounts").getFullList<AccountRecord>({ filter: `owner.discord_id = "${interaction.user.id}"` });
+		const user = await this.store.userForDiscord(interaction.user.id, (interaction.member as GuildMember)?.displayName ?? interaction.user.username);
+		const [twitch, accounts] = await Promise.all([this.store.twitch(user), this.store.accounts(user)]);
 
 		return [
 			new TextDisplayBuilder().setContent("# Account Management\nUse this to manage your linked accounts"),
-			...this.buildTwitchSection(userRecord.twitch),
-			...this.buildMinecraftSection(accountRecords, selectedAccount),
+			...this.buildTwitchSection(twitch),
+			...this.buildMinecraftSection(accounts, selectedAccount),
 		];
 	}
 
-	buildTwitchSection(twitch: UserRecord["twitch"]) {
+	buildTwitchSection(twitch: TwitchIdentity | null) {
 		if (!twitch)
 			return [
 				new TextDisplayBuilder().setContent("## Twitch"),
@@ -77,11 +64,10 @@ export class AccountManagementInterface {
 				.setAccentColor(0x6441a5)
 				.addSectionComponents(
 					new SectionBuilder()
-						.addTextDisplayComponents(new TextDisplayBuilder().setContent(`### ${twitch.display_name}`))
+						.addTextDisplayComponents(new TextDisplayBuilder().setContent(`### ${twitch.displayName}`))
 						.setThumbnailAccessory(
 							new ThumbnailBuilder().setURL(
-								twitch.profile_image_url ||
-									"https://static-cdn.jtvnw.net/user-default-pictures-uv/ebe4cd89-b4f4-4cd9-adac-2f30151b4209-profile_image-70x70.png",
+								twitch.profileImageUrl || "https://static-cdn.jtvnw.net/user-default-pictures-uv/ebe4cd89-b4f4-4cd9-adac-2f30151b4209-profile_image-70x70.png",
 							),
 						),
 				)
@@ -94,12 +80,10 @@ export class AccountManagementInterface {
 		];
 	}
 
-	buildMinecraftSection(accountRecords: AccountRecord[], selected: string | null = null) {
-		// Sort accounts to show the main account first, then by creation date
-		accountRecords.sort((a, b) => (b.main ? 1 : 0) - (a.main ? 1 : 0) || a.created - b.created);
-
+	buildMinecraftSection(accountRecords: MinecraftAccount[], selected: string | null = null) {
+		// The store lists the main account first, then the oldest
 		if (selected === null && accountRecords.length > 0) {
-			selected = accountRecords.find((a) => a.main)?.id ?? accountRecords[0].id;
+			selected = accountRecords.find((a) => a.isMain)?.uuid ?? accountRecords[0].uuid;
 		}
 		return [
 			new TextDisplayBuilder().setContent("## Minecraft"),
@@ -111,15 +95,18 @@ export class AccountManagementInterface {
 								accountRecords.map(
 									(account) =>
 										new StringSelectMenuOptionBuilder({
-											value: account.id,
+											value: account.uuid,
 											label: account.name,
-											description: account.main ? "Main Account" : undefined,
-											default: account.id === selected,
+											description: account.isMain ? "Main Account" : undefined,
+											default: account.uuid === selected,
 										}),
 								),
 							),
 						),
-						this.buildMinecraftAccountSection(accountRecords.find((a) => a.id === selected) ?? accountRecords.find((a) => a.main) ?? accountRecords[0], true),
+						this.buildMinecraftAccountSection(
+							accountRecords.find((a) => a.uuid === selected) ?? accountRecords.find((a) => a.isMain) ?? accountRecords[0],
+							true,
+						),
 					]),
 			new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
 				new ButtonBuilder()
@@ -133,25 +120,25 @@ export class AccountManagementInterface {
 			),
 		];
 	}
-	buildMinecraftAccountSection(account: AccountRecord, showMain = false) {
+	buildMinecraftAccountSection(account: MinecraftAccount, showMain = false) {
 		return new ContainerBuilder()
 			.setAccentColor(0x477a1e)
 			.addSectionComponents(
 				new SectionBuilder()
 					.addTextDisplayComponents(
 						new TextDisplayBuilder().setContent(`### ${account.name}`),
-						...(showMain ? [new TextDisplayBuilder().setContent(account.main ? "Main Account" : "-# Alt Account")] : []),
+						...(showMain ? [new TextDisplayBuilder().setContent(account.isMain ? "Main Account" : "-# Alt Account")] : []),
 					)
-					.setThumbnailAccessory(new ThumbnailBuilder().setURL(`https://starlightskins.lunareclipse.studio/render/default/${account.id}/face`)),
+					.setThumbnailAccessory(new ThumbnailBuilder().setURL(`https://starlightskins.lunareclipse.studio/render/default/${account.uuid}/face`)),
 			)
 			.addActionRowComponents(
 				new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
 					new ButtonBuilder()
-						.setCustomId(`${this.customIds.MINECRAFT_SETMAIN}:${account.id}`)
+						.setCustomId(`${this.customIds.MINECRAFT_SETMAIN}:${account.uuid}`)
 						.setStyle(ButtonStyle.Primary)
 						.setLabel("Set as Main")
-						.setDisabled(account.main),
-					new ButtonBuilder().setCustomId(`${this.customIds.MINECRAFT_REMOVE}:${account.id}`).setStyle(ButtonStyle.Danger).setLabel("Remove"),
+						.setDisabled(account.isMain),
+					new ButtonBuilder().setCustomId(`${this.customIds.MINECRAFT_REMOVE}:${account.uuid}`).setStyle(ButtonStyle.Danger).setLabel("Remove"),
 				),
 			);
 	}

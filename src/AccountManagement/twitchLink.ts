@@ -9,9 +9,9 @@ import {
 	SectionBuilder,
 	TextDisplayBuilder,
 } from "discord.js";
-import PocketBase, { ClientResponseError } from "pocketbase";
 import type { Express, Request as ExpressRequest, Response as ExpressResponse } from "express";
-import { ButtonIds, UserRecord } from "./types.js";
+import { AccountStore } from "./store.js";
+import { ButtonIds } from "./types.js";
 
 type TwitchTokenResponse = {
 	access_token?: string;
@@ -31,7 +31,7 @@ type TwitchUserResponse = {
 export default class TwitchLink {
 	constructor(
 		public buttonIds: ButtonIds,
-		public db: PocketBase,
+		public store: AccountStore,
 		public server: Express,
 	) {
 		server.get("/link/twitch", (req, res) => this.handleAuthCallback(req, res));
@@ -45,7 +45,7 @@ export default class TwitchLink {
 	}
 
 	async linkTwitch(interaction: ButtonInteraction) {
-		const userRecord = await this.getUserRecord(interaction.user.id, (interaction.member as GuildMember)?.displayName ?? interaction.user.username);
+		const linked = await this.store.twitch(await this.user(interaction));
 
 		this.interactionCache.set(interaction.id, interaction);
 		this.timeoutList.set(
@@ -80,9 +80,7 @@ export default class TwitchLink {
 
 		return [
 			new SectionBuilder()
-				.addTextDisplayComponents(
-					new TextDisplayBuilder().setContent(`To ${userRecord.twitch_id ? "replace your linked" : "link your"} Twitch account, please click here:`),
-				)
+				.addTextDisplayComponents(new TextDisplayBuilder().setContent(`To ${linked ? "replace your linked" : "link your"} Twitch account, please click here:`))
 				.setButtonAccessory(new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel("Link Twitch").setURL(authUrl)),
 		];
 	}
@@ -98,7 +96,7 @@ export default class TwitchLink {
 		if (!interaction) return res.status(400).send("Invalid or expired interaction state.");
 
 		try {
-			const userRecord = await this.getUserRecord(interaction.user.id, (interaction.member as GuildMember)?.displayName ?? interaction.user.username);
+			const user = await this.user(interaction);
 
 			const tokenRequestParams = new URLSearchParams({
 				client_id: process.env["TWITCH_CLIENT_ID"]!,
@@ -135,21 +133,17 @@ export default class TwitchLink {
 				return res.status(500).send("Failed to obtain user data from Twitch.");
 			}
 
-			const twitchId = userData.data[0].id;
-
-			await this.db.collection("lom2_users").update(userRecord.id, {
-				twitch: {
-					id: twitchId,
-					display_name: userData.data[0].display_name,
-					profile_image_url: userData.data[0].profile_image_url,
-					token: {
-						access_token: tokenData.access_token,
-						refresh_token: tokenData.refresh_token ?? "",
-						expires_at: Date.now() + (tokenData.expires_in ?? 0) * 1000,
-						scope: tokenData.scope ? (typeof tokenData.scope === "string" ? tokenData.scope.split(" ") : tokenData.scope) : [],
-					},
+			const twitch = userData.data[0];
+			await this.store.linkTwitch(
+				user,
+				{ twitchId: twitch.id, displayName: twitch.display_name, profileImageUrl: twitch.profile_image_url },
+				{
+					accessToken: tokenData.access_token,
+					refreshToken: tokenData.refresh_token ?? "",
+					expiresAt: new Date(Date.now() + (tokenData.expires_in ?? 0) * 1000),
+					scopes: tokenData.scope ? (typeof tokenData.scope === "string" ? tokenData.scope.split(" ").filter(Boolean) : tokenData.scope) : [],
 				},
-			} satisfies Partial<UserRecord>);
+			);
 
 			res.send("Twitch account linked successfully! You can close this tab and return to Discord.");
 			this.interactionCache.delete(state);
@@ -183,9 +177,7 @@ export default class TwitchLink {
 	}
 
 	async removeTwitch(interaction: Interaction) {
-		const userRecord = await this.getUserRecord(interaction.user.id, (interaction.member as GuildMember)?.displayName ?? interaction.user.username);
-
-		if (!userRecord.twitch)
+		if (!(await this.store.unlinkTwitch(await this.user(interaction))))
 			return [
 				new TextDisplayBuilder().setContent("You have no Twitch account linked."),
 				new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
@@ -193,10 +185,6 @@ export default class TwitchLink {
 					new ButtonBuilder().setCustomId(this.buttonIds.ACCOUNT_MANAGEMENT).setStyle(ButtonStyle.Secondary).setLabel("Back to Account Management"),
 				),
 			];
-
-		await this.db.collection("lom2_users").update(userRecord.id, {
-			twitch: null,
-		} satisfies Partial<UserRecord>);
 
 		return [
 			new TextDisplayBuilder().setContent("Twitch account unlinked successfully!"),
@@ -206,18 +194,7 @@ export default class TwitchLink {
 		];
 	}
 
-	async getUserRecord(discordId: string, username: string): Promise<UserRecord> {
-		try {
-			return await this.db.collection("lom2_users").getFirstListItem<UserRecord>(`discord_id = "${discordId}"`);
-		} catch (e) {
-			if (e instanceof ClientResponseError && e.status === 404) {
-				// Create user record if it doesn't exist
-				return await this.db.collection("lom2_users").create<UserRecord>({
-					discord_id: discordId,
-					name: username,
-				});
-			}
-			throw e; // Re-throw if it's not a 404 error
-		}
+	private user(interaction: Interaction) {
+		return this.store.userForDiscord(interaction.user.id, (interaction.member as GuildMember)?.displayName ?? interaction.user.username);
 	}
 }

@@ -247,7 +247,7 @@ if (process.env.PRODUCTION === "TRUE") {
 	BlockbenchDownloader(client);
 	TimeToLive(client);
 	ChannelClearVoting(client, pocketbase);
-	AccountManagement(client, pocketbase, server);
+	AccountManagement(client, server);
 	// SEPromo(client, pocketbase);
 	LeaderboardRewards(client, pocketbase);
 	ReactionRewards(client, pocketbase);
