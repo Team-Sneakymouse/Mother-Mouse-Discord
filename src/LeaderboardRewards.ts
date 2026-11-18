@@ -213,7 +213,9 @@ export class LeaderboardRewardsManager {
 			// A reused key means this account already got different mail for this leaderboard and day: not sent again.
 			// Any other failure may come after the commit (lost reply), so the mail may exist: resending with the key is safe.
 			const reason =
-				e instanceof SourceKeyReusedError ? ": the key already names a mail with different content" : `; it may already exist. Resend by hand (safe, same key): ${resendStatement(mail.payload)}`;
+				e instanceof SourceKeyReusedError
+					? ": the key already names a mail with different content"
+					: `; it may already exist. Resend by hand (safe, same key): ${resendStatement(mail.payload)}`;
 			console.error(`${e instanceof SourceKeyReusedError ? "Failed to send" : "Could not confirm"} ${what} (source key ${mail.payload.sourceKey})${reason}`, e);
 			return false;
 		}
