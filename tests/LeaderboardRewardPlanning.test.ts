@@ -10,7 +10,7 @@ test("unexpected parser failures are structured diagnostics and do not discard l
 		return originalParseInt(text, radix);
 	};
 	try {
-		const result = planLeaderboardRewards({}, { board: { fault: "bad", "1+": "good" } }, "Monday");
+		const result = planLeaderboardRewards({}, { board: { fault: "bad", "1+": "good" } }, "Monday", "2026-10-05");
 		assert.deepEqual(result, {
 			eligibleLeaderboards: ["board"],
 			mails: [],
@@ -30,7 +30,7 @@ for (const { name, values, ranks } of [
 ]) {
 	test(`pure planning preserves competition ranks for ${name}`, () => {
 		const entries = values.map((value, i) => ({ account: String(i), value }));
-		const result = planLeaderboardRewards({ leaderboard: entries }, { leaderboard: { "1+": "reward" } }, "Tuesday");
+		const result = planLeaderboardRewards({ leaderboard: entries }, { leaderboard: { "1+": "reward" } }, "Tuesday", "2026-10-06");
 		assert.deepEqual(
 			result.mails.map((mail) => mail.metadata.rank),
 			ranks,
@@ -54,6 +54,7 @@ test("ties crossing the last rewarded position both receive rewards", () => {
 		},
 		{ board: { "1-2": "reward" } },
 		"Monday",
+		"2026-10-05",
 	);
 	assert.deepEqual(
 		result.mails.map((mail) => mail.metadata.account),
@@ -72,6 +73,7 @@ test("independent leaderboard ranks, overlapping rules and fetched leaderboard i
 		},
 		{ board: { "1+": "participation", "1": "gold", "1-2": "bonus" }, other: { "1": "otherGold" } },
 		"Sunday",
+		"2026-10-11",
 	);
 	assert.deepEqual(
 		result.mails.map((mail) => [mail.metadata.leaderboard, mail.metadata.account, mail.metadata.rank, mail.payload.rewards.map((reward) => reward.command)]),
@@ -85,7 +87,7 @@ test("independent leaderboard ranks, overlapping rules and fetched leaderboard i
 
 test("ordinal suffixes are literal independent expectations in mail notes", () => {
 	const entries = Array.from({ length: 123 }, (_, i) => ({ account: String(i + 1), value: 900 - i }));
-	const result = planLeaderboardRewards({ board: entries }, { board: { "1+": "reward" } }, "Thursday");
+	const result = planLeaderboardRewards({ board: entries }, { board: { "1+": "reward" } }, "Thursday", "2026-10-08");
 	for (const [rank, ordinal] of [
 		[1, "1st"],
 		[2, "2nd"],
@@ -120,11 +122,11 @@ test("planning and display do not mutate frozen inputs or share mutable payloads
 	const scores = Object.freeze({ board: entries });
 	const config = Object.freeze({ board: Object.freeze({ "1+": "reward" }) });
 	const snapshot = structuredClone({ scores, config });
-	const first = planLeaderboardRewards(scores, config, "Monday");
+	const first = planLeaderboardRewards(scores, config, "Monday", "2026-10-05");
 	formatLeaderboardContent(entries);
 	first.mails[0].payload.rewards[0].command = "changed";
 	assert.deepEqual({ scores, config }, snapshot);
-	assert.equal(planLeaderboardRewards(scores, config, "Monday").mails[0].payload.rewards[0].command, "ms cast as {player} reward");
+	assert.equal(planLeaderboardRewards(scores, config, "Monday", "2026-10-05").mails[0].payload.rewards[0].command, "ms cast as {player} reward");
 });
 
 test("empty, unconfigured and unmatched leaderboards produce no mail", () => {
@@ -132,9 +134,10 @@ test("empty, unconfigured and unmatched leaderboards produce no mail", () => {
 		{ empty: [], unconfigured: [{ account: "A", value: 100 }], unmatched: [{ account: "B", value: 90 }] },
 		{ empty: { "1+": "reward" }, unmatched: { "2": "reward" }, absent: { "1": "reward" } },
 		"Saturday",
+		"2026-10-10",
 	);
 	assert.deepEqual(result, { eligibleLeaderboards: ["empty", "unmatched", "absent"], mails: [], diagnostics: [] });
-	assert.deepEqual(planLeaderboardRewards({}, {}, "Saturday"), { eligibleLeaderboards: [], mails: [], diagnostics: [] });
+	assert.deepEqual(planLeaderboardRewards({}, {}, "Saturday", "2026-10-10"), { eligibleLeaderboards: [], mails: [], diagnostics: [] });
 });
 
 test("range parsing retains parseInt permissiveness, hyphen priority and Object.entries order without stricter validation", () => {
@@ -163,6 +166,7 @@ test("range parsing retains parseInt permissiveness, hyphen priority and Object.
 			},
 		},
 		"Monday",
+		"2026-10-05",
 	);
 	assert.deepEqual(
 		result.mails.map((mail) => mail.payload.rewards.map((reward) => reward.command)),
@@ -176,7 +180,10 @@ test("range parsing retains parseInt permissiveness, hyphen priority and Object.
 		result.diagnostics.map(({ range }) => range),
 		["-1", "1-", "+"],
 	);
-	assert.deepEqual(planLeaderboardRewards({}, { reversed: { "3-1": "never" }, zero: { "0": "never" } }, "Monday").eligibleLeaderboards, ["reversed", "zero"]);
+	assert.deepEqual(planLeaderboardRewards({}, { reversed: { "3-1": "never" }, zero: { "0": "never" } }, "Monday", "2026-10-05").eligibleLeaderboards, [
+		"reversed",
+		"zero",
+	]);
 });
 
 test("pure display reuses competition ranks, stable ties, winner highlighting and 16-entry limit", () => {
@@ -193,7 +200,12 @@ test("returns ordered invalid-range diagnostics and only eligible parsed leaderb
 		errors.push(args);
 	};
 	try {
-		const result = planLeaderboardRewards({}, { broken: { nope: "bad", "1-nope": "badEnd" }, mixed: { "?+": "badStart", "2": "valid" }, empty: {} }, "Monday");
+		const result = planLeaderboardRewards(
+			{},
+			{ broken: { nope: "bad", "1-nope": "badEnd" }, mixed: { "?+": "badStart", "2": "valid" }, empty: {} },
+			"Monday",
+			"2026-10-05",
+		);
 		assert.deepEqual(result, {
 			eligibleLeaderboards: ["mixed"],
 			mails: [],
@@ -210,7 +222,12 @@ test("returns ordered invalid-range diagnostics and only eligible parsed leaderb
 });
 
 test("plans exact domain-only mail payloads with explicit weekday and metadata", () => {
-	const result = planLeaderboardRewards({ leaderboard: [{ account: "A", value: 1234.5 }] }, { leaderboard: { "1": "gold", "1+": "participation" } }, "Friday");
+	const result = planLeaderboardRewards(
+		{ leaderboard: [{ account: "A", value: 1234.5 }] },
+		{ leaderboard: { "1": "gold", "1+": "participation" } },
+		"Friday",
+		"2026-10-09",
+	);
 	assert.deepEqual(result, {
 		eligibleLeaderboards: ["leaderboard"],
 		diagnostics: [],
@@ -218,11 +235,9 @@ test("plans exact domain-only mail payloads with explicit weekday and metadata",
 			{
 				metadata: { leaderboard: "leaderboard", account: "A", rank: 1, score: 1234.5 },
 				payload: {
-					sender_name: "<gold>Grand Paladin Order</gold>",
-					sender_uuid: "",
-					recipient_name: "",
-					recipient_uuid: "A",
-					available: true,
+					sourceKey: "leaderboard:leaderboard:2026-10-09:A",
+					recipientUuid: "A",
+					senderName: "<gold>Grand Paladin Order</gold>",
 					note: "<gold>Congratulations!</gold>\nYou placed <yellow>1st</yellow> on Friday's leaderboard\nwith your score of <white>1,234.5</white>.",
 					rewards: [
 						{ type: "command", command: "ms cast as {player} gold" },
@@ -232,4 +247,22 @@ test("plans exact domain-only mail payloads with explicit weekday and metadata",
 			},
 		],
 	});
+});
+
+test("source keys name the leaderboard, game day and account, and not the rank", () => {
+	const config = { board: { "1+": "reward" }, other: { "1+": "reward" } };
+	const keys = (scores: Record<string, { account: string; value: number }[]>, gameDay: string) =>
+		planLeaderboardRewards(scores, config, "Monday", gameDay).mails.map((mail) => mail.payload.sourceKey);
+	const scores = {
+		board: [
+			{ account: "A", value: 100 },
+			{ account: "B", value: 90 },
+		],
+		other: [{ account: "A", value: 5 }],
+	};
+	assert.deepEqual(keys(scores, "2026-10-05"), ["leaderboard:board:2026-10-05:A", "leaderboard:board:2026-10-05:B", "leaderboard:other:2026-10-05:A"]);
+	assert.deepEqual(keys(scores, "2026-10-12"), ["leaderboard:board:2026-10-12:A", "leaderboard:board:2026-10-12:B", "leaderboard:other:2026-10-12:A"]);
+	// A late score that moves B from 2nd to 3rd keeps B's key, so a retry can't send B a second mail.
+	const later = { board: [...scores.board, { account: "C", value: 95 }] };
+	assert.deepEqual(keys(later, "2026-10-05"), ["leaderboard:board:2026-10-05:A", "leaderboard:board:2026-10-05:C", "leaderboard:board:2026-10-05:B"]);
 });

@@ -19,11 +19,10 @@ tables: every change goes through SneakyUserMeta's linking functions, which Mine
 ## Other features that read accounts
 
 `accountStoreFromEnv()` in `src/AccountManagement/store.ts` gives every feature the same store (null without
-`PGHOST`):
+`PGHOST`), on the bot's one PostgreSQL connection (`postgresFromEnv()` in `src/utils/postgres.ts`):
 
-- ReactionRewards sends Rawb's red-gem reward to the member's main account (`mainAccountForDiscord`).
-
-It still writes the mail itself, and its reminder timestamp, to PocketBase until mail moves to PostgreSQL.
+- ReactionRewards sends Rawb's red-gem reward to the member's main account (`mainAccountForDiscord`). The mail
+  goes to SneakyMail (see [reward-mail.md](reward-mail.md)); its reminder timestamp stays in PocketBase.
 
 ## Tests
 

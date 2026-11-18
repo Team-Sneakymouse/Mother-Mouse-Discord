@@ -3,29 +3,25 @@ import { test } from "node:test";
 import type { Client } from "discord.js";
 import type PocketBase from "pocketbase";
 import { LeaderboardRewardsManager } from "../src/LeaderboardRewards.ts";
+import { PostgresMailSender, type MailSender, type RewardMail } from "../src/utils/SneakyMail.ts";
+import { fakeSneakyMailSql } from "./fakeSneakyMail.ts";
 
 type Score = Parameters<LeaderboardRewardsManager["formatLeaderboardContent"]>[0][number];
 type Settings = Parameters<LeaderboardRewardsManager["distributeRewards"]>[0];
-type Mail = { recipient_uuid: string; note: string; rewards: { type: string; command: string }[] };
 
 function score(name: string, value: number, leaderboard = "leaderboard"): Score {
 	return { id: name, collectionId: "scores", collectionName: "lom2_leaderboards", account: name, name, value, leaderboard, date: "2026-10-07" };
 }
 
+/** PocketBase is only for settings and scores now; a test that needs it replaces `manager.db`. */
 function setup(rewards: Settings["value"]["rewards"] = {}) {
-	const mails: Mail[] = [];
+	const { sql, sent: mails } = fakeSneakyMailSql();
 	const db = {
 		collection(name: string) {
-			assert.equal(name, "lom2_mail");
-			return {
-				async create(mail: Mail) {
-					mails.push(mail);
-					return { id: String(mails.length), ...mail };
-				},
-			};
+			assert.fail(`unexpected PocketBase collection ${name}`);
 		},
 	} as unknown as PocketBase;
-	const manager = new LeaderboardRewardsManager({} as Client, db);
+	const manager = new LeaderboardRewardsManager({} as Client, db, new PostgresMailSender(sql));
 	const settings = { value: { weekdays: ["Wednesday"], rewards } } as Settings;
 	return { manager, settings, mails };
 }
@@ -79,22 +75,17 @@ test("mail creates are sequential, continue after failure, and summaries count s
 	const attempted: string[] = [];
 	const failure = new Error("simulated create failure");
 	let active = false;
-	manager.db = {
-		collection(name: string) {
-			assert.equal(name, "lom2_mail");
-			return {
-				async create(mail: Mail) {
-					assert.equal(active, false);
-					active = true;
-					attempted.push(mail.recipient_uuid);
-					await Promise.resolve();
-					active = false;
-					if (mail.recipient_uuid === "A") throw failure;
-					return { id: "success", ...mail };
-				},
-			};
+	manager.mail = {
+		async send(mail: RewardMail) {
+			assert.equal(active, false);
+			active = true;
+			attempted.push(mail.recipientUuid);
+			await Promise.resolve();
+			active = false;
+			if (mail.recipientUuid === "A") throw failure;
+			return "1";
 		},
-	} as unknown as PocketBase;
+	} satisfies MailSender;
 	await captureLogs(async (logs, errors) => {
 		await manager.distributeRewards(
 			settings,
@@ -109,7 +100,7 @@ test("mail creates are sequential, continue after failure, and summaries count s
 			["Sent a total of 0 mails for leaderboard unmatched"],
 		]);
 		const errorText = "Failed to send reward mail to A for leaderboard leaderboard with rank 1 and score 100";
-		assert.deepEqual(errors, [[errorText, failure], [errorText]]);
+		assert.deepEqual(errors, [[errorText, failure]]);
 	});
 });
 
@@ -138,12 +129,7 @@ test("runRewards queries only valid parsed leaderboards and preserves invalid-ra
 						return [score("A", 100), score("R", 50, "reversed")];
 					},
 				};
-			assert.equal(name, "lom2_mail");
-			return {
-				async create(mail: Mail) {
-					return { id: "success", ...mail };
-				},
-			};
+			assert.fail(`unexpected PocketBase collection ${name}`);
 		},
 	} as unknown as PocketBase;
 	await captureLogs(async (logs, errors) => {
@@ -165,7 +151,7 @@ test("tied second-place scores both receive second-place reward mail, skipping t
 	const { manager, settings, mails } = setup({ leaderboard: { "1": "gold", "2": "silver", "3": "bronze", "4+": "participation" } });
 	await manager.distributeRewards(settings, { leaderboard: [score("D", 600), score("B", 800), score("A", 1000), score("C", 800)] }, date);
 	assert.deepEqual(
-		mails.map((mail) => [mail.recipient_uuid, mail.rewards[0].command, mail.note.match(/<yellow>(.*?)<\/yellow>/)?.[1]]),
+		mails.map((mail) => [mail.recipientUuid, mail.rewards[0].command, mail.note.match(/<yellow>(.*?)<\/yellow>/)?.[1]]),
 		[
 			["A", "ms cast as {player} gold", "1st"],
 			["B", "ms cast as {player} silver", "2nd"],
@@ -211,7 +197,7 @@ test("a tie crossing the last rewarded position rewards both accounts", async ()
 	const { manager, settings, mails } = setup({ leaderboard: { "1-2": "reward" } });
 	await manager.distributeRewards(settings, { leaderboard: [score("A", 100), score("B", 90), score("C", 90), score("D", 80)] }, date);
 	assert.deepEqual(
-		mails.map((mail) => mail.recipient_uuid),
+		mails.map((mail) => mail.recipientUuid),
 		["A", "B", "C"],
 	);
 });
@@ -245,4 +231,81 @@ test("empty leaderboards produce no display text or reward mail", async () => {
 	assert.equal(manager.formatLeaderboardContent([]), "");
 	await manager.distributeRewards(settings, { leaderboard: [] }, date);
 	assert.deepEqual(mails, []);
+});
+
+test("mail goes to sneakymail.send under one source key per leaderboard, game day and account", async () => {
+	const { manager, settings, mails } = setup({ leaderboard: { "1": "gold", "1+": "participation" } });
+	await captureLogs(async () => {
+		await manager.distributeRewards(settings, { leaderboard: [score("B", 90), score("A", 100)] }, date);
+	});
+	assert.deepEqual(mails, [
+		{
+			sourceKey: "leaderboard:leaderboard:2026-10-07:A",
+			recipientUuid: "A",
+			senderName: "<gold>Grand Paladin Order</gold>",
+			note: "<gold>Congratulations!</gold>\nYou placed <yellow>1st</yellow> on Wednesday's leaderboard\nwith your score of <white>100</white>.",
+			rewards: [
+				{ type: "command", command: "ms cast as {player} gold" },
+				{ type: "command", command: "ms cast as {player} participation" },
+			],
+			expiresAt: null,
+		},
+		{
+			sourceKey: "leaderboard:leaderboard:2026-10-07:B",
+			recipientUuid: "B",
+			senderName: "<gold>Grand Paladin Order</gold>",
+			note: "<gold>Congratulations!</gold>\nYou placed <yellow>2nd</yellow> on Wednesday's leaderboard\nwith your score of <white>90</white>.",
+			rewards: [{ type: "command", command: "ms cast as {player} participation" }],
+			expiresAt: null,
+		},
+	]);
+});
+
+test("running the same day again sends no second mail", async () => {
+	const { manager, settings, mails } = setup({ leaderboard: { "1+": "reward" } });
+	const scores = { leaderboard: [score("A", 100), score("B", 90)] };
+	await captureLogs(async () => {
+		await manager.distributeRewards(settings, scores, date);
+	});
+	await captureLogs(async (logs, errors) => {
+		await manager.distributeRewards(settings, scores, new Date("2026-10-07T20:00:00Z"));
+		assert.deepEqual(errors, []);
+		assert.deepEqual(logs.at(-1), ["Sent a total of 2 mails for leaderboard leaderboard"]);
+	});
+	assert.equal(mails.length, 2);
+	await captureLogs(async () => {
+		await manager.distributeRewards(settings, scores, new Date("2026-10-14T12:00:00Z"));
+	});
+	assert.equal(mails.length, 4, "next week's leaderboard is new mail");
+});
+
+test("a retry whose scores changed logs the reused source key instead of sending again", async () => {
+	const { manager, settings, mails } = setup({ leaderboard: { "1+": "reward" } });
+	await captureLogs(async () => {
+		await manager.distributeRewards(settings, { leaderboard: [score("A", 100), score("B", 90)] }, date);
+	});
+	await captureLogs(async (logs, errors) => {
+		await manager.distributeRewards(settings, { leaderboard: [score("A", 100), score("B", 90), score("C", 95)] }, date);
+		assert.deepEqual(
+			errors.map(([message]) => message),
+			[
+				"Failed to send reward mail to B for leaderboard leaderboard with rank 3 and score 90: source key leaderboard:leaderboard:2026-10-07:B already names a mail with different content",
+			],
+		);
+		assert.deepEqual(logs.at(-1), ["Sent a total of 2 mails for leaderboard leaderboard"]);
+	});
+	assert.deepEqual(
+		mails.map((mail) => mail.recipientUuid),
+		["A", "B", "C"],
+	);
+});
+
+test("without a PostgreSQL connection no mail is sent and the reason is logged", async () => {
+	const { manager, settings } = setup({ leaderboard: { "1+": "reward" } });
+	manager.mail = null;
+	await captureLogs(async (logs, errors) => {
+		await manager.distributeRewards(settings, { leaderboard: [score("A", 100)] }, date);
+		assert.deepEqual(errors, [["LeaderboardRewards: no PostgreSQL database (PGHOST unset); no reward mail sent"]]);
+		assert.deepEqual(logs, []);
+	});
 });

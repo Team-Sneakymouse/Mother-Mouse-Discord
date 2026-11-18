@@ -14,13 +14,8 @@ import {
 } from "discord.js";
 import PocketBase, { RecordModel } from "pocketbase";
 import { CronJob } from "cron";
-import {
-	formatLeaderboardContent,
-	planLeaderboardRewards,
-	type MailCreatePayload,
-	type PlannedRewardMail,
-	type RewardParsingDiagnostic,
-} from "./LeaderboardRewardPlanning.js";
+import { formatLeaderboardContent, planLeaderboardRewards, type PlannedRewardMail, type RewardParsingDiagnostic } from "./LeaderboardRewardPlanning.js";
+import { SourceKeyReusedError, type MailSender } from "./utils/SneakyMail.js";
 
 export const data = [new SlashCommandBuilder().setName("leaderboard").setDescription("Display the current leaderboard")];
 
@@ -41,10 +36,10 @@ type LeaderboardRecord = RecordModel & {
 	name: string;
 	value: number;
 };
-type MailRecord = RecordModel & MailCreatePayload;
 
-export default function LeaderboardRewards(client: Client, db: PocketBase): LeaderboardRewardsManager {
-	const manager = new LeaderboardRewardsManager(client, db);
+/** Settings and scores come from PocketBase; reward mail goes to SneakyMail's PostgreSQL table. */
+export default function LeaderboardRewards(client: Client, db: PocketBase, mail: MailSender | null): LeaderboardRewardsManager {
+	const manager = new LeaderboardRewardsManager(client, db, mail);
 	manager.initialize();
 	return manager;
 }
@@ -52,13 +47,15 @@ export default function LeaderboardRewards(client: Client, db: PocketBase): Lead
 export class LeaderboardRewardsManager {
 	client: Client;
 	db: PocketBase;
+	mail: MailSender | null;
 	lomChannelId = "1178373136857710592";
 	lomChannel: TextChannel | null = null;
 	cronJob: CronJob | null = null;
 
-	constructor(client: Client, db: PocketBase) {
+	constructor(client: Client, db: PocketBase, mail: MailSender | null) {
 		this.client = client;
 		this.db = db;
+		this.mail = mail;
 	}
 
 	initialize(): void {
@@ -102,7 +99,7 @@ export class LeaderboardRewardsManager {
 
 		if (!this.isEnabledWeekday(leaderboardSettings, date)) return;
 
-		const eligibility = planLeaderboardRewards({}, leaderboardSettings.value.rewards, date.toLocaleString("en-US", { weekday: "long" }));
+		const eligibility = planLeaderboardRewards({}, leaderboardSettings.value.rewards, date.toLocaleString("en-US", { weekday: "long" }), this.gameDay(date));
 		this.logParsingDiagnostics(eligibility.diagnostics);
 		const leaderboardsData = await this.fetchLeaderboardScores(eligibility.eligibleLeaderboards, date);
 
@@ -140,10 +137,15 @@ export class LeaderboardRewardsManager {
 		return true;
 	}
 
+	/** The yyyy-mm-dd that the day's scores are stored under. */
+	gameDay(date: Date): string {
+		return date.toISOString().split("T")[0];
+	}
+
 	async fetchLeaderboardScores(leaderboards: LeaderboardId[], date: Date): Promise<Record<LeaderboardId, LeaderboardRecord[]>> {
 		if (leaderboards.length === 0) return {};
 		const leaderboardsFilter = leaderboards.map((lb) => `leaderboard="${lb}"`).join(" || ");
-		const dateStr = date.toISOString().split("T")[0];
+		const dateStr = this.gameDay(date);
 		const dateFilter = `date ~ "${dateStr}"`;
 
 		return await this.db
@@ -170,8 +172,10 @@ export class LeaderboardRewardsManager {
 
 	async distributeRewards(leaderboardSettings: SettingsRecord, leaderboardsData: Record<LeaderboardId, LeaderboardRecord[]>, date: Date): Promise<void> {
 		const weekday = date.toLocaleString("en-US", { weekday: "long" });
-		const plan = planLeaderboardRewards(leaderboardsData, leaderboardSettings.value.rewards, weekday);
+		const plan = planLeaderboardRewards(leaderboardsData, leaderboardSettings.value.rewards, weekday, this.gameDay(date));
 		this.logParsingDiagnostics(plan.diagnostics);
+		const mailSender = this.mail;
+		if (!mailSender) return console.error("LeaderboardRewards: no PostgreSQL database (PGHOST unset); no reward mail sent");
 		const mailsByLeaderboard = new Map<string, PlannedRewardMail[]>(plan.eligibleLeaderboards.map((leaderboard) => [leaderboard, []]));
 		for (const mail of plan.mails) mailsByLeaderboard.get(mail.metadata.leaderboard)!.push(mail);
 		for (const [leaderboard] of Object.entries(leaderboardsData)) {
@@ -179,7 +183,7 @@ export class LeaderboardRewardsManager {
 			if (!mails) continue;
 			let mailsSent = 0;
 			for (const mail of mails) {
-				if (await this.sendRewardMail(mail)) mailsSent++;
+				if (await this.sendRewardMail(mailSender, mail)) mailsSent++;
 			}
 			console.log(`Sent a total of ${mailsSent} mails for leaderboard ${leaderboard}`);
 		}
@@ -196,20 +200,18 @@ export class LeaderboardRewardsManager {
 		}
 	}
 
-	private async sendRewardMail(mail: PlannedRewardMail): Promise<boolean> {
+	private async sendRewardMail(sender: MailSender, mail: PlannedRewardMail): Promise<boolean> {
 		const { leaderboard, account, rank, score } = mail.metadata;
-		const result = await this.db
-			.collection("lom2_mail")
-			.create<MailRecord>(mail.payload)
-			.catch((e: any) => {
-				console.error(`Failed to send reward mail to ${account} for leaderboard ${leaderboard} with rank ${rank} and score ${score}`, e);
-				return null;
-			});
-		if (!result) {
-			console.error(`Failed to send reward mail to ${account} for leaderboard ${leaderboard} with rank ${rank} and score ${score}`);
+		const what = `reward mail to ${account} for leaderboard ${leaderboard} with rank ${rank} and score ${score}`;
+		try {
+			await sender.send(mail.payload);
+		} catch (e) {
+			// A reused key means this account already got different mail for this leaderboard and day: not sent again.
+			const reason = e instanceof SourceKeyReusedError ? `: ${e.message}` : "";
+			console.error(`Failed to send ${what}${reason}`, e);
 			return false;
 		}
-		console.log(`Sent reward mail to ${account} for leaderboard ${leaderboard} with rank ${rank} and score ${score}`);
+		console.log(`Sent ${what}`);
 		return true;
 	}
 
