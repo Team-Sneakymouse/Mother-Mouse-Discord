@@ -11,12 +11,13 @@ import {
 	SlashCommandStringOption,
 	TextDisplayBuilder,
 } from "discord.js";
-import PocketBase, { ClientResponseError, RecordModel } from "pocketbase";
+import { SQL } from "bun";
 import type { Express } from "express";
 import { AccountManagementInterface } from "./accounts.js";
 import TwitchLink from "./twitchLink.js";
 import { ButtonIds } from "./types.js";
 import MinecraftLink from "./minecraftLink.js";
+import { PostgresAccountStore } from "./store.js";
 
 const accountsAliases = ["account", "accounts", "authenticate", "howtoauthenticate"];
 export const data = [
@@ -31,7 +32,13 @@ export const data = [
 		.addStringOption(new SlashCommandStringOption().setName("token").setDescription("Link token from Minecraft").setRequired(false)),
 ];
 
-export default function AccountManagement(client: Client, db: PocketBase, server: Express) {
+/** Links accounts in SneakyUserMeta's tables (schema sneakyusermeta) through the PG* connection settings. */
+export default function AccountManagement(client: Client, server: Express) {
+	if (!process.env.PGHOST) {
+		console.log("AccountManagement: disabled until PGHOST, PGUSER, PGPASSWORD and PGDATABASE are configured");
+		return;
+	}
+	const store = new PostgresAccountStore(new SQL());
 	const buttonIds: ButtonIds = {
 		ACCOUNT_MANAGEMENT: "account_management",
 		ACCOUNT_MINECRAFT_SELECT: "account_minecraft_select",
@@ -43,9 +50,9 @@ export default function AccountManagement(client: Client, db: PocketBase, server
 		MINECRAFT_LINK_MODAL: "minecraft_link_modal",
 		MINECRAFT_LINK_SUBMIT: "minecraft_link_submit",
 	};
-	const accountManagement = new AccountManagementInterface(buttonIds, db);
-	const twitchLink = new TwitchLink(buttonIds, db, server);
-	const minecraftLink = new MinecraftLink(buttonIds, db);
+	const accountManagement = new AccountManagementInterface(buttonIds, store);
+	const twitchLink = new TwitchLink(buttonIds, store, server);
+	const minecraftLink = new MinecraftLink(buttonIds, store);
 
 	client.on("interactionCreate", async (interaction) => {
 		if (interaction.isChatInputCommand()) {
