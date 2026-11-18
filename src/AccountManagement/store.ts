@@ -1,4 +1,5 @@
-import { SQL } from "bun";
+import type { SQL } from "bun";
+import { postgresFromEnv } from "../utils/postgres.js";
 
 // Users, Minecraft accounts and Twitch identities live in SneakyUserMeta's schema `sneakyusermeta`. Every change goes
 // through its linking functions (SneakyUserMeta's db/migrations/V002__account_linking.sql), which hold the rules
@@ -35,9 +36,12 @@ export interface AccountStore {
 }
 
 let shared: AccountStore | null | undefined;
-/** One store for the bot, from the PG* settings; null when PGHOST isn't set. */
+/** One store for the bot, on the shared PostgreSQL connection; null when PGHOST isn't set. */
 export function accountStoreFromEnv(): AccountStore | null {
-	if (shared === undefined) shared = process.env.PGHOST ? new PostgresAccountStore(new SQL()) : null;
+	if (shared === undefined) {
+		const sql = postgresFromEnv();
+		shared = sql ? new PostgresAccountStore(sql) : null;
+	}
 	return shared;
 }
 

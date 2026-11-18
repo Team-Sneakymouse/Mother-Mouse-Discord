@@ -1,17 +1,11 @@
+import type { RewardMail } from "./utils/SneakyMail.js";
+
+/** `account` is the Minecraft account's UUID. */
 export type RewardScore = { account: string; value: number };
 export type RewardConfig = Readonly<Record<string, Readonly<Record<string, string>>>>;
-export type MailCreatePayload = {
-	sender_name: string;
-	sender_uuid: string;
-	recipient_name: string;
-	recipient_uuid: string;
-	available: true;
-	note: string;
-	rewards: { type: "command"; command: string }[];
-};
 export type PlannedRewardMail = {
 	metadata: { leaderboard: string; account: string; rank: number; score: number };
-	payload: MailCreatePayload;
+	payload: RewardMail;
 };
 export type RewardParsingDiagnostic = { leaderboard: string; range: string; spell: string } & (
 	| { kind: "invalid-range" }
@@ -84,7 +78,22 @@ function getOrdinal(i: number): string {
 	return `${i}${suffixes[mod10]}`;
 }
 
-export function planLeaderboardRewards(scores: Readonly<Record<string, readonly RewardScore[]>>, config: RewardConfig, weekday: string): RewardPlan {
+/**
+ * One mail per account, leaderboard and game day, holding every reward the account earned there. The rank stays out
+ * of the key: it depends on everyone else's scores, so a retry that sees one more score would otherwise send a second
+ * mail. With the rank out, that retry fails with SourceKeyReusedError instead.
+ */
+export function leaderboardSourceKey(leaderboard: string, gameDay: string, account: string): string {
+	return `leaderboard:${leaderboard}:${gameDay}:${account}`;
+}
+
+/** `gameDay` (yyyy-mm-dd) is the day the scores belong to; it goes into the source keys. `weekday` goes into the notes. */
+export function planLeaderboardRewards(
+	scores: Readonly<Record<string, readonly RewardScore[]>>,
+	config: RewardConfig,
+	weekday: string,
+	gameDay: string,
+): RewardPlan {
 	const diagnostics: RewardParsingDiagnostic[] = [];
 	const rules = parseRules(config, diagnostics);
 	const mails: PlannedRewardMail[] = [];
@@ -97,11 +106,9 @@ export function planLeaderboardRewards(scores: Readonly<Record<string, readonly 
 			mails.push({
 				metadata: { leaderboard, account: score.account, rank, score: score.value },
 				payload: {
-					sender_name: "<gold>Grand Paladin Order</gold>",
-					sender_uuid: "",
-					recipient_name: "",
-					recipient_uuid: score.account,
-					available: true,
+					sourceKey: leaderboardSourceKey(leaderboard, gameDay, score.account),
+					recipientUuid: score.account,
+					senderName: "<gold>Grand Paladin Order</gold>",
 					note: `<gold>Congratulations!</gold>\nYou placed <yellow>${getOrdinal(rank)}</yellow> on ${weekday}'s leaderboard\nwith your score of <white>${Intl.NumberFormat("en-US").format(score.value)}</white>.`,
 					rewards: commands.map((command) => ({ type: "command", command })),
 				},

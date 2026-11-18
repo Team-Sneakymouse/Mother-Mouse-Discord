@@ -38,6 +38,9 @@ const client = new Client({
 	partials: [Partials.Channel, Partials.Message, Partials.Reaction],
 });
 
+// discord.js reports a rejected listener as an "error" event; unhandled, that would end the process.
+client.on("error", (error) => console.error("Discord client error:", error));
+
 client.once("clientReady", () => {
 	console.log("Ready!", client.user?.tag);
 });
@@ -174,6 +177,7 @@ import ChannelClearVoting from "./ChannelClearVoting.js";
 // Account Management
 import AccountManagement from "./AccountManagement/index.js";
 import { accountStoreFromEnv } from "./AccountManagement/store.js";
+import { mailSenderFromEnv } from "./utils/SneakyMail.js";
 
 // Leaderboard Rewards
 import LeaderboardRewards from "./LeaderboardRewards.js";
@@ -248,8 +252,8 @@ if (process.env.PRODUCTION === "TRUE") {
 	ChannelClearVoting(client, pocketbase);
 	AccountManagement(client, server);
 	// SEPromo(client, pocketbase);
-	LeaderboardRewards(client, pocketbase);
-	ReactionRewards(client, pocketbase, accountStoreFromEnv());
+	LeaderboardRewards(client, pocketbase, mailSenderFromEnv());
+	ReactionRewards(client, pocketbase, accountStoreFromEnv(), mailSenderFromEnv());
 	PatchnoteForwarding(client);
 	DonationBarPosting(client, pocketbase);
 	StreamManager(client, pocketbase);
