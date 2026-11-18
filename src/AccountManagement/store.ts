@@ -1,4 +1,4 @@
-import type { SQL } from "bun";
+import { SQL } from "bun";
 
 // Users, Minecraft accounts and Twitch identities live in SneakyUserMeta's schema `sneakyusermeta`. Every change goes
 // through its linking functions (SneakyUserMeta's db/migrations/V002__account_linking.sql), which hold the rules
@@ -30,6 +30,17 @@ export interface AccountStore {
 	/** Replaces the user's Twitch account; `moved` when it was linked to another user before. */
 	linkTwitch(user: UserId, identity: TwitchIdentity, grant: TwitchGrant): Promise<{ moved: boolean }>;
 	unlinkTwitch(user: UserId): Promise<boolean>;
+	/** The main Minecraft account of a Discord user, or null when they have none linked. */
+	mainAccountForDiscord(discordId: string): Promise<{ uuid: string; name: string } | null>;
+	/** Every Minecraft account seen in game since `since`, linked or not. */
+	accountsSeenSince(since: Date): Promise<Array<{ uuid: string; name: string }>>;
+}
+
+let shared: AccountStore | null | undefined;
+/** One store for the bot, from the PG* settings; null when PGHOST isn't set. */
+export function accountStoreFromEnv(): AccountStore | null {
+	if (shared === undefined) shared = process.env.PGHOST ? new PostgresAccountStore(new SQL()) : null;
+	return shared;
 }
 
 export class PostgresAccountStore implements AccountStore {
@@ -88,6 +99,18 @@ export class PostgresAccountStore implements AccountStore {
 				${user}::bigint, ${identity.twitchId}, ${identity.displayName}, ${identity.profileImageUrl},
 				${grant.accessToken}, ${grant.refreshToken}, ${grant.expiresAt}, string_to_array(${grant.scopes.join(" ")}, ' '))`; // Twitch scopes have no spaces
 		return { moved: row.moved };
+	}
+
+	async mainAccountForDiscord(discordId: string) {
+		const [row] = await this.sql<Array<{ uuid: string; name: string }>>`
+			select a.uuid::text, a.name from sneakyusermeta.accounts a join sneakyusermeta.users u on u.id = a.user_id
+			where u.discord_id = ${discordId} and a.is_main`;
+		return row ?? null;
+	}
+
+	async accountsSeenSince(since: Date) {
+		return await this.sql<Array<{ uuid: string; name: string }>>`
+			select uuid::text, name from sneakyusermeta.accounts where last_seen >= ${since} order by name`;
 	}
 
 	async unlinkTwitch(user: UserId): Promise<boolean> {

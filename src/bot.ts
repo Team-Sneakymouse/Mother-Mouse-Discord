@@ -173,6 +173,7 @@ import ChannelClearVoting from "./ChannelClearVoting.js";
 
 // Account Management
 import AccountManagement from "./AccountManagement/index.js";
+import { accountStoreFromEnv } from "./AccountManagement/store.js";
 
 // Leaderboard Rewards
 import LeaderboardRewards from "./LeaderboardRewards.js";
@@ -250,13 +251,13 @@ if (process.env.PRODUCTION === "TRUE") {
 	AccountManagement(client, server);
 	// SEPromo(client, pocketbase);
 	LeaderboardRewards(client, pocketbase);
-	ReactionRewards(client, pocketbase);
+	ReactionRewards(client, pocketbase, accountStoreFromEnv());
 	PatchnoteForwarding(client);
 	DonationBarPosting(client, pocketbase);
 	StreamManager(client, pocketbase);
 	BuildTeamManagement(client);
 	RatsRoleAssignment(client);
-	SendMail(client, pocketbase);
+	SendMail(client, pocketbase, accountStoreFromEnv());
 	PluginUpdates(client);
 	GithubPrStatus(client);
 	TodoList(client, pocketbase);

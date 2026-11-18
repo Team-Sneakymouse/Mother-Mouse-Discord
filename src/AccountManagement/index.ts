@@ -11,13 +11,12 @@ import {
 	SlashCommandStringOption,
 	TextDisplayBuilder,
 } from "discord.js";
-import { SQL } from "bun";
 import type { Express } from "express";
 import { AccountManagementInterface } from "./accounts.js";
 import TwitchLink from "./twitchLink.js";
 import { ButtonIds } from "./types.js";
 import MinecraftLink from "./minecraftLink.js";
-import { PostgresAccountStore } from "./store.js";
+import { accountStoreFromEnv } from "./store.js";
 
 const accountsAliases = ["account", "accounts", "authenticate", "howtoauthenticate"];
 export const data = [
@@ -34,11 +33,11 @@ export const data = [
 
 /** Links accounts in SneakyUserMeta's tables (schema sneakyusermeta) through the PG* connection settings. */
 export default function AccountManagement(client: Client, server: Express) {
-	if (!process.env.PGHOST) {
+	const store = accountStoreFromEnv();
+	if (!store) {
 		console.log("AccountManagement: disabled until PGHOST, PGUSER, PGPASSWORD and PGDATABASE are configured");
 		return;
 	}
-	const store = new PostgresAccountStore(new SQL());
 	const buttonIds: ButtonIds = {
 		ACCOUNT_MANAGEMENT: "account_management",
 		ACCOUNT_MINECRAFT_SELECT: "account_minecraft_select",

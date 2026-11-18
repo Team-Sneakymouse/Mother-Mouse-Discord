@@ -1,6 +1,7 @@
 import { type ChatInputCommandInteraction, type Client, MessageFlags, PermissionFlagsBits, SlashCommandBuilder, SlashCommandStringOption } from "discord.js";
 import type PocketBase from "pocketbase";
 import type { RecordModel } from "pocketbase";
+import type { AccountStore } from "./AccountManagement/store.js";
 
 const RAWBTV_GUILD_ID = "391355330241757205";
 const ACTIVE_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
@@ -28,10 +29,6 @@ const ITEM_IDS = [
 ] as const;
 type ItemId = (typeof ITEM_IDS)[number];
 
-type AccountRecord = RecordModel & {
-	name: string;
-};
-
 type MailRecord = RecordModel & {
 	sender_name: string;
 	recipient_name: string;
@@ -54,14 +51,15 @@ export const data = [
 		),
 ];
 
-export default function SendMail(client: Client, db: PocketBase): void {
+/** Accounts come from SneakyUserMeta's tables (`accounts.last_seen`); the mail itself still goes to PocketBase. */
+export default function SendMail(client: Client, db: PocketBase, accounts: AccountStore | null): void {
 	client.on("interactionCreate", async (interaction) => {
 		if (!interaction.isChatInputCommand() || interaction.commandName !== "sendmail") return;
-		await handleSendMail(interaction, db);
+		await handleSendMail(interaction, db, accounts);
 	});
 }
 
-async function handleSendMail(interaction: ChatInputCommandInteraction, db: PocketBase): Promise<void> {
+async function handleSendMail(interaction: ChatInputCommandInteraction, db: PocketBase, store: AccountStore | null): Promise<void> {
 	if (interaction.guildId !== RAWBTV_GUILD_ID || !interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
 		await interaction.reply({ content: "You do not have permission to use this command.", flags: MessageFlags.Ephemeral });
 		return;
@@ -74,14 +72,16 @@ async function handleSendMail(interaction: ChatInputCommandInteraction, db: Pock
 		return;
 	}
 
-	const activeSince = new Date(Date.now() - ACTIVE_WINDOW_MS).toISOString();
-	let accounts: AccountRecord[];
+	const activeSince = new Date(Date.now() - ACTIVE_WINDOW_MS);
+	if (!store) {
+		await interaction.editReply("The accounts database isn't configured (PGHOST). No mail was sent.");
+		return;
+	}
+	let accounts: Array<{ uuid: string; name: string }>;
 	try {
-		accounts = await db.collection("lom2_accounts").getFullList<AccountRecord>({
-			filter: `updated >= "${activeSince}"`,
-		});
+		accounts = await store.accountsSeenSince(activeSince);
 	} catch (error) {
-		console.error(`Failed to fetch accounts active since ${activeSince}`, error);
+		console.error(`Failed to fetch accounts active since ${activeSince.toISOString()}`, error);
 		await interaction.editReply("Failed to fetch active accounts. No mail was sent.");
 		return;
 	}
@@ -100,7 +100,7 @@ async function handleSendMail(interaction: ChatInputCommandInteraction, db: Pock
 			sent++;
 		} catch (error) {
 			failed++;
-			console.error(`Failed to send ${item} to account ${account.name} (${account.id})`, error);
+			console.error(`Failed to send ${item} to account ${account.name} (${account.uuid})`, error);
 		}
 	}
 
