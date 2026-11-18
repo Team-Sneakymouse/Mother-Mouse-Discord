@@ -99,8 +99,13 @@ test("mail creates are sequential, continue after failure, and summaries count s
 			["Sent a total of 1 mails for leaderboard leaderboard"],
 			["Sent a total of 0 mails for leaderboard unmatched"],
 		]);
-		const errorText = "Failed to send reward mail to A for leaderboard leaderboard with rank 1 and score 100";
-		assert.deepEqual(errors, [[errorText, failure]]);
+		assert.equal(errors.length, 1);
+		const [message, error] = errors[0] as [string, unknown];
+		assert.equal(error, failure);
+		assert.equal(
+			message,
+			"Failed to send reward mail to A for leaderboard leaderboard with rank 1 and score 100 (source key leaderboard:leaderboard:2026-10-07:A). Resend by hand: select sneakymail.send('leaderboard:leaderboard:2026-10-07:A', 'A'::uuid, '<gold>Grand Paladin Order</gold>', '<gold>Congratulations!</gold>\nYou placed <yellow>1st</yellow> on Wednesday''s leaderboard\nwith your score of <white>100</white>.', '[{\"type\":\"command\",\"command\":\"ms cast as {player} reward\"}]'::jsonb, null);",
+		);
 	});
 });
 
@@ -289,7 +294,7 @@ test("a retry whose scores changed logs the reused source key instead of sending
 		assert.deepEqual(
 			errors.map(([message]) => message),
 			[
-				"Failed to send reward mail to B for leaderboard leaderboard with rank 3 and score 90: source key leaderboard:leaderboard:2026-10-07:B already names a mail with different content",
+				"Failed to send reward mail to B for leaderboard leaderboard with rank 3 and score 90 (source key leaderboard:leaderboard:2026-10-07:B): the key already names a mail with different content",
 			],
 		);
 		assert.deepEqual(logs.at(-1), ["Sent a total of 2 mails for leaderboard leaderboard"]);
@@ -305,7 +310,11 @@ test("without a PostgreSQL connection no mail is sent and the reason is logged",
 	manager.mail = null;
 	await captureLogs(async (logs, errors) => {
 		await manager.distributeRewards(settings, { leaderboard: [score("A", 100)] }, date);
-		assert.deepEqual(errors, [["LeaderboardRewards: no PostgreSQL database (PGHOST unset); no reward mail sent"]]);
+		assert.deepEqual(
+			errors.map(([message]) => String(message).split(". Resend by hand: ")[0]),
+			["LeaderboardRewards: no PostgreSQL database (PGHOST unset); no reward mail sent", "Not sent: source key leaderboard:leaderboard:2026-10-07:A"],
+		);
+		assert.ok(String(errors[1][0]).includes("Resend by hand: select sneakymail.send('leaderboard:leaderboard:2026-10-07:A', 'A'::uuid, "));
 		assert.deepEqual(logs, []);
 	});
 });

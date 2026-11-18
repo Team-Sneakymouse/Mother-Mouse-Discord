@@ -38,6 +38,9 @@ const client = new Client({
 	partials: [Partials.Channel, Partials.Message, Partials.Reaction],
 });
 
+// discord.js reports a rejected listener as an "error" event; unhandled, that would end the process.
+client.on("error", (error) => console.error("Discord client error:", error));
+
 client.once("clientReady", () => {
 	console.log("Ready!", client.user?.tag);
 });

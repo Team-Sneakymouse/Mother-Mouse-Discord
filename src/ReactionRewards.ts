@@ -2,18 +2,22 @@ import { CronJob } from "cron";
 import { Client, User } from "discord.js";
 import PocketBase, { RecordModel } from "pocketbase";
 import type { AccountStore } from "./AccountManagement/store.js";
-import { SourceKeyReusedError, type MailSender, type RewardMail } from "./utils/SneakyMail.js";
+import { resendStatement, SourceKeyReusedError, type MailSender, type RewardMail } from "./utils/SneakyMail.js";
 
 type SettingsRecord = RecordModel & {
 	key: string;
 	value: any;
 };
 
+/** One reward per message: Rawb reacting again, or Discord delivering the reaction twice, returns the same mail. */
+export function redGemSourceKey(messageId: string): string {
+	return `reaction:red-gem:${messageId}`;
+}
+
 /** Rawb's red-gem reward for a message, to the author's main Minecraft account. */
 export function redGemRewardMail(messageId: string, recipientUuid: string): RewardMail {
 	return {
-		// One reward per message: Rawb reacting again, or Discord delivering the reaction twice, returns the same mail.
-		sourceKey: `reaction:red-gem:${messageId}`,
+		sourceKey: redGemSourceKey(messageId),
 		recipientUuid,
 		senderName: "<gold>Grand Paladin Order</gold>",
 		note: `<i:false><white>You earned a <red>RED GEM</red> in the
@@ -71,7 +75,10 @@ export default function ReactionRewards(client: Client, db: PocketBase, accounts
 	});
 }
 
-/** Sends the red-gem reward for `messageId` to the main account of its author, or tells them to link one. */
+/**
+ * Sends the red-gem reward for `messageId` to the main account of its author, or tells them to link one. Never
+ * rejects: it runs in a Discord listener, where a rejection would surface as an unhandled client error.
+ */
 export async function awardDragoncoins(
 	db: PocketBase,
 	accounts: AccountStore | null,
@@ -79,22 +86,30 @@ export async function awardDragoncoins(
 	discordUser: User,
 	messageId: string,
 ): Promise<void> {
-	if (!accounts || !mail) return console.error("ReactionRewards: no PostgreSQL database (PGHOST unset); no Dragon Coins sent");
-	const account = await accounts.mainAccountForDiscord(discordUser.id);
-	if (account == null) {
-		const dmChannel = discordUser.dmChannel || (await discordUser.createDM());
-		if (dmChannel == null) return console.error(`Could not create DM channel with user ${discordUser.tag} (${discordUser.id})`);
-		dmChannel.send(
-			"Rawb tried to give you 100 Dragon Coins, but you don't have your Minecraft account linked in Minecraft.\nYou can do that with `/accounts` in any rawb.tv channel to receive rewards in the future!",
-		);
-		return;
-	}
-
+	const what = `red gem for message ${messageId} (source key ${redGemSourceKey(messageId)})`;
+	if (!accounts || !mail) return console.error(`ReactionRewards: no PostgreSQL database (PGHOST unset); no Dragon Coins sent for ${what}`);
+	let account: { uuid: string; name: string } | null = null;
+	let sent = false;
 	try {
+		account = await accounts.mainAccountForDiscord(discordUser.id);
+		if (account == null) {
+			const dmChannel = discordUser.dmChannel || (await discordUser.createDM());
+			if (dmChannel == null) return console.error(`Could not create DM channel with user ${discordUser.tag} (${discordUser.id})`);
+			await dmChannel.send(
+				"Rawb tried to give you 100 Dragon Coins, but you don't have your Minecraft account linked in Minecraft.\nYou can do that with `/accounts` in any rawb.tv channel to receive rewards in the future!",
+			);
+			return;
+		}
 		await mail.send(redGemRewardMail(messageId, account.uuid));
+		sent = true;
+		await db.collection("settings").update(LAST_TIMESTAMP_ID, { value: new Date().toISOString() });
 	} catch (error) {
-		const reason = error instanceof SourceKeyReusedError ? `: ${error.message}` : "";
-		return console.error(`ReactionRewards: no Dragon Coins sent to ${account.name} (${account.uuid}) for message ${messageId}${reason}`, error);
+		const to = account ? ` to ${account.name} (${account.uuid})` : "";
+		let outcome: string;
+		if (sent) outcome = `Dragon Coins sent${to}, but updating the reminder timestamp failed`;
+		else if (error instanceof SourceKeyReusedError) outcome = `no Dragon Coins sent${to}: the key already names a mail with different content`;
+		else if (account) outcome = `no Dragon Coins sent${to}. Resend by hand: ${resendStatement(redGemRewardMail(messageId, account.uuid))}`;
+		else outcome = "no Dragon Coins sent: looking up the author's main account failed";
+		console.error(`ReactionRewards: ${what}: ${outcome}`, error);
 	}
-	await db.collection("settings").update(LAST_TIMESTAMP_ID, { value: new Date().toISOString() });
 }

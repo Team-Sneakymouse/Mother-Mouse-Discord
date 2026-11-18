@@ -89,7 +89,7 @@ test("a reused key with another recipient is logged and leaves the reminder time
 		assert.equal(errors.length, 1);
 		assert.equal(
 			errors[0][0],
-			`ReactionRewards: no Dragon Coins sent to Alty (${switched.uuid}) for message 1300000000000000001: source key reaction:red-gem:1300000000000000001 already names a mail with different content`,
+			`ReactionRewards: red gem for message 1300000000000000001 (source key reaction:red-gem:1300000000000000001): no Dragon Coins sent to Alty (${switched.uuid}): the key already names a mail with different content`,
 		);
 	});
 	assert.equal(first.sent.length, 1);
@@ -109,7 +109,74 @@ test("without a PostgreSQL connection nothing is sent", async () => {
 	const { db, accounts, author, settingsUpdates } = setup();
 	await captureErrors(async (errors) => {
 		await awardDragoncoins(db, accounts, null, author, "1300000000000000001");
-		assert.deepEqual(errors, [["ReactionRewards: no PostgreSQL database (PGHOST unset); no Dragon Coins sent"]]);
+		assert.deepEqual(errors, [
+			[
+				"ReactionRewards: no PostgreSQL database (PGHOST unset); no Dragon Coins sent for red gem for message 1300000000000000001 (source key reaction:red-gem:1300000000000000001)",
+			],
+		]);
 	});
 	assert.equal(settingsUpdates.length, 0);
+});
+
+test("a database outage while looking up the account is logged, not thrown", async () => {
+	const { db, mail, author, sent } = setup();
+	const outage = new Error("connection refused");
+	const accounts = {
+		async mainAccountForDiscord() {
+			throw outage;
+		},
+	} as unknown as AccountStore;
+	await captureErrors(async (errors) => {
+		await awardDragoncoins(db, accounts, mail, author, "1300000000000000001");
+		assert.deepEqual(errors, [
+			[
+				"ReactionRewards: red gem for message 1300000000000000001 (source key reaction:red-gem:1300000000000000001): no Dragon Coins sent: looking up the author's main account failed",
+				outage,
+			],
+		]);
+	});
+	assert.equal(sent.length, 0);
+});
+
+test("a failed send logs the statement to resend it by hand", async () => {
+	const failure = new Error("simulated");
+	const fake = fakeSneakyMailSql(() => {
+		throw failure;
+	});
+	const { db, accounts, author, settingsUpdates } = setup();
+	await captureErrors(async (errors) => {
+		await awardDragoncoins(db, accounts, new PostgresMailSender(fake.sql), author, "1300000000000000001");
+		assert.equal(errors.length, 1);
+		const [message, error] = errors[0] as [string, unknown];
+		assert.equal(error, failure);
+		assert.ok(
+			message.startsWith(
+				`ReactionRewards: red gem for message 1300000000000000001 (source key reaction:red-gem:1300000000000000001): no Dragon Coins sent to Mainy (${MAIN.uuid}). Resend by hand: select sneakymail.send('reaction:red-gem:1300000000000000001', '${MAIN.uuid}'::uuid, `,
+			),
+			message,
+		);
+	});
+	assert.equal(settingsUpdates.length, 0);
+});
+
+test("a PocketBase failure after the mail went out is logged as sent", async () => {
+	const { accounts, mail, author, sent } = setup();
+	const outage = new Error("PocketBase down");
+	const db = {
+		collection: () => ({
+			async update() {
+				throw outage;
+			},
+		}),
+	} as unknown as PocketBase;
+	await captureErrors(async (errors) => {
+		await awardDragoncoins(db, accounts, mail, author, "1300000000000000001");
+		assert.deepEqual(errors, [
+			[
+				`ReactionRewards: red gem for message 1300000000000000001 (source key reaction:red-gem:1300000000000000001): Dragon Coins sent to Mainy (${MAIN.uuid}), but updating the reminder timestamp failed`,
+				outage,
+			],
+		]);
+	});
+	assert.equal(sent.length, 1);
 });

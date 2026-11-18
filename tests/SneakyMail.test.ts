@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { PostgresMailSender, SourceKeyReusedError, type RewardMail } from "../src/utils/SneakyMail.ts";
+import { SQL } from "bun";
+import { PostgresMailSender, resendStatement, SourceKeyReusedError, type RewardMail } from "../src/utils/SneakyMail.ts";
 import { fakeSneakyMailSql } from "./fakeSneakyMail.ts";
 
 const mail: RewardMail = {
@@ -55,4 +56,83 @@ test("other database errors pass through unchanged", async () => {
 		throw failure;
 	});
 	await assert.rejects(new PostgresMailSender(sql).send({ ...mail, recipientUuid: "nope" }), (e) => e === failure);
+});
+
+function serverError(errno: string, message = "simulated") {
+	return new SQL.PostgresError(message, { code: "ERR_POSTGRES_SERVER_ERROR", errno });
+}
+
+/** A sender whose first `failures` calls throw, with recorded instead of real waits. */
+function flaky(failures: unknown[]) {
+	const waits: number[] = [];
+	let calls = 0;
+	const fake = fakeSneakyMailSql(() => {
+		calls++;
+		const failure = failures.shift();
+		if (failure) throw failure;
+	});
+	const sender = new PostgresMailSender(fake.sql, { delaysMs: [1000, 5000], sleep: async (ms) => void waits.push(ms) });
+	return { sender, waits, calls: () => calls, sent: fake.sent };
+}
+
+async function captureWarnings(action: (warnings: unknown[][]) => Promise<void>) {
+	const warnings: unknown[][] = [];
+	const originalWarn = console.warn;
+	console.warn = (...args) => {
+		warnings.push(args);
+	};
+	try {
+		await action(warnings);
+	} finally {
+		console.warn = originalWarn;
+	}
+}
+
+test("connection errors and serialization failures are retried with backoff, then the mail is sent once", async () => {
+	const refused = new SQL.PostgresError("Failed to connect", { code: "ERR_POSTGRES_CONNECTION_REFUSED" });
+	const { sender, waits, calls, sent } = flaky([refused, serverError("40001")]);
+	await captureWarnings(async (warnings) => {
+		assert.equal(await sender.send(mail), "1");
+		assert.deepEqual(
+			warnings.map(([message]) => message),
+			[
+				`SneakyMail: sending ${mail.sourceKey} failed (ERR_POSTGRES_CONNECTION_REFUSED); retrying in 1000 ms`,
+				`SneakyMail: sending ${mail.sourceKey} failed (40001); retrying in 5000 ms`,
+			],
+		);
+	});
+	assert.deepEqual(waits, [1000, 5000]);
+	assert.equal(calls(), 3);
+	assert.equal(sent.length, 1);
+});
+
+test("a send that keeps failing gives up after the last retry with the last error", async () => {
+	const last = serverError("57P01", "terminating connection due to administrator command");
+	const { sender, waits, calls } = flaky([serverError("08006"), serverError("57P01"), last]);
+	await captureWarnings(async () => {
+		await assert.rejects(sender.send(mail), (e) => e === last);
+	});
+	assert.deepEqual(waits, [1000, 5000]);
+	assert.equal(calls(), 3);
+});
+
+for (const [name, failure] of [
+	["a reused key (23505)", serverError("23505")],
+	["bad data (22P02)", serverError("22P02")],
+	["a missing sneakymail.send (42883)", serverError("42883")],
+	["an error that isn't from the database", new TypeError("simulated")],
+] as const) {
+	test(`${name} is not retried`, async () => {
+		const { sender, waits, calls } = flaky([failure]);
+		await assert.rejects(sender.send(mail));
+		assert.deepEqual(waits, []);
+		assert.equal(calls(), 1);
+	});
+}
+
+test("the resend statement quotes the logged mail's key and content", () => {
+	assert.equal(
+		resendStatement({ ...mail, note: "Rawb's gem\nline two" }),
+		`select sneakymail.send('${mail.sourceKey}', '${mail.recipientUuid}'::uuid, '<gold>Grand Paladin Order</gold>', 'Rawb''s gem\nline two', '[{"type":"command","command":"ms cast as {player} gold"}]'::jsonb, null);`,
+	);
 });

@@ -15,7 +15,7 @@ import {
 import PocketBase, { RecordModel } from "pocketbase";
 import { CronJob } from "cron";
 import { formatLeaderboardContent, planLeaderboardRewards, type PlannedRewardMail, type RewardParsingDiagnostic } from "./LeaderboardRewardPlanning.js";
-import { SourceKeyReusedError, type MailSender } from "./utils/SneakyMail.js";
+import { resendStatement, SourceKeyReusedError, type MailSender } from "./utils/SneakyMail.js";
 
 export const data = [new SlashCommandBuilder().setName("leaderboard").setDescription("Display the current leaderboard")];
 
@@ -175,7 +175,11 @@ export class LeaderboardRewardsManager {
 		const plan = planLeaderboardRewards(leaderboardsData, leaderboardSettings.value.rewards, weekday, this.gameDay(date));
 		this.logParsingDiagnostics(plan.diagnostics);
 		const mailSender = this.mail;
-		if (!mailSender) return console.error("LeaderboardRewards: no PostgreSQL database (PGHOST unset); no reward mail sent");
+		if (!mailSender) {
+			console.error("LeaderboardRewards: no PostgreSQL database (PGHOST unset); no reward mail sent");
+			for (const { payload } of plan.mails) console.error(`Not sent: source key ${payload.sourceKey}. Resend by hand: ${resendStatement(payload)}`);
+			return;
+		}
 		const mailsByLeaderboard = new Map<string, PlannedRewardMail[]>(plan.eligibleLeaderboards.map((leaderboard) => [leaderboard, []]));
 		for (const mail of plan.mails) mailsByLeaderboard.get(mail.metadata.leaderboard)!.push(mail);
 		for (const [leaderboard] of Object.entries(leaderboardsData)) {
@@ -207,8 +211,9 @@ export class LeaderboardRewardsManager {
 			await sender.send(mail.payload);
 		} catch (e) {
 			// A reused key means this account already got different mail for this leaderboard and day: not sent again.
-			const reason = e instanceof SourceKeyReusedError ? `: ${e.message}` : "";
-			console.error(`Failed to send ${what}${reason}`, e);
+			const reason =
+				e instanceof SourceKeyReusedError ? ": the key already names a mail with different content" : `. Resend by hand: ${resendStatement(mail.payload)}`;
+			console.error(`Failed to send ${what} (source key ${mail.payload.sourceKey})${reason}`, e);
 			return false;
 		}
 		console.log(`Sent ${what}`);

@@ -24,6 +24,19 @@ mail is not sent and the error is logged.
 The leaderboard key leaves out the rank: it depends on the other players' scores, so a retry that saw one more score
 would otherwise send a second mail. The day is the one the scores are stored under in `lom2_leaderboards`.
 
+## Failed sends
+
+A send that fails on connection trouble or a serialization failure (SQLSTATE class `08`, `40001`, `40P01`, `57P01`
+to `57P03`, `53300`, and Bun's connection, timeout and refused errors) is tried again after 1 s and after 5 s. The
+source key makes that safe. A reused key (`23505`), bad data (such as `22P02`) or a missing `sneakymail.send`
+(`42883`) fail at once.
+
+Every failure log line names the source key. When the mail was not sent, the line ends with
+`Resend by hand: select sneakymail.send('<logged key>', ...)`: run that statement in DBeaver or psql as it stands,
+once the database is back. It has the same key and content, so if the failed send did commit after all, it
+returns that mail's id instead of sending a second one. A line saying the key "already names a mail with different
+content" means the account already has mail under that key: check it in `sneakymail.mail` before sending anything.
+
 ## Tests
 
 `tests/fakeSneakyMail.ts` stands in for PostgreSQL behind `PostgresMailSender` and keeps `sneakymail.send`'s
