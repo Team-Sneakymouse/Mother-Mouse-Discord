@@ -22,10 +22,8 @@ tables: every change goes through SneakyUserMeta's linking functions, which Mine
 `PGHOST`):
 
 - ReactionRewards sends Rawb's red-gem reward to the member's main account (`mainAccountForDiscord`).
-- `/sendmail` mails every account seen in game in the last 14 days (`accountsSeenSince`, from `accounts.last_seen`).
 
-Both still write the mail itself, and ReactionRewards its reminder timestamp, to PocketBase until mail moves to
-PostgreSQL.
+It still writes the mail itself, and its reminder timestamp, to PocketBase until mail moves to PostgreSQL.
 
 ## Tests
 

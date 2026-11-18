@@ -32,8 +32,6 @@ export interface AccountStore {
 	unlinkTwitch(user: UserId): Promise<boolean>;
 	/** The main Minecraft account of a Discord user, or null when they have none linked. */
 	mainAccountForDiscord(discordId: string): Promise<{ uuid: string; name: string } | null>;
-	/** Every Minecraft account seen in game since `since`, linked or not. */
-	accountsSeenSince(since: Date): Promise<Array<{ uuid: string; name: string }>>;
 }
 
 let shared: AccountStore | null | undefined;
@@ -106,11 +104,6 @@ export class PostgresAccountStore implements AccountStore {
 			select a.uuid::text, a.name from sneakyusermeta.accounts a join sneakyusermeta.users u on u.id = a.user_id
 			where u.discord_id = ${discordId} and a.is_main`;
 		return row ?? null;
-	}
-
-	async accountsSeenSince(since: Date) {
-		return await this.sql<Array<{ uuid: string; name: string }>>`
-			select uuid::text, name from sneakyusermeta.accounts where last_seen >= ${since} order by name`;
 	}
 
 	async unlinkTwitch(user: UserId): Promise<boolean> {

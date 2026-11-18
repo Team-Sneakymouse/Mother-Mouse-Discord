@@ -196,8 +196,6 @@ import BuildTeamManagement from "./BuildTeamManagement.js";
 // Give the Rats role to users who post in the designated channel
 import RatsRoleAssignment from "./RatsRoleAssignment.js";
 
-// Send item mail to recently active Legend of Mice accounts
-import SendMail from "./SendMail.js";
 import PluginUpdates from "./PluginUpdates.js";
 import GithubPrStatus from "./GithubPrStatus.js";
 import TodoList from "./Todo.js";
@@ -257,7 +255,6 @@ if (process.env.PRODUCTION === "TRUE") {
 	StreamManager(client, pocketbase);
 	BuildTeamManagement(client);
 	RatsRoleAssignment(client);
-	SendMail(client, pocketbase, accountStoreFromEnv());
 	PluginUpdates(client);
 	GithubPrStatus(client);
 	TodoList(client, pocketbase);

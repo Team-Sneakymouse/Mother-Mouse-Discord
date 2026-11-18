@@ -33,7 +33,6 @@ import { data as AccountManagement } from "./src/AccountManagement/index.js";
 import { data as Leaderboard } from "./src/LeaderboardRewards.js";
 import { data as StreamManager } from "./src/StreamManager.js";
 import { data as BuildTeamManagement } from "./src/BuildTeamManagement.js";
-import { data as SendMail } from "./src/SendMail.js";
 import { data as PluginUpdates } from "./src/PluginUpdates.js";
 import { data as GithubPrStatus } from "./src/GithubPrStatus.js";
 import { data as ReleaseChecklist } from "./src/ReleaseChecklist/index.js";
@@ -50,7 +49,6 @@ const commands = {
 		...AccountManagement,
 		...Leaderboard,
 		...BuildTeamManagement,
-		...SendMail,
 		...PluginUpdates,
 		...SharedTodos,
 		...GithubPrStatus,

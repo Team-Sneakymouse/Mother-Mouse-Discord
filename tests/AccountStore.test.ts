@@ -101,7 +101,7 @@ test("AccountStore links, switches mains, unlinks and connects Twitch through Sn
 	}
 });
 
-test("AccountStore finds a Discord user's main account and the accounts seen recently", { skip: !url || !migrations }, async () => {
+test("AccountStore finds a Discord user's main account", { skip: !url || !migrations }, async () => {
 	const sql = connect();
 	try {
 		await freshSchema(sql);
@@ -111,19 +111,11 @@ test("AccountStore finds a Discord user's main account and the accounts seen rec
 
 		const main = randomUUID();
 		const alt = randomUUID();
-		const stale = randomUUID();
 		await store.redeemForUser(await minecraftToken(sql, main, "MainName"), user);
 		await store.redeemForUser(await minecraftToken(sql, alt, "AltName"), user);
-		await minecraftToken(sql, stale, "StaleName"); // an account row that nobody linked
-		await sql`update sneakyusermeta.accounts set last_seen = now() - interval '20 days' where uuid = ${stale}::uuid`;
 
 		assert.deepEqual(await store.mainAccountForDiscord("111"), { uuid: main, name: "MainName" });
 		assert.equal(await store.mainAccountForDiscord("222"), null);
-		const since = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
-		assert.deepEqual(
-			(await store.accountsSeenSince(since)).map((a) => a.name),
-			["AltName", "MainName"],
-		);
 	} finally {
 		await sql.close();
 	}
