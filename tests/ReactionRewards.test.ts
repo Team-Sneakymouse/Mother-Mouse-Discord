@@ -180,3 +180,21 @@ test("a PocketBase failure after the mail went out is logged as sent", async () 
 	});
 	assert.equal(sent.length, 1);
 });
+
+test("a failed DM to an author without a linked account is not blamed on the account lookup", async () => {
+	const { db, accounts, mail, author, sent } = setup(null);
+	const refused = new Error("Cannot send messages to this user");
+	(author as unknown as { dmChannel: { send(text: string): Promise<void> } }).dmChannel.send = async () => {
+		throw refused;
+	};
+	await captureErrors(async (errors) => {
+		await awardDragoncoins(db, accounts, mail, author, "1300000000000000001");
+		assert.deepEqual(errors, [
+			[
+				"ReactionRewards: red gem for message 1300000000000000001 (source key reaction:red-gem:1300000000000000001): no Dragon Coins sent: the author has no linked account, and the DM with linking instructions failed",
+				refused,
+			],
+		]);
+	});
+	assert.equal(sent.length, 0);
+});

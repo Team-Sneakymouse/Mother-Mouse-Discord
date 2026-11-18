@@ -90,8 +90,10 @@ export async function awardDragoncoins(
 	if (!accounts || !mail) return console.error(`ReactionRewards: no PostgreSQL database (PGHOST unset); no Dragon Coins sent for ${what}`);
 	let account: { uuid: string; name: string } | null = null;
 	let sent = false;
+	let lookedUp = false;
 	try {
 		account = await accounts.mainAccountForDiscord(discordUser.id);
+		lookedUp = true;
 		if (account == null) {
 			const dmChannel = discordUser.dmChannel || (await discordUser.createDM());
 			if (dmChannel == null) return console.error(`Could not create DM channel with user ${discordUser.tag} (${discordUser.id})`);
@@ -109,6 +111,7 @@ export async function awardDragoncoins(
 		if (sent) outcome = `Dragon Coins sent${to}, but updating the reminder timestamp failed`;
 		else if (error instanceof SourceKeyReusedError) outcome = `no Dragon Coins sent${to}: the key already names a mail with different content`;
 		else if (account) outcome = `Dragon Coins mail${to} not confirmed; it may already exist. Resend by hand (safe, same key): ${resendStatement(redGemRewardMail(messageId, account.uuid))}`;
+		else if (lookedUp) outcome = "no Dragon Coins sent: the author has no linked account, and the DM with linking instructions failed";
 		else outcome = "no Dragon Coins sent: looking up the author's main account failed";
 		console.error(`ReactionRewards: ${what}: ${outcome}`, error);
 	}
