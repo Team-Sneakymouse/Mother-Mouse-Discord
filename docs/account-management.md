@@ -16,6 +16,17 @@ tables: every change goes through SneakyUserMeta's linking functions, which Mine
 - Twitch uses the OAuth flow at `/link/twitch` (`TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET`, `TWITCH_REDIRECT_URI`).
   The tokens go to `sneakyusermeta.twitch_tokens`. Linking a Twitch account that another member had linked moves it.
 
+## Other features that read accounts
+
+`accountStoreFromEnv()` in `src/AccountManagement/store.ts` gives every feature the same store (null without
+`PGHOST`):
+
+- ReactionRewards sends Rawb's red-gem reward to the member's main account (`mainAccountForDiscord`).
+- `/sendmail` mails every account seen in game in the last 14 days (`accountsSeenSince`, from `accounts.last_seen`).
+
+Both still write the mail itself, and ReactionRewards its reminder timestamp, to PocketBase until mail moves to
+PostgreSQL.
+
 ## Tests
 
 `tests/AccountStore.test.ts` applies SneakyUserMeta's migration scripts to a disposable database:
@@ -24,3 +35,7 @@ tables: every change goes through SneakyUserMeta's linking functions, which Mine
 ACCOUNTS_TEST_DATABASE_URL=postgres://postgres:test@127.0.0.1:15432/postgres \
 SNEAKYUSERMETA_MIGRATIONS=../SneakyUserMeta/src/main/resources/db/migrations bun test tests/AccountStore.test.ts
 ```
+
+Bun's `SQL` fills any connection field it isn't given from the `PG*` variables, including those in a local `.env`
+that Bun loads on its own, so a test connection built from a URL can end up on another database. The test passes
+every field explicitly; do the same for any new connection that must not follow `PG*`.

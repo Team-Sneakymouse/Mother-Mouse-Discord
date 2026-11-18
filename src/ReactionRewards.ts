@@ -1,6 +1,7 @@
 import { CronJob } from "cron";
 import { Client, User } from "discord.js";
 import PocketBase, { RecordModel } from "pocketbase";
+import type { AccountStore } from "./AccountManagement/store.js";
 
 type MailModel = RecordModel & {
 	sender_uuid?: string;
@@ -11,18 +12,13 @@ type MailModel = RecordModel & {
 	available: true;
 	rewards: { type: "command"; command: string }[];
 };
-type LomUserRecord = RecordModel & {
-	id: string;
-	name: string;
-	owner: string;
-	main: boolean;
-};
 type SettingsRecord = RecordModel & {
 	key: string;
 	value: any;
 };
 
-export default function ReactionRewards(client: Client, db: PocketBase) {
+/** Accounts come from SneakyUserMeta's tables (`accounts`); mail and the reminder timestamp are still PocketBase's. */
+export default function ReactionRewards(client: Client, db: PocketBase, accounts: AccountStore | null) {
 	const LAST_TIMESTAMP_ID = "p6989yx87943q9y";
 	const RAWB_USER_ID = "90956966947467264";
 	new CronJob("0 0 18 * * *", async () => {
@@ -65,13 +61,8 @@ export default function ReactionRewards(client: Client, db: PocketBase) {
 	});
 
 	async function awardDragoncoins(discordUser: User) {
-		const account = await db
-			.collection("lom2_accounts")
-			.getFirstListItem<LomUserRecord>(`owner.discord_id="${discordUser.id}" && main=true`)
-			.catch((e: any) => {
-				if (e.status === 404) return null;
-				throw e;
-			});
+		if (!accounts) return console.error("ReactionRewards: no accounts database (PGHOST unset); no Dragon Coins sent");
+		const account = await accounts.mainAccountForDiscord(discordUser.id);
 		if (account == null) {
 			const dmChannel = discordUser.dmChannel || (await discordUser.createDM());
 			if (dmChannel == null) return console.error(`Could not create DM channel with user ${discordUser.tag} (${discordUser.id})`);
@@ -84,7 +75,7 @@ export default function ReactionRewards(client: Client, db: PocketBase) {
 		await db.collection("lom2_mail").create<MailModel>({
 			sender_name: "<gold>Grand Paladin Order</gold>",
 			recipient_name: account.name,
-			recipient_uuid: account.id,
+			recipient_uuid: account.uuid,
 			note: `<i:false><white>You earned a <red>RED GEM</red> in the
 <i:false><white><light_purple>r<aqua>a</aqua>w<aqua>b</aqua>.<aqua>t</aqua>v</light_purple> Discord server and
 <i:false><white>received <dark_red><b><red>100 Dragon Coins</red></b></dark_red>!`,
