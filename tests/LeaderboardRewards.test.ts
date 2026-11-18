@@ -104,7 +104,7 @@ test("mail creates are sequential, continue after failure, and summaries count s
 		assert.equal(error, failure);
 		assert.equal(
 			message,
-			"Failed to send reward mail to A for leaderboard leaderboard with rank 1 and score 100 (source key leaderboard:leaderboard:2026-10-07:A). Resend by hand: select sneakymail.send('leaderboard:leaderboard:2026-10-07:A', 'A'::uuid, '<gold>Grand Paladin Order</gold>', '<gold>Congratulations!</gold>\nYou placed <yellow>1st</yellow> on Wednesday''s leaderboard\nwith your score of <white>100</white>.', '[{\"type\":\"command\",\"command\":\"ms cast as {player} reward\"}]'::jsonb, null);",
+			"Could not confirm reward mail to A for leaderboard leaderboard with rank 1 and score 100 (source key leaderboard:leaderboard:2026-10-07:A); it may already exist. Resend by hand (safe, same key): select sneakymail.send('leaderboard:leaderboard:2026-10-07:A', 'A'::uuid, '<gold>Grand Paladin Order</gold>', '<gold>Congratulations!</gold>\nYou placed <yellow>1st</yellow> on Wednesday''s leaderboard\nwith your score of <white>100</white>.', '[{\"type\":\"command\",\"command\":\"ms cast as {player} reward\"}]'::jsonb, null);",
 		);
 	});
 });

@@ -108,7 +108,7 @@ export async function awardDragoncoins(
 		let outcome: string;
 		if (sent) outcome = `Dragon Coins sent${to}, but updating the reminder timestamp failed`;
 		else if (error instanceof SourceKeyReusedError) outcome = `no Dragon Coins sent${to}: the key already names a mail with different content`;
-		else if (account) outcome = `no Dragon Coins sent${to}. Resend by hand: ${resendStatement(redGemRewardMail(messageId, account.uuid))}`;
+		else if (account) outcome = `Dragon Coins mail${to} not confirmed; it may already exist. Resend by hand (safe, same key): ${resendStatement(redGemRewardMail(messageId, account.uuid))}`;
 		else outcome = "no Dragon Coins sent: looking up the author's main account failed";
 		console.error(`ReactionRewards: ${what}: ${outcome}`, error);
 	}

@@ -151,7 +151,7 @@ test("a failed send logs the statement to resend it by hand", async () => {
 		assert.equal(error, failure);
 		assert.ok(
 			message.startsWith(
-				`ReactionRewards: red gem for message 1300000000000000001 (source key reaction:red-gem:1300000000000000001): no Dragon Coins sent to Mainy (${MAIN.uuid}). Resend by hand: select sneakymail.send('reaction:red-gem:1300000000000000001', '${MAIN.uuid}'::uuid, `,
+				`ReactionRewards: red gem for message 1300000000000000001 (source key reaction:red-gem:1300000000000000001): Dragon Coins mail to Mainy (${MAIN.uuid}) not confirmed; it may already exist. Resend by hand (safe, same key): select sneakymail.send('reaction:red-gem:1300000000000000001', '${MAIN.uuid}'::uuid, `,
 			),
 			message,
 		);
